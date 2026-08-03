@@ -1,9 +1,7 @@
-# Storefront
+# MyCommerce
 
 A single-vendor e-commerce store for physical products. Built for speed, reliability,
 and security over feature count.
-
-> Rename this project before Phase 1 — the folder name `storefront` is a placeholder.
 
 ## Status
 
