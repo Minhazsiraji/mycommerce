@@ -233,7 +233,22 @@ support-desk operation that runs constantly and has no user ID to filter on.
 
 ## Migrations
 
-Generated with `drizzle-kit generate`, reviewed by hand, applied in CI. Never
-hand-edit a generated file after it has been applied anywhere. Never run `drizzle-kit
-push` against production. Destructive migrations get split: deploy the additive change,
-backfill, then remove the old column in a later release.
+Generated with `drizzle-kit generate`, reviewed by hand, applied by
+`scripts/migrate.mjs`. Never hand-edit a generated file after it has been applied
+anywhere. Never run `drizzle-kit push` against production. Destructive migrations get
+split: deploy the additive change, backfill, then remove the old column in a later
+release.
+
+**On deploy:** Vercel runs the `vercel-build` script, which migrates *before* Next
+compiles. A failed migration fails the build — far better than shipping code whose
+tables do not exist and 500ing every page. Drizzle records applied migrations in
+`__drizzle_migrations`, so re-running on every build is a no-op.
+
+The same script runs locally via `pnpm db:migrate`, so the thing tested is the thing
+that deploys.
+
+**Preview deployments do not migrate.** They currently share the production database,
+so migrating from an unmerged branch would apply unreviewed schema to live data.
+Previews therefore run against whatever schema production already has — fine for
+additive changes, misleading for anything else. The proper fix is a Neon branch per
+preview, scheduled for P5.

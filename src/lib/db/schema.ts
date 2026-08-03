@@ -7,3 +7,4 @@
  */
 
 export * from '@/modules/accounts/schema'
+export * from '@/modules/catalog/schema'

@@ -15,17 +15,19 @@ Repo, tooling, and the skeleton everything else hangs from.
 - Better Auth: register, login, verify email, reset password
 - `requireSession` / `requireRole` guards
 - Env validation at boot, security headers, base layout
-- CI: typecheck, lint, unit tests, migrations
+- CI: typecheck, lint, unit tests
+- Migrations applied on deploy via `vercel-build` (production only)
 - Deploy to Vercel with a preview environment
 
 **Done when:** a user can register, verify, log in, and reach an empty account page in
-production.
+production. ✅ **Complete** — verified end to end against production.
 
 ## P1 — Catalog
 
 The read side, and the first thing that looks like a store.
 
-- `categories`, `products`, `product_variants`, `product_images` schema
+- ✅ `categories`, `products`, `product_variants`, `product_images` schema, with a
+  Postgres-generated weighted `tsvector` and GIN index for search
 - R2 upload with presigned URLs
 - Admin: product CRUD, variant editor, image ordering, category management
 - Storefront: home, category listing, product detail, variant selection
