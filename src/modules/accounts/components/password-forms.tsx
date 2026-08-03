@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { requestPasswordReset, resetPassword } from '../auth-client'
-import { emailSchema, passwordSchema } from '../schema'
+import { emailSchema, passwordSchema } from '../validators'
 
 export function ForgotPasswordForm() {
   const [error, setError] = useState<string>()

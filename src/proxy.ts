@@ -14,6 +14,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PRIVATE_PREFIXES = ['/account', '/admin']
 
+/**
+ * MUST match `advanced.cookiePrefix` in modules/accounts/auth.ts.
+ *
+ * `getSessionCookie` defaults to looking for `better-auth.session_token`. With a
+ * custom prefix and no config passed, it never finds the cookie and bounces
+ * every signed-in visitor back to /login — an infinite loop out of the account
+ * area that no unit test would catch.
+ */
+const COOKIE_PREFIX = 'mycommerce'
+
 export default function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
 
@@ -40,7 +50,7 @@ export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPrivate = PRIVATE_PREFIXES.some((p) => pathname.startsWith(p))
 
-  if (isPrivate && !getSessionCookie(request)) {
+  if (isPrivate && !getSessionCookie(request, { cookiePrefix: COOKIE_PREFIX })) {
     const url = new URL('/login', request.url)
     url.searchParams.set('next', pathname)
     return NextResponse.redirect(url)

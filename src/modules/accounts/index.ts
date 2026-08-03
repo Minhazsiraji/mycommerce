@@ -18,4 +18,4 @@ export {
   resetPasswordSchema,
   type RegisterInput,
   type LoginInput,
-} from './schema'
+} from './validators'

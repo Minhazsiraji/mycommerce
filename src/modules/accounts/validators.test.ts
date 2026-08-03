@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { loginSchema, passwordSchema, registerSchema } from './schema'
+import { loginSchema, passwordSchema, registerSchema } from './validators'
 
 describe('passwordSchema', () => {
   it('rejects passwords under 10 characters', () => {

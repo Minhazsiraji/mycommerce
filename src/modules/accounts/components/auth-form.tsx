@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { safeRedirect } from '@/lib/safe-redirect'
 import { signIn, signUp } from '../auth-client'
-import { loginSchema, registerSchema } from '../schema'
+import { loginSchema, registerSchema } from '../validators'
 
 type Mode = 'login' | 'register'
 type Errors = Partial<Record<'name' | 'email' | 'password' | 'form', string>>

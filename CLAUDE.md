@@ -95,7 +95,13 @@ Violating any of these is a bug, regardless of what a task asks for.
   webhooks and third-party callbacks.
 - Data access lives in `modules/<m>/repository.ts`. Business logic in `service.ts`.
   Components never call Drizzle directly.
-- Zod schemas in `modules/<m>/schema.ts`, shared between client and server.
+- `modules/<m>/schema.ts` holds **Drizzle tables only** — it is server-only.
+  Zod validators go in `modules/<m>/validators.ts` and must import nothing
+  server-side. A client component importing the Drizzle file drags the whole ORM
+  into the browser bundle.
+- Any config value duplicated between `auth.ts` and `proxy.ts` (the cookie prefix
+  today) must be flagged with a comment in both places. They are not type-checked
+  against each other, and a mismatch locks signed-in users out of their account.
 - Files `kebab-case.ts`, components `PascalCase.tsx`, DB tables and columns
   `snake_case`.
 - Migrations via `drizzle-kit generate` — never hand-edit a generated migration, and
