@@ -57,17 +57,20 @@ Commerce-specific risks, each with the control that addresses it.
 | 1 | **Price tampering** — client submits its own total | Client sends only variant IDs and quantities. Every amount recomputed server-side from the DB in the same request that creates the payment intent. |
 | 2 | **Inventory oversell** — concurrent buyers of the last unit | Conditional decrement `WHERE stock >= n` inside the order transaction; check affected row count. |
 | 3 | **Coupon abuse** — one code redeemed past its limit | Atomic `usage_count` increment inside the same transaction; `coupon_redemptions` enforces per-user limits. |
-| 4 | **Webhook forgery** | Verify provider signature on the raw body before parsing. Reject unsigned or stale (>5 min) timestamps. |
-| 5 | **Webhook replay** | Unique index on `(provider, event_id)`. The insert is the dedupe. |
+| 4 | **Payment notification forgery** | SSLCommerz IPN is **not** self-authenticating. Take `val_id` from the notification, call the provider's server-side validation API, and confirm the returned amount, currency, and order reference match our record. Never trust the posted body. Signature-based providers verify the signature on the raw body before parsing. |
+| 5 | **Notification replay** | Unique index on `(provider, event_id)`. The insert is the dedupe. |
 | 6 | **IDOR on orders/addresses** | Ownership in the `WHERE` clause, always. |
 | 7 | **Guest order enumeration** | Lookup requires order number **and** matching email; rate limited; order numbers are not sequentially guessable. |
 | 8 | **Fake reviews** | Login required, one per user per product, `pending` until moderated, verified-purchase flag from `order_id`. |
 | 9 | **Card testing** — bots probing stolen cards via checkout | Cloudflare bot protection, per-IP checkout rate limit, provider-side velocity rules. |
 | 10 | **Stored XSS via product/review content** | React escapes by default; no `dangerouslySetInnerHTML` on user or admin input. Rich text sanitised server-side with an allowlist. |
-| 11 | **Malicious file upload** | Presigned R2 uploads, admin only, extension + MIME + magic-byte check, 5 MB cap, served from a separate origin. |
+| 11 | **Malicious file upload** | Presigned R2 uploads, extension + MIME + magic-byte check, 5 MB cap, served from a separate origin with `Content-Disposition: attachment`. Two surfaces with different limits: admin product images, and **customer transfer receipts** — the latter is unauthenticated-adjacent, so it is order-scoped, rate limited to 3 per order, and images only. |
 | 12 | **Privilege escalation** | `role` is never accepted from a request body. Changing it is a separate, audited admin action. |
 | 13 | **Secret leakage** | No secrets in the repo. Server-only env validated at boot by Zod; anything client-visible must be `NEXT_PUBLIC_` and is reviewed. |
 | 14 | **Dependency compromise** | Lockfile committed, Dependabot on, `pnpm audit` in CI, builds fail on high severity. |
+| 15 | **Forged transfer receipt** — customer uploads a fake screenshot to claim payment | The upload is **evidence for a human, never proof**. Confirmation is authorised against the bank statement alone. `confirmTransfer` requires the admin to enter the observed amount, and rejects a mismatch with the order total. |
+| 16 | **Wrong or malicious transfer confirmation** | `confirmTransfer` is admin-only, audit logged with actor and amount, and irreversible only forward — a mistaken confirmation is corrected by a refund record, never by editing the payment row. |
+| 17 | **Stock hostage via unpaid orders** | Bank transfers reserve stock for 72 hours, gateway checkouts for 30 minutes; a cron releases both. Without separate windows, either legitimate transfers get cancelled or a bot can freeze inventory by starting checkouts. |
 
 SQL injection is covered by Drizzle's parameterisation — the only way to reintroduce it
 is `sql.raw()` with interpolated input, which is banned. CSRF is covered by Server

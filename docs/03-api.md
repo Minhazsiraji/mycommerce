@@ -104,31 +104,83 @@ Webhook handlers **acknowledge fast**: verify, dedupe, persist, return 200. Slow
 goes to the outbox. A provider that times out will retry, and retries amplify whatever
 is already slow.
 
-## Payment provider interface
+## Payment providers
 
-The abstraction that keeps the gateway swappable. Stripe is the reference
-implementation; SSLCommerz, bKash, or Razorpay implement the same interface without
-touching checkout.
+Two structurally different mechanisms, so `PaymentProvider` is a **union**, not one
+interface. Forcing a manual bank transfer into a gateway-shaped API produces a fake
+webhook and a fake payment reference; keeping them separate keeps both honest.
+
+### What the store accepts
+
+| Customer-facing method | Handled by | Integrations |
+|---|---|---|
+| Cards — Visa, Mastercard, Amex | SSLCommerz | 1 |
+| bKash, Nagad, Rocket, Upay | SSLCommerz | (same one) |
+| Internet banking | SSLCommerz | (same one) |
+| Bank wire / direct deposit | Manual, admin-verified | 1 |
+
+**SSLCommerz is an aggregator.** A single integration renders bKash, Nagad, Rocket,
+cards, and bank channels on its hosted checkout page. Integrating those wallets
+individually means separate merchant onboarding, credentials, webhook handlers, and
+reconciliation for each — in exchange for the same customer-visible options.
+
+Direct bKash (PGW) is worth adding **only on evidence**: its per-transaction fee is
+lower than the aggregator's, so once bKash volume makes the fee delta exceed the
+maintenance cost, add it as a second `HostedProvider`. Phase 4+ optimisation, not a
+launch requirement.
+
+> Confirm current MFS coverage and per-channel rates against your own SSLCommerz
+> merchant agreement before launch. Rosters and pricing change; this document is not
+> the authority on them.
+
+### Hosted providers
 
 ```ts
-export interface PaymentProvider {
-  readonly id: string
+export interface HostedProvider {
+  readonly kind: 'hosted'
+  readonly id: string                       // 'sslcommerz'
 
-  createIntent(input: {
+  createSession(input: {
     orderId: string
-    amount: number          // minor units, server-computed
+    orderNumber: string
+    amount: number                          // minor units, server-computed
     currency: string
-    customerEmail: string
-    metadata: Record<string, string>
-  }): Promise<{ clientSecret: string; providerRef: string }>
+    customer: { name: string; email: string; phone: string }
+    shippingAddress: AddressSnapshot        // SSLCommerz requires this
+  }): Promise<{ redirectUrl: string; providerRef: string }>
 
-  verifyWebhook(req: Request): Promise<PaymentEvent>   // throws on bad signature
+  verifyCallback(req: Request): Promise<PaymentEvent>   // throws if unverifiable
 
   refund(input: {
     providerRef: string
     amount: number
     reason?: string
   }): Promise<{ refundRef: string; status: RefundStatus }>
+}
+```
+
+SSLCommerz is **redirect-based**: post the session, receive a gateway page URL, send
+the customer there. There is no client secret and no embedded card form — which is
+exactly what keeps the store in PCI SAQ A.
+
+**The critical detail:** SSLCommerz's IPN payload is not self-authenticating the way a
+signed Stripe webhook is. `verifyCallback` must take the `val_id` from the notification
+and call the provider's **server-side validation API** to obtain the authoritative
+result, then confirm the returned amount and currency match the order. Trusting the
+posted body is the single most likely way to ship a forged-payment vulnerability here.
+
+Order state changes happen **only** in `verifyCallback`. Never on the browser redirect
+back to the site — that return trip is forgeable and routinely lost on mobile networks.
+
+### Manual providers
+
+```ts
+export interface ManualProvider {
+  readonly kind: 'manual'
+  readonly id: string                       // 'bank_transfer'
+
+  getInstructions(order: Order): PaymentInstructions   // account details + reference
+  readonly holdWindowHours: number                     // 72 for bank transfer
 }
 
 export type PaymentEvent =
@@ -137,10 +189,35 @@ export type PaymentEvent =
   | { type: 'refund.succeeded';  eventId: string; providerRef: string; orderId: string; amount: number }
 ```
 
-Redirect-based gateways (common outside Stripe) return a hosted checkout URL in place
-of a `clientSecret`; the field is named generically for that reason. Order state
-transitions happen **only** in the webhook handler — never on the browser redirect back
-to the site, which is trivially forged and unreliable on flaky mobile connections.
+No `createSession`, no `verifyCallback`, no programmatic `refund` — a bank wire refund
+is an outbound transfer the owner makes, recorded afterwards.
+
+**Flow:**
+
+1. `placeOrder` reserves stock and creates the order as `awaiting_transfer`.
+2. Customer sees bank details plus their order number as the transfer reference.
+3. Customer submits the transaction reference and optionally uploads a receipt.
+4. Admin checks the **bank statement** and confirms.
+5. Order moves to `paid`; inventory movement and confirmation email follow.
+6. Unconfirmed after 72 hours → cron releases stock and cancels.
+
+The uploaded receipt is **evidence for the admin, never proof of payment**. A screenshot
+is trivially forged; confirmation is authorised against the bank statement alone. See
+[security](04-security.md#threat-model).
+
+Note the two different hold windows: 30 minutes for an abandoned gateway checkout, 72
+hours for a bank transfer. A single expiry constant would either cancel legitimate
+transfers or hold stock hostage for days after a dropped card payment.
+
+### Related Server Actions
+
+| Action | Auth | Notes |
+|---|---|---|
+| `getPaymentMethods` | public | Available methods with fees and expected timing |
+| `submitTransferProof` | public | Reference + optional receipt; rate limited, order-scoped |
+| `listPendingTransfers` | admin | Verification queue |
+| `confirmTransfer` | admin | Amount must match order total; audit logged |
+| `rejectTransfer` | admin | Reason required; notifies customer |
 
 ## Caching and revalidation
 

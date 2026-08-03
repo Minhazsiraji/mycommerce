@@ -43,16 +43,21 @@ The riskiest phase. Every invariant in `CLAUDE.md` gets exercised here.
 - Cart drawer, quantity updates, live stock validation
 - Address book and address form
 - Weight/destination shipping rate calculation
-- Payment adapter interface + Stripe implementation
+- Payment provider union: `HostedProvider` + `ManualProvider`
+- SSLCommerz integration — hosted redirect, IPN handler, **server-side `val_id`
+  validation**, sandbox tested across card, bKash, Nagad and Rocket channels
+- Bank transfer flow: instructions page, reference + receipt submission, admin
+  verification queue, confirm/reject with audit logging
 - `placeOrder` transaction: conditional stock decrement, order creation, snapshots
-- Webhook handler with signature verification and idempotency
 - Order confirmation page and email
-- Cron: release expired pending orders
+- Cron: release expired orders — 30 min gateway, 72 h bank transfer
 
-**Done when:** a real card completes a real order and stock is correct afterwards.
+**Done when:** a real payment through SSLCommerz completes an order, a bank transfer is
+confirmed by hand, and stock is correct after both.
 
 **Test before moving on:** concurrent purchase of the last unit; tampered price
-rejected; duplicate webhook is a no-op.
+rejected; duplicate IPN is a no-op; **forged IPN with a valid-looking body but bad
+`val_id` is rejected**; transfer confirmation with a mismatched amount is refused.
 
 ## P3 — Orders and fulfilment
 

@@ -8,10 +8,15 @@ Postgres via Drizzle. Table and column names are `snake_case`; every table has `
 These are the choices worth getting right before any code exists.
 
 **1. Money is `integer`, in minor units.**
-`1999` means $19.99. Never `float`, never `numeric` for arithmetic in application code.
-Floating point money produces rounding errors that surface as one-cent discrepancies in
-reconciliation, and they are miserable to trace. A single `currency` char(3) is stored
-alongside; the store operates in one currency at a time.
+`199900` means ৳1,999.00 — amounts are stored in poisha, the minor unit of BDT. Never
+`float`, never `numeric` for arithmetic in application code. Floating point money
+produces rounding errors that surface as one-poisha discrepancies in reconciliation,
+and they are miserable to trace. A `currency` char(3) is stored alongside every amount;
+the store operates in **BDT** only.
+
+Conversion to gateway units happens at the provider boundary and nowhere else —
+SSLCommerz expects decimal BDT, so `199900 → "1999.00"` is the adapter's job. Storing
+decimals internally to save that one conversion is how rounding bugs get in.
 
 **2. Every product has at least one variant.**
 Even a product with no options gets one default variant. The alternative — price and
@@ -184,7 +189,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 | `cart_items` | Stores `unit_price` at add time for display only. Checkout always recomputes from `product_variants`. |
 | `orders` | `order_number` is human-readable and sequential-ish for support conversations; `id` stays a UUID. Three independent status fields — an order can be paid but unfulfilled, or fulfilled but refunded. Collapsing them into one enum is a mistake. |
 | `order_items` | Snapshots. See decision 3. |
-| `payments` | One row per attempt, not per order — failed and retried payments must both be visible. `raw_payload` retains the provider response for disputes. |
+| `payments` | One row per attempt, not per order — failed and retried payments must both be visible. `raw_payload` retains the provider response for disputes. Manual transfers add `submitted_reference`, `proof_r2_key`, `verified_by`, `verified_at` — null for gateway payments. `provider` is `sslcommerz` or `bank_transfer`. |
 | `shipments` | Carrier, tracking number, status. An order may ship in multiple parcels. |
 | `inventory_movements` | Append-only. Never update or delete a row here. |
 

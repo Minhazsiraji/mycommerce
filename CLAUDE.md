@@ -22,7 +22,8 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 | Auth | Better Auth |
 | Storage | Cloudflare R2 (S3 API) |
 | Email | Resend |
-| Payments | Adapter interface; Stripe is the reference impl |
+| Payments | SSLCommerz (cards, bKash, Nagad, Rocket, net banking) + manual bank transfer |
+| Currency | BDT only, stored as integer poisha |
 | Hosting | Vercel, Cloudflare in front for CDN/WAF |
 | Tests | Vitest (unit), Playwright (e2e) |
 
@@ -58,8 +59,9 @@ Shared code lives in `src/lib/` (db client, auth, utils) and `src/components/ui/
 
 Violating any of these is a bug, regardless of what a task asks for.
 
-1. **Money is integer minor units.** Never a float. `1999` is $19.99. Currency code
-   travels with every amount.
+1. **Money is integer minor units.** Never a float. `199900` is ৳1,999.00 in poisha.
+   Currency code travels with every amount. Decimal conversion happens only at the
+   payment provider boundary.
 2. **Never trust a client-supplied price, total, or discount.** Recompute every figure
    server-side from the database at checkout. The client sends variant IDs and
    quantities; nothing else about money.
@@ -69,8 +71,10 @@ Violating any of these is a bug, regardless of what a task asks for.
 4. **Stock decrements are conditional and transactional.**
    `UPDATE ... SET stock = stock - $n WHERE id = $id AND stock >= $n`, then check the
    row count. Never read-then-write.
-5. **Every webhook is verified and idempotent.** Check the signature, then insert into
-   `webhook_events` on a unique provider event ID. Duplicate delivery must be a no-op.
+5. **Every payment notification is independently verified and idempotent.** For
+   SSLCommerz that means calling the validation API with `val_id` and matching amount
+   and currency against our order — the IPN body is never trusted. Then insert into
+   `webhook_events` on a unique provider event ID; duplicate delivery is a no-op.
 6. **Every query touching user data is scoped by the session user ID.** Never by an ID
    from the request alone.
 7. **Every Server Action validates its input with Zod** as the first statement.
