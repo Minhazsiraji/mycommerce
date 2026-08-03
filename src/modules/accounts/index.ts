@@ -1,0 +1,21 @@
+/**
+ * Public API of the accounts module. Other modules and the app import from here
+ * and nowhere else — see the dependency rule in CLAUDE.md.
+ *
+ * Server-side only. Client components inside this module import
+ * `./auth-client` directly; components outside it should not need auth calls.
+ */
+
+export { auth, type AuthSession } from './auth'
+export { getSession, requireSession, requireRole } from './guards'
+export type { Role, User, Session } from './schema'
+export {
+  emailSchema,
+  passwordSchema,
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  type RegisterInput,
+  type LoginInput,
+} from './schema'

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - name: Build
+        # Real secrets are never exposed to CI. Env validation is skipped and
+        # placeholders stand in for values the build reads at compile time.
+        env:
+          SKIP_ENV_VALIDATION: 'true'
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: pnpm build
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high

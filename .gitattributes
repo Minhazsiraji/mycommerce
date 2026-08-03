@@ -1,0 +1,16 @@
+# Normalise to LF in the repository. Without this, commits from Windows and CI
+# produce spurious whole-file diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+pnpm-lock.yaml linguist-generated=true
+drizzle/meta/** linguist-generated=true

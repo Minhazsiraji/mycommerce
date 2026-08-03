@@ -1,0 +1,118 @@
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { z } from 'zod'
+
+/**
+ * Identity tables. Shapes are dictated by Better Auth's Drizzle adapter — field
+ * names must match what it expects. Column names are snake_cased automatically by
+ * the `casing` option on the db client.
+ *
+ * `role` is our own addition, declared to Better Auth as an additional field with
+ * `input: false` so it can never be set from a request body.
+ */
+
+export const users = pgTable(
+  'users',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    role: text('role').notNull().default('customer'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('users_email_idx').on(t.email)],
+)
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('sessions_token_idx').on(t.token), index('sessions_user_id_idx').on(t.userId)],
+)
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at'),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('accounts_user_id_idx').on(t.userId)],
+)
+
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('verifications_identifier_idx').on(t.identifier)],
+)
+
+export type User = typeof users.$inferSelect
+export type Session = typeof sessions.$inferSelect
+export type Role = 'customer' | 'admin'
+
+/**
+ * Validators shared by client and server. The client copy gives immediate
+ * feedback; the server copy is the one that decides.
+ */
+
+export const emailSchema = z.email('Enter a valid email address')
+
+// Length only. Composition rules (a digit, a symbol, a capital) push people
+// toward predictable substitutions without adding real entropy; length and a
+// breach check do more. Better Auth enforces the minimum server-side too.
+export const passwordSchema = z
+  .string()
+  .min(10, 'Use at least 10 characters')
+  .max(128, 'Use at most 128 characters')
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(1, 'Enter your name').max(80),
+  email: emailSchema,
+  password: passwordSchema,
+})
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Enter your password'),
+})
+
+export const forgotPasswordSchema = z.object({ email: emailSchema })
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: passwordSchema,
+})
+
+export type RegisterInput = z.infer<typeof registerSchema>
+export type LoginInput = z.infer<typeof loginSchema>
