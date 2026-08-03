@@ -14,7 +14,7 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 15, App Router, React Server Components |
+| Framework | Next.js 16, App Router, React Server Components |
 | Language | TypeScript, `strict: true` |
 | UI | Tailwind CSS + shadcn/ui |
 | Database | Postgres (Neon) |
@@ -26,6 +26,14 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 | Currency | BDT only, stored as integer poisha |
 | Hosting | Vercel, Cloudflare in front for CDN/WAF |
 | Tests | Vitest (unit), Playwright (e2e) |
+
+**Version pins that are deliberate, not stale:** TypeScript is held at 6 because
+`typescript-eslint` does not support TS 7, and ESLint at 9 because
+`eslint-plugin-react` calls `context.getFilename()`, removed in ESLint 10. Check
+both upstreams before bumping either.
+
+Edge logic lives in `src/proxy.ts` — Next 16 renamed the `middleware` convention
+to `proxy`. It must sit inside `src/`; at the repo root it is silently ignored.
 
 **Architecture: modular monolith.** No microservices, no message broker, no separate
 services. If you think we need a queue, we need a Postgres table and a cron route.

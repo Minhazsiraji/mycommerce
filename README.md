@@ -5,12 +5,14 @@ and security over feature count.
 
 ## Status
 
-**Phase 0 — specification.** No application code yet. The documents in `docs/` are the
-contract; code follows.
+**Phase 0 complete** — specification in `docs/`.
+**Phase P0 complete** — scaffold, database schema, authentication, CI. Registration,
+email verification, sign-in, and password reset are implemented; the catalog arrives
+in P1.
 
 ## Stack
 
-Next.js 15 (App Router) · TypeScript · Tailwind + shadcn/ui · Postgres (Neon) ·
+Next.js 16 (App Router) · TypeScript · Tailwind 4 · Postgres (Neon) ·
 Drizzle ORM · Better Auth · Cloudflare R2 · Resend · Vercel
 
 Architecture is a **modular monolith** — clear module boundaries, one deployable.

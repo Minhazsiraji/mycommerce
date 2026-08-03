@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 
 @theme {
+  /* Without this, `font-sans` falls back to the system stack and the
+     self-hosted Inter from next/font is never used. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
   --color-muted: #6b7280;

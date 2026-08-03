@@ -2,31 +2,39 @@ import { getSessionCookie } from 'better-auth/cookies'
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
+ * Next 16 renamed the `middleware` file convention to `proxy`.
+ *
  * Two jobs: per-request CSP nonce, and an optimistic gate on private routes.
  *
  * The route gate is a *cookie presence* check, not authentication. It exists to
  * avoid rendering a protected page for an obviously signed-out visitor. The real
- * check is `requireSession` / `requireRole` in the page itself — middleware must
+ * check is `requireSession` / `requireRole` in the page itself — this file must
  * never be the only thing standing between a request and private data.
  */
 
 const PRIVATE_PREFIXES = ['/account', '/admin']
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+
+  const isDev = process.env.NODE_ENV !== 'production'
 
   const csp = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // React's development build needs eval() for its debugging features and says
+    // so explicitly in the console. It never uses eval() in production, so this
+    // relaxation is scoped to dev and the shipped policy stays strict.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' blob: data:`,
     `font-src 'self'`,
-    `connect-src 'self'`,
+    // ws: is the dev HMR socket only.
+    `connect-src 'self'${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `object-src 'none'`,
-    ...(process.env.NODE_ENV === 'production' ? [`upgrade-insecure-requests`] : []),
+    ...(isDev ? [] : [`upgrade-insecure-requests`]),
   ].join('; ')
 
   const { pathname } = request.nextUrl

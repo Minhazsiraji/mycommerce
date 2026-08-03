@@ -9,7 +9,7 @@ Each phase ends in a deployable state. Nothing is left half-wired between phases
 
 Repo, tooling, and the skeleton everything else hangs from.
 
-- Next.js 15 + TypeScript strict, Tailwind, shadcn/ui
+- Next.js 16 + TypeScript strict, Tailwind 4, shadcn/ui
 - ESLint with `eslint-plugin-boundaries` enforcing the module rule
 - Drizzle + Neon, migration pipeline, seed script
 - Better Auth: register, login, verify email, reset password
