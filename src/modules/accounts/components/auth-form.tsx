@@ -9,6 +9,9 @@ import type { Route } from 'next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { safeRedirect } from '@/lib/safe-redirect'
+// From actions.ts, not the module barrel: this is a client component, and the
+// barrel also exports server-only reads.
+import { mergeGuestCart } from '@/modules/cart/actions'
 import { signIn, signUp } from '../auth-client'
 import { loginSchema, registerSchema } from '../validators'
 
@@ -69,6 +72,11 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string | undefined
         })
         return
       }
+
+      // A guest who filled a cart then signed in must not lose it — that is an
+      // abandoned checkout at the last possible step. Failure here is not worth
+      // blocking the sign-in over.
+      await mergeGuestCart().catch(() => {})
 
       router.push(safeRedirect(next, '/account') as Route)
       router.refresh()

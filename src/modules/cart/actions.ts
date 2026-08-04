@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { refresh } from 'next/cache'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { requireSession } from '@/modules/accounts'
@@ -10,12 +10,16 @@ import { CartError, type CartView } from './service'
 import { addToCartSchema, removeLineSchema, updateLineSchema } from './validators'
 
 /**
- * The cart is per-visitor and never cached, so these use `revalidatePath`
- * rather than a cache tag — there is no shared cache entry to invalidate, only
- * this request's rendered output.
+ * `refresh()` from next/cache, not `revalidatePath` and not a cache tag.
+ *
+ * The cart is per-visitor, so there is no shared server cache entry to
+ * invalidate. What goes stale is the *client's* router cache: the rendered
+ * segment it already holds. `revalidatePath` did not touch that — the database
+ * updated correctly while the page kept showing the old quantity until a hard
+ * reload. This is the API built for exactly that case.
  */
-function refresh() {
-  revalidatePath('/', 'layout')
+function refreshClient() {
+  refresh()
 }
 
 function toResult(error: unknown): ActionResult<never> {
@@ -29,7 +33,7 @@ export async function addToCart(input: unknown): Promise<ActionResult<CartView>>
 
   try {
     await service.addToCart(parsed.data)
-    refresh()
+    refreshClient()
     return ok(await service.readCart())
   } catch (error) {
     return toResult(error)
@@ -42,7 +46,7 @@ export async function updateLineQuantity(input: unknown): Promise<ActionResult<C
 
   try {
     await service.updateLineQuantity(parsed.data.lineId, parsed.data.quantity)
-    refresh()
+    refreshClient()
     return ok(await service.readCart())
   } catch (error) {
     return toResult(error)
@@ -55,7 +59,7 @@ export async function removeLine(input: unknown): Promise<ActionResult<CartView>
 
   try {
     await service.removeLine(parsed.data.lineId)
-    refresh()
+    refreshClient()
     return ok(await service.readCart())
   } catch (error) {
     return toResult(error)

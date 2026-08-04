@@ -56,10 +56,20 @@ const config = [
             { target: ['app', 'ui', 'lib'], allow: '**' },
             // Same module: any internal file.
             { target: [['module', { moduleName: '${from.moduleName}' }]], allow: '**' },
-            // Different module: the public API, plus components, which routes
-            // legitimately render. Everything else — repositories, services,
-            // internal helpers — stays private.
-            { target: ['module'], allow: ['index.ts', 'components/**'] },
+            /**
+             * Different module: the public API, its Server Actions, and its
+             * components.
+             *
+             * `actions.ts` is an entry point in its own right — `'use server'`
+             * makes it an RPC boundary a client component may call. It has to
+             * be separate from index.ts because the barrel also re-exports
+             * server-only reads, and importing that from a client component
+             * pulls the whole server stack into the browser bundle.
+             *
+             * Everything else — repositories, services, internal helpers —
+             * stays private.
+             */
+            { target: ['module'], allow: ['index.ts', 'actions.ts', 'components/**'] },
           ],
         },
       ],

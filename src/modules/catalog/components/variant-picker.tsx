@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { formatBdt } from '@/lib/money'
+import { AddToCartButton } from '@/modules/cart/components/add-to-cart-button'
 
 export type PickableVariant = {
   id: string
@@ -33,7 +34,7 @@ export function VariantPicker({
    * It appears only once the inline button has actually left the viewport, so
    * it never covers content unnecessarily.
    */
-  const inlineButtonRef = useRef<HTMLButtonElement>(null)
+  const inlineButtonRef = useRef<HTMLDivElement>(null)
   const [showStickyBar, setShowStickyBar] = useState(false)
 
   useEffect(() => {
@@ -109,17 +110,15 @@ export function VariantPicker({
         )}
       </p>
 
-      {/* Cart arrives in P2 — a disabled button is honest about that rather
-          than pretending the store can take orders. */}
-      <button
-        ref={inlineButtonRef}
-        type="button"
-        disabled
-        className="h-11 cursor-not-allowed rounded-md bg-(--color-accent) px-6 text-sm font-medium text-(--color-accent-fg) opacity-40"
-      >
-        Add to cart
-      </button>
-      <p className="-mt-3 text-xs text-(--color-muted)">Checkout opens soon.</p>
+      <div ref={inlineButtonRef}>
+        <AddToCartButton
+          variantId={selected.id}
+          disabled={selected.stock === 0}
+          className="w-full"
+        >
+          {selected.stock === 0 ? 'Sold out' : 'Add to cart'}
+        </AddToCartButton>
+      </div>
 
       {/* Mobile only — on a wide screen the buy button stays visible beside the
           gallery, so a pinned bar would be noise. */}
@@ -141,16 +140,11 @@ export function VariantPicker({
             </p>
           </div>
 
-          <button
-            type="button"
-            disabled
-            // Not focusable while hidden, or keyboard users would tab into an
-            // off-screen control.
-            tabIndex={showStickyBar ? 0 : -1}
-            className="h-11 shrink-0 cursor-not-allowed rounded-md bg-(--color-accent) px-6 text-sm font-medium text-(--color-accent-fg) opacity-40"
-          >
-            Add to cart
-          </button>
+          <div className="shrink-0">
+            <AddToCartButton variantId={selected.id} disabled={selected.stock === 0}>
+              {selected.stock === 0 ? 'Sold out' : 'Add to cart'}
+            </AddToCartButton>
+          </div>
         </div>
       </div>
     </div>

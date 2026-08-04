@@ -60,7 +60,12 @@ src/modules/
 through its `index.ts`. Never reach into `../catalog/internal/...`. Enforced by
 `eslint-plugin-boundaries` — if the lint fails, fix the design, not the lint config.
 
-Two carve-outs, both about tables rather than behaviour:
+**Client components import `actions.ts` directly**, never the module barrel — the
+barrel also re-exports server-only reads, and pulling that into a client component
+drags the whole server stack into the browser bundle. `'use server'` makes
+`actions.ts` an RPC boundary, so it is a legitimate entry point.
+
+Two further carve-outs, both about tables rather than behaviour:
 
 - A repository joining another module's tables imports them from `@/lib/db/schema`,
   the canonical description of the database — not from that module's folder.

@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 
 import { ThemeToggle } from '@/components/theme-toggle'
+import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +45,12 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <Link href="/account" className="text-sm text-(--color-muted) hover:text-(--color-fg)">
             Account
           </Link>
+
+          {/* Per-visitor, so it streams in rather than being baked into this
+              cached layout. */}
+          <Suspense fallback={<CartBadgeFallback />}>
+            <CartBadge />
+          </Suspense>
 
           <ThemeToggle />
         </div>
