@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { requireRole } from '@/modules/accounts'
 
 import AdminLoading from './loading'
@@ -60,6 +61,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             View store
           </Link>
+
+          <ThemeToggle />
         </div>
       </header>
 

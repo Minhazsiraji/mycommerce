@@ -1,39 +1,101 @@
 @import 'tailwindcss';
 
+/**
+ * Theme tokens.
+ *
+ * Three states, not two: no `data-theme` attribute means "follow the operating
+ * system", and an explicit `light` or `dark` means the visitor chose. That is
+ * why the dark rules below are split — the media query is scoped with
+ * `:not([data-theme])` so a visitor who picks light on a dark-mode phone
+ * actually gets light.
+ *
+ * `@theme` only declares the light values, because that is what generates the
+ * Tailwind utilities. The dark values are plain custom-property overrides,
+ * which is enough: every utility resolves the variable at use time.
+ */
+
 @theme {
   /* Without this, `font-sans` falls back to the system stack and the
      self-hosted Inter from next/font is never used. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --color-bg: #ffffff;
-  --color-fg: #0a0a0a;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
-  --color-surface: #f9fafb;
-  --color-accent: #0a0a0a;
+  --color-surface: #f6f6f8;
+  --color-fg: #101014;
+  --color-muted: #6b6b78;
+  --color-border: #e5e5ea;
+
+  /* Indigo rather than near-black: it carries the brand through buttons,
+     focus rings and selected states without shouting. */
+  --color-accent: #4f46e5;
   --color-accent-fg: #ffffff;
-  --color-danger: #b91c1c;
+  --color-accent-soft: #eef2ff;
+
+  --color-danger: #dc2626;
+  --color-success: #059669;
+}
+
+/**
+ * `color-scheme` drives native UI — scrollbars, form controls, the address bar
+ * tint on mobile. Without it here, a visitor on a dark-mode device who picks
+ * light gets a light page with dark scrollbars.
+ */
+:root[data-theme='light'],
+:root:not([data-theme]) {
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  @theme {
-    --color-bg: #0a0a0a;
-    --color-fg: #fafafa;
-    --color-muted: #9ca3af;
-    --color-border: #262626;
-    --color-surface: #141414;
-    --color-accent: #fafafa;
-    --color-accent-fg: #0a0a0a;
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    /* Not pure black. A slightly lifted near-black reduces the harsh contrast
+       of white text on #000 and lets elevated surfaces read as elevated. */
+    --color-bg: #0b0b0f;
+    --color-surface: #16161d;
+    --color-fg: #f2f2f5;
+    --color-muted: #9797a6;
+    --color-border: #272730;
+
+    /* Lifted so it keeps contrast against a dark background. */
+    --color-accent: #8b83f5;
+    --color-accent-fg: #0b0b0f;
+    --color-accent-soft: #1c1a33;
+
     --color-danger: #f87171;
+    --color-success: #34d399;
   }
 }
 
-html {
-  color-scheme: light dark;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #0b0b0f;
+  --color-surface: #16161d;
+  --color-fg: #f2f2f5;
+  --color-muted: #9797a6;
+  --color-border: #272730;
+
+  --color-accent: #8b83f5;
+  --color-accent-fg: #0b0b0f;
+  --color-accent-soft: #1c1a33;
+
+  --color-danger: #f87171;
+  --color-success: #34d399;
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-fg);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Theme changes should feel deliberate, not jarring — but never animate for
+   people who have asked the system to reduce motion. */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition:
+      background-color 200ms ease,
+      color 200ms ease;
+  }
 }

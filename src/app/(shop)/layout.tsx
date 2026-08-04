@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import { getCachedCategories } from '@/modules/catalog'
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           <Link href="/account" className="text-sm text-(--color-muted) hover:text-(--color-fg)">
             Account
           </Link>
+
+          <ThemeToggle />
         </div>
       </header>
 
