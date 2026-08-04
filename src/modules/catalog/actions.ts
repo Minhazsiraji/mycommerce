@@ -108,7 +108,6 @@ export async function createCategory(input: unknown): Promise<ActionResult<{ id:
 
   try {
     const category = await service.createCategory(parsed.data)
-    if (!category) return fail('unexpected', 'Could not create the category.')
     invalidate('categories', 'products:list', 'sitemap')
     return ok({ id: category.id })
   } catch (error) {

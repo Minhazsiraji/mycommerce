@@ -96,7 +96,11 @@ export async function createCategory(input: CategoryInput) {
   const existing = await repo.getCategoryBySlug(input.slug)
   if (existing) throw new CatalogError('That slug is already used.', 'slug')
 
-  return repo.insertCategory(input)
+  // `.returning()` yields an array, so the row is optional to the type system.
+  // Callers should not each have to re-check; fail here instead.
+  const row = await repo.insertCategory(input)
+  if (!row) throw new CatalogError('Could not create the category.')
+  return row
 }
 
 export async function updateCategory(id: string, input: CategoryInput) {
