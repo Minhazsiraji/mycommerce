@@ -20,7 +20,7 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 | Database | Postgres (Neon) |
 | ORM | Drizzle |
 | Auth | Better Auth |
-| Storage | Cloudflare R2 (S3 API) |
+| Storage | Cloudinary (R2 blocked on payment — see below) |
 | Email | Resend |
 | Payments | SSLCommerz (cards, bKash, Nagad, Rocket, net banking) + manual bank transfer |
 | Currency | BDT only, stored as integer poisha |
@@ -60,8 +60,15 @@ src/modules/
 through its `index.ts`. Never reach into `../catalog/internal/...`. Enforced by
 `eslint-plugin-boundaries` — if the lint fails, fix the design, not the lint config.
 
-Shared code lives in `src/lib/` (db client, auth, utils) and `src/components/ui/`
-(shadcn primitives). Shared code must not import from `src/modules/`.
+Shared code lives in `src/lib/` (db client, env, storage, utils) and
+`src/components/ui/` (shadcn primitives). Shared code must not import from
+`src/modules/`.
+
+**Image storage is provider-swappable.** Import `storage` from `@/lib/storage` and
+nothing else — never the `cloudinary` package directly. R2 is still the preferred
+destination (zero egress fees); Cloudinary is in place because R2 signup could not
+take payment. Any replacement must honour the `ImageTransform` options rather than
+ignore them, since the performance budget depends on CDN-side format negotiation.
 
 ## Non-negotiable invariants
 

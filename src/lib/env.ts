@@ -16,6 +16,18 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('MyCommerce <noreply@example.com>'),
   CRON_SECRET: z.string().min(16).optional(),
+
+  /**
+   * Optional deliberately, unlike DATABASE_URL.
+   *
+   * A missing database means nothing works, so failing at boot is right. A
+   * missing image credential only breaks uploads and image rendering — refusing
+   * to start the whole site over it would turn a degraded storefront into a
+   * total outage. `lib/storage` throws a precise error at point of use instead.
+   */
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
 })
 
 const clientSchema = z.object({
