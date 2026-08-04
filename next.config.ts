@@ -22,8 +22,12 @@ const nextConfig: NextConfig = {
 
   images: {
     formats: ['image/avif', 'image/webp'],
-    // R2 public hostname is added in P1 when product images land.
-    remotePatterns: [],
+    /**
+     * next/image refuses any host not listed here, so an unconfigured hostname
+     * is a hard 500 on every page that renders a product image — not a broken
+     * thumbnail. Must be kept in step with lib/storage's provider.
+     */
+    remotePatterns: [{ protocol: 'https', hostname: 'res.cloudinary.com' }],
   },
 
   typedRoutes: true,

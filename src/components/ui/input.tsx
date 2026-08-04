@@ -1,4 +1,6 @@
-import type { ComponentProps } from 'react'
+'use client'
+
+import { useId, type ComponentProps } from 'react'
 
 type Props = ComponentProps<'input'> & {
   label: string
@@ -6,7 +8,14 @@ type Props = ComponentProps<'input'> & {
 }
 
 export function Input({ label, error, id, className = '', ...props }: Props) {
-  const inputId = id ?? props.name
+  /**
+   * Controlled fields often have neither `id` nor `name` — they are driven by
+   * value/onChange. Without a fallback the label's `htmlFor` pointed at nothing,
+   * so clicking it focused nothing and screen readers announced an unlabelled
+   * box. Generating one here fixes every caller at once.
+   */
+  const generatedId = useId()
+  const inputId = id ?? props.name ?? generatedId
 
   return (
     <div className="flex flex-col gap-1.5">
