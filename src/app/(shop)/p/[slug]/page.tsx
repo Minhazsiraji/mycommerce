@@ -35,10 +35,17 @@ export default async function ProductPage({ params }: Params) {
   // Draft and archived products must not be reachable by guessing the URL.
   if (!product || product.status !== 'active') notFound()
 
+  /**
+   * Three sizes rather than one. The displayed image stays modest so the page
+   * loads fast; hover-zoom scales it 2.5x, so it needs the headroom of a larger
+   * source; the lightbox gets the largest. Cloudinary generates each on demand,
+   * so the extra sizes cost nothing until someone actually zooms.
+   */
   const images = product.images.map((image) => ({
     id: image.id,
     alt: image.alt,
-    url: storage.url(image.r2Key, { width: 1000, height: 1000, fit: 'cover' }),
+    url: storage.url(image.r2Key, { width: 1400, height: 1400, fit: 'cover' }),
+    fullUrl: storage.url(image.r2Key, { width: 2000, height: 2000, fit: 'contain' }),
     thumbUrl: storage.url(image.r2Key, { width: 128, height: 128, fit: 'cover' }),
   }))
 
