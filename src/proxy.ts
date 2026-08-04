@@ -4,12 +4,40 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Next 16 renamed the `middleware` file convention to `proxy`.
  *
- * Two jobs: per-request CSP nonce, and an optimistic gate on private routes.
+ * Two jobs: the Content-Security-Policy, and an optimistic gate on private
+ * routes.
  *
  * The route gate is a *cookie presence* check, not authentication. It exists to
  * avoid rendering a protected page for an obviously signed-out visitor. The real
  * check is `requireSession` / `requireRole` in the page itself — this file must
  * never be the only thing standing between a request and private data.
+ *
+ * ---
+ *
+ * On the absence of a nonce.
+ *
+ * The obvious CSP here is `'nonce-<x>' 'strict-dynamic'`, and that is what this
+ * file used to emit. It broke the entire site. `'strict-dynamic'` tells browsers
+ * to ignore host sources like `'self'`, so only nonce'd scripts run — and Next
+ * cannot stamp a per-request nonce onto a page that was *statically prerendered
+ * at build time*. In production, zero of eighteen script tags carried a nonce,
+ * every chunk was blocked, and nothing on the site was interactive.
+ *
+ * It looked perfectly healthy from outside: pages returned 200 with correct
+ * markup, and API calls made with fetch worked, because those never touch the
+ * blocked bundle. Only clicking something revealed it.
+ *
+ * Static rendering and per-request nonces are mutually exclusive by definition,
+ * and docs/05-performance.md commits to static catalog pages because that is
+ * where the speed comes from. So: host-based CSP, plus `'unsafe-inline'` for the
+ * bootstrap and flight-data scripts Next emits inline.
+ *
+ * What is kept is the part that matters most — `script-src 'self'` still blocks
+ * loading code from any other origin, the usual exfiltration route. What is
+ * given up is protection against injected *inline* script, which first requires
+ * an XSS hole: React escapes by default and `dangerouslySetInnerHTML` is banned
+ * on user content (docs/04-security.md, threat 10). CSP is defence in depth
+ * here, not the primary control.
  */
 
 const PRIVATE_PREFIXES = ['/account', '/admin']
@@ -25,21 +53,20 @@ const PRIVATE_PREFIXES = ['/account', '/admin']
 const COOKIE_PREFIX = 'mycommerce'
 
 export default function proxy(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
-
   const isDev = process.env.NODE_ENV !== 'production'
 
   const csp = [
     `default-src 'self'`,
-    // React's development build needs eval() for its debugging features and says
-    // so explicitly in the console. It never uses eval() in production, so this
-    // relaxation is scoped to dev and the shipped policy stays strict.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
+    // React's development build needs eval() for its debugging features. It
+    // never uses eval() in production, so that relaxation stays scoped to dev.
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' blob: data:`,
+    // Cloudinary serves every product image.
+    `img-src 'self' blob: data: https://res.cloudinary.com`,
     `font-src 'self'`,
+    // api.cloudinary.com receives direct browser uploads from admin.
     // ws: is the dev HMR socket only.
-    `connect-src 'self'${isDev ? ' ws:' : ''}`,
+    `connect-src 'self' https://api.cloudinary.com${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
@@ -56,11 +83,7 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const headers = new Headers(request.headers)
-  headers.set('x-nonce', nonce)
-  headers.set('content-security-policy', csp)
-
-  const response = NextResponse.next({ request: { headers } })
+  const response = NextResponse.next()
   response.headers.set('content-security-policy', csp)
   return response
 }
