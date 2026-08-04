@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { listActiveProducts, productFiltersSchema } from '@/modules/catalog'
+import { getCachedActiveProducts, productFiltersSchema } from '@/modules/catalog'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 
 export const metadata: Metadata = { title: 'Search' }
@@ -24,7 +24,7 @@ export default async function SearchPage({
     )
   }
 
-  const { rows, total, pageSize } = await listActiveProducts(filters)
+  const { rows, total, pageSize } = await getCachedActiveProducts(filters)
   const lastPage = Math.max(1, Math.ceil(total / pageSize))
 
   return (

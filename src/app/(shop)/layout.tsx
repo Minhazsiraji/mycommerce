@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
-import { listCategories } from '@/modules/catalog'
+import { getCachedCategories } from '@/modules/catalog'
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const categories = await listCategories()
+  const categories = await getCachedCategories()
   const tops = categories.filter((c) => !c.parentId)
 
   return (
@@ -48,8 +48,14 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">{children}</main>
 
       <footer className="border-t border-(--color-border)">
+        {/*
+          No year here on purpose. Reading the clock in a prerendered component
+          bakes whatever year the build ran into a cached page, so it would go
+          quietly wrong rather than stay current. A copyright line does not need
+          one, and it is not worth making the whole layout render per request.
+        */}
         <div className="mx-auto w-full max-w-6xl px-6 py-8 text-sm text-(--color-muted)">
-          © {new Date().getFullYear()} MyCommerce
+          © MyCommerce
         </div>
       </footer>
     </div>

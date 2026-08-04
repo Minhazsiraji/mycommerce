@@ -1,7 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { connection } from 'next/server'
+import { Suspense } from 'react'
 
 import { requireRole } from '@/modules/accounts'
+
+import AdminLoading from './loading'
 
 export const metadata: Metadata = {
   title: { default: 'Admin', template: '%s · Admin' },
@@ -13,11 +17,29 @@ const NAV = [
   { href: '/admin/categories', label: 'Categories' },
 ] as const
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+/**
+ * The authorisation check reads the session, which is per-request data. Under
+ * cacheComponents that has to sit inside a Suspense boundary, or it blocks the
+ * whole document from streaming — so it lives in this child rather than at the
+ * top of the layout. The chrome renders immediately; nothing inside it does
+ * until the check passes.
+ */
+async function Guarded({ children }: { children: React.ReactNode }) {
+  /**
+   * Declares this subtree per-request before anything else runs. Admin screens
+   * are never cacheable — they show live operational data — and without this
+   * Next tries to prerender them, then fails when the auth stack reaches for
+   * crypto during that prerender.
+   */
+  await connection()
+
   // 404s rather than 403s — an unauthorised visitor should not learn that an
   // admin area exists. See docs/04-security.md.
   await requireRole('admin')
+  return children
+}
 
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
       <header className="border-b border-(--color-border)">
@@ -41,7 +63,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-6 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-6 py-8">
+        <Suspense fallback={<AdminLoading />}>
+          <Guarded>{children}</Guarded>
+        </Suspense>
+      </main>
     </div>
   )
 }

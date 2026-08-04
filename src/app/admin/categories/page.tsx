@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 
 import { listCategories, listProductsForAdmin } from '@/modules/catalog'
 import { CategoryManager } from '@/modules/catalog/components/category-manager'
@@ -6,6 +7,8 @@ import { CategoryManager } from '@/modules/catalog/components/category-manager'
 export const metadata: Metadata = { title: 'Categories' }
 
 export default async function AdminCategoriesPage() {
+  await connection()
+
   const categories = await listCategories()
 
   // Product counts come from one listing rather than a query per category.

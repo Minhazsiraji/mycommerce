@@ -32,6 +32,14 @@ const nextConfig: NextConfig = {
 
   typedRoutes: true,
 
+  /**
+   * Opts into explicit caching: a page is dynamic unless something inside it is
+   * marked `'use cache'`. That is what makes the `updateTag` calls in the
+   * catalog actions actually invalidate something — before this they tagged
+   * nothing and did nothing.
+   */
+  cacheComponents: true,
+
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
   },

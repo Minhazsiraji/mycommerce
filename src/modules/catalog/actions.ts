@@ -9,6 +9,7 @@ import { requireRole } from '@/modules/accounts'
 
 import * as service from './service'
 import { CatalogError } from './service'
+import { CATALOG_TAGS } from './tags'
 import {
   attachImageSchema,
   categoryInputSchema,
@@ -28,10 +29,15 @@ const idSchema = z.uuid()
  * `updateTag` rather than `revalidateTag`: it is Server-Action-only and gives
  * read-your-own-writes, so an admin who saves a product sees the change on the
  * very next render instead of a stale copy.
+ *
+ * Tags come from the shared constants in tags.ts — see the note there on why
+ * these are not per-product.
  */
 function invalidate(...tags: string[]) {
   for (const tag of tags) updateTag(tag)
 }
+
+const { products: PRODUCTS, categories: CATEGORIES } = CATALOG_TAGS
 
 /** Turns an expected domain error into a form message; anything else rethrows. */
 function toResult(error: unknown): ActionResult<never> {
@@ -53,7 +59,7 @@ export async function createProduct(input: unknown): Promise<ActionResult<{ id: 
 
   try {
     const product = await service.createProduct(parsed.data)
-    invalidate('products:list', 'sitemap')
+    invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
     return toResult(error)
@@ -74,7 +80,7 @@ export async function updateProduct(
 
   try {
     const product = await service.updateProduct(id.data, parsed.data)
-    invalidate(`product:${product.id}`, 'products:list', 'sitemap')
+    invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
     return toResult(error)
@@ -93,7 +99,7 @@ export async function setProductStatus(
 
   try {
     const product = await service.setProductStatus(id.data, status.data)
-    invalidate(`product:${product.id}`, 'products:list', 'sitemap')
+    invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
     return toResult(error)
@@ -108,7 +114,7 @@ export async function createCategory(input: unknown): Promise<ActionResult<{ id:
 
   try {
     const category = await service.createCategory(parsed.data)
-    invalidate('categories', 'products:list', 'sitemap')
+    invalidate(CATEGORIES, PRODUCTS)
     return ok({ id: category.id })
   } catch (error) {
     return toResult(error)
@@ -129,7 +135,7 @@ export async function updateCategory(
 
   try {
     const category = await service.updateCategory(id.data, parsed.data)
-    invalidate('categories', `category:${category.id}`, 'products:list', 'sitemap')
+    invalidate(CATEGORIES, PRODUCTS)
     return ok({ id: category.id })
   } catch (error) {
     return toResult(error)
@@ -144,7 +150,7 @@ export async function deleteCategory(rawId: unknown): Promise<ActionResult<null>
 
   try {
     await service.deleteCategory(id.data)
-    invalidate('categories', `category:${id.data}`, 'sitemap')
+    invalidate(CATEGORIES, PRODUCTS)
     return ok(null)
   } catch (error) {
     return toResult(error)
@@ -174,7 +180,7 @@ export async function attachImage(input: unknown): Promise<ActionResult<{ id: st
 
   try {
     const image = await service.attachImage(parsed.data)
-    invalidate(`product:${parsed.data.productId}`, 'products:list')
+    invalidate(PRODUCTS)
     return ok({ id: image.id })
   } catch (error) {
     return toResult(error)
@@ -188,8 +194,8 @@ export async function removeImage(rawId: unknown): Promise<ActionResult<null>> {
   if (!id.success) return fail('validation', 'Invalid image id.')
 
   try {
-    const image = await service.removeImage(id.data)
-    invalidate(`product:${image.productId}`, 'products:list')
+    await service.removeImage(id.data)
+    invalidate(PRODUCTS)
     return ok(null)
   } catch (error) {
     return toResult(error)
@@ -204,7 +210,7 @@ export async function reorderImages(input: unknown): Promise<ActionResult<null>>
 
   try {
     await service.reorderImages(parsed.data.productId, parsed.data.ids)
-    invalidate(`product:${parsed.data.productId}`, 'products:list')
+    invalidate(PRODUCTS)
     return ok(null)
   } catch (error) {
     return toResult(error)

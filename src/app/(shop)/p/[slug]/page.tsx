@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { formatBdt } from '@/lib/money'
 import { storage } from '@/lib/storage'
-import { getProductBySlug } from '@/modules/catalog'
+import { getCachedProductBySlug } from '@/modules/catalog'
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 
@@ -12,7 +12,7 @@ type Params = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const product = await getProductBySlug(slug)
+  const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active') return {}
 
   return {
@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Params) {
   const { slug } = await params
-  const product = await getProductBySlug(slug)
+  const product = await getCachedProductBySlug(slug)
 
   // Draft and archived products must not be reachable by guessing the URL.
   if (!product || product.status !== 'active') notFound()
@@ -83,6 +83,7 @@ export default async function ProductPage({ params }: Params) {
 
           {product.variants.length > 0 ? (
             <VariantPicker
+              title={product.title}
               variants={product.variants.map((v) => ({
                 id: v.id,
                 title: v.title,

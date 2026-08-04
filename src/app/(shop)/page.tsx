@@ -1,21 +1,12 @@
 import Link from 'next/link'
 
-import { listActiveProducts } from '@/modules/catalog'
+import { getCachedActiveProducts } from '@/modules/catalog'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 
-/**
- * Next cannot tell that `listActiveProducts` reads a database, so without this
- * the page is prerendered at build time — frozen against whatever the catalog
- * held when the deploy ran. A product published afterwards would never appear.
- *
- * docs/05-performance.md wants these pages static with tag-based revalidation,
- * which needs Next's `use cache` (and the actions' existing `updateTag` calls
- * to hang off it). That is the outstanding performance task; correctness first.
- */
-export const dynamic = 'force-dynamic'
-
 export default async function HomePage() {
-  const { rows, total } = await listActiveProducts({ sort: 'newest', page: 1 })
+  // Cached and tag-invalidated, so this is served without touching the
+  // database and still updates the moment a product is published.
+  const { rows, total } = await getCachedActiveProducts({ sort: 'newest', page: 1 })
 
   return (
     <div className="flex flex-col gap-10">

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 
 import { storage } from '@/lib/storage'
 import { getProductById, listCategories } from '@/modules/catalog'
@@ -10,6 +11,8 @@ import { ProductForm } from '@/modules/catalog/components/product-form'
 export const metadata: Metadata = { title: 'Edit product' }
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  await connection()
+
   const { id } = await params
   const [product, categories] = await Promise.all([getProductById(id), listCategories()])
 

@@ -3,9 +3,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 import {
-  getCategoryBySlug,
-  listActiveProducts,
-  listCategories,
+  getCachedCategoryBySlug,
+  getCachedActiveProducts,
+  getCachedCategories,
   productFiltersSchema,
 } from '@/modules/catalog'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
@@ -14,7 +14,7 @@ type Params = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params
-  const category = await getCategoryBySlug(slug)
+  const category = await getCachedCategoryBySlug(slug)
   return category ? { title: category.name, description: category.description ?? undefined } : {}
 }
 
@@ -31,15 +31,15 @@ export default async function CategoryPage({
   const { slug } = await params
   const filters = productFiltersSchema.parse(await searchParams)
 
-  const category = await getCategoryBySlug(slug)
+  const category = await getCachedCategoryBySlug(slug)
   if (!category) notFound()
 
   // A top-level category shows everything beneath it, not just products
   // assigned to the parent directly.
-  const all = await listCategories()
+  const all = await getCachedCategories()
   const childIds = all.filter((c) => c.parentId === category.id).map((c) => c.id)
 
-  const { rows, total, pageSize } = await listActiveProducts(filters, {
+  const { rows, total, pageSize } = await getCachedActiveProducts(filters, {
     categoryIds: [category.id, ...childIds],
   })
 

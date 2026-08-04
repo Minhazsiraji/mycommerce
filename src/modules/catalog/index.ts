@@ -18,6 +18,10 @@ export {
   updateProduct,
 } from './actions'
 
+/**
+ * Uncached reads. Admin screens use these — an operator editing a product must
+ * see the database, not a cached copy.
+ */
 export {
   getCategoryBySlug,
   getProductById,
@@ -28,6 +32,16 @@ export {
   listProductsForAdmin,
   PAGE_SIZE,
 } from './repository'
+
+/** Cached reads for the storefront. Invalidated by tag from the actions. */
+export {
+  getCachedActiveProducts,
+  getCachedCategories,
+  getCachedCategoryBySlug,
+  getCachedProductBySlug,
+} from './cached'
+
+export { CATALOG_TAGS } from './tags'
 
 export type { Category, Product, ProductImage, ProductStatus, ProductVariant } from './schema'
 

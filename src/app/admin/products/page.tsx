@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
+import { connection } from 'next/server'
 
 import { formatBdt } from '@/lib/money'
 import { storage } from '@/lib/storage'
@@ -19,6 +20,8 @@ export default async function AdminProductsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
+  await connection()
+
   const raw = await searchParams
   const filters = productFiltersSchema.parse(raw)
 
