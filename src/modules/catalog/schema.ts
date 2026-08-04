@@ -1,4 +1,4 @@
-import { type SQL, sql } from 'drizzle-orm'
+import { relations, type SQL, sql } from 'drizzle-orm'
 import {
   type AnyPgColumn,
   customType,
@@ -131,6 +131,31 @@ export const productVariants = pgTable(
     index('product_variants_product_idx').on(t.productId, t.position),
   ],
 )
+
+/** Relations power `db.query.*.findMany({ with: ... })`. */
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  parent: one(categories, {
+    fields: [categories.parentId],
+    references: [categories.id],
+    relationName: 'category_parent',
+  }),
+  children: many(categories, { relationName: 'category_parent' }),
+  products: many(products),
+}))
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+  category: one(categories, { fields: [products.categoryId], references: [categories.id] }),
+  variants: many(productVariants),
+  images: many(productImages),
+}))
+
+export const productImagesRelations = relations(productImages, ({ one }) => ({
+  product: one(products, { fields: [productImages.productId], references: [products.id] }),
+}))
+
+export const productVariantsRelations = relations(productVariants, ({ one }) => ({
+  product: one(products, { fields: [productVariants.productId], references: [products.id] }),
+}))
 
 export type Category = typeof categories.$inferSelect
 export type Product = typeof products.$inferSelect
