@@ -39,6 +39,7 @@ export {
   getCachedCategories,
   getCachedCategoryBySlug,
   getCachedProductBySlug,
+  getCachedRelatedProducts,
 } from './cached'
 
 export { CATALOG_TAGS } from './tags'

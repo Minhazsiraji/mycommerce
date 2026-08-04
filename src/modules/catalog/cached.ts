@@ -40,6 +40,17 @@ export async function getCachedProductBySlug(slug: string) {
   return withDbRetry(() => repo.getProductBySlug(slug), 'getProductBySlug')
 }
 
+export async function getCachedRelatedProducts(input: {
+  excludeProductId: string
+  categoryId: string | null
+}) {
+  'use cache'
+  cacheTag(CATALOG_TAGS.products)
+  cacheLife('max')
+
+  return withDbRetry(() => repo.listRelatedProducts(input), 'listRelatedProducts')
+}
+
 export async function getCachedCategories() {
   'use cache'
   cacheTag(CATALOG_TAGS.categories)

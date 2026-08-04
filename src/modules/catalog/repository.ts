@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull, ne, notInArray, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 
@@ -252,6 +252,55 @@ export async function listActiveProducts(
     total: totals?.n ?? 0,
     pageSize: PAGE_SIZE,
   }
+}
+
+/**
+ * Products to show beneath a product page.
+ *
+ * Ordered by same-category, then in-stock, then newest — as one query rather
+ * than "same category, and if that is thin, top up". A store with nine products
+ * would otherwise show one recommendation on half its pages; this always
+ * returns up to `limit` while still preferring the genuinely related ones.
+ *
+ * Not "customers also bought": that needs order history, and with no orders it
+ * recommends nothing. Worth revisiting in P4 from real co-occurrence, which
+ * outperforms anything cleverer at this job.
+ */
+export async function listRelatedProducts(input: {
+  excludeProductId: string
+  categoryId: string | null
+  limit?: number
+}) {
+  const limit = input.limit ?? 4
+
+  const rows = await db
+    .select({
+      id: products.id,
+      slug: products.slug,
+      title: products.title,
+      brand: products.brand,
+      fromPrice,
+      totalStock,
+    })
+    .from(products)
+    .leftJoin(
+      productVariants,
+      and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+    )
+    .where(and(eq(products.status, 'active'), ne(products.id, input.excludeProductId)))
+    .groupBy(products.id)
+    .orderBy(
+      input.categoryId
+        ? desc(sql`(${products.categoryId} = ${input.categoryId})`)
+        : desc(products.createdAt),
+      desc(sql`(coalesce(sum(${productVariants.stock}), 0) > 0)`),
+      desc(products.createdAt),
+    )
+    .limit(limit)
+
+  const images = await firstImageByProduct(rows.map((r) => r.id))
+
+  return rows.map((r) => ({ ...r, imageKey: images.get(r.id) ?? null }))
 }
 
 export function listActiveProductSlugs() {

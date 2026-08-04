@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Suspense } from 'react'
 
 import { formatBdt } from '@/lib/money'
 import { storage } from '@/lib/storage'
-import { getCachedProductBySlug } from '@/modules/catalog'
+import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/catalog'
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
+import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 
 type Params = { params: Promise<{ slug: string }> }
@@ -108,6 +110,31 @@ export default async function ProductPage({ params }: Params) {
           ) : null}
         </div>
       </div>
+
+      {/* Streams in separately so it never delays the product itself — the
+          thing the visitor actually came for. */}
+      <Suspense fallback={null}>
+        <RelatedProducts productId={product.id} categoryId={product.categoryId} />
+      </Suspense>
     </div>
+  )
+}
+
+async function RelatedProducts({
+  productId,
+  categoryId,
+}: {
+  productId: string
+  categoryId: string | null
+}) {
+  const related = await getCachedRelatedProducts({ excludeProductId: productId, categoryId })
+
+  if (related.length === 0) return null
+
+  return (
+    <section className="flex flex-col gap-6 border-t border-(--color-border) pt-10">
+      <h2 className="text-xl font-semibold tracking-tight">You might also like</h2>
+      <ProductGrid products={related.map((r) => ({ ...r, totalStock: Number(r.totalStock) }))} />
+    </section>
   )
 }
