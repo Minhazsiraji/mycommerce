@@ -60,6 +60,13 @@ src/modules/
 through its `index.ts`. Never reach into `../catalog/internal/...`. Enforced by
 `eslint-plugin-boundaries` — if the lint fails, fix the design, not the lint config.
 
+Two carve-outs, both about tables rather than behaviour:
+
+- A repository joining another module's tables imports them from `@/lib/db/schema`,
+  the canonical description of the database — not from that module's folder.
+- `schema.ts` files import each other directly, because a foreign key genuinely is a
+  cross-module relationship and the barrel cannot be used without a cycle.
+
 Shared code lives in `src/lib/` (db client, env, storage, utils) and
 `src/components/ui/` (shadcn primitives). Shared code must not import from
 `src/modules/`.
