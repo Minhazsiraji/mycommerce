@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 
 import { formatBdt } from '@/lib/money'
 import { readCart } from '@/modules/cart'
@@ -13,6 +14,9 @@ export const metadata: Metadata = { title: 'Checkout' }
  * so the order summary it will build on is already correct.
  */
 export default async function CheckoutPage() {
+  // Per-request for the same reason as the cart — see the note there.
+  await connection()
+
   const cart = await readCart()
 
   if (cart.lines.length === 0) redirect('/cart')

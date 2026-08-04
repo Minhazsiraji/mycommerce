@@ -33,7 +33,16 @@ type Change = { id: string; quantity: number }
  * numbers visibly disagreed for a moment, which reads as broken rather than
  * fast. Sharing one optimistic state means every figure moves together.
  */
-export function CartContents({ lines: serverLines }: { lines: CartLineView[] }) {
+export function CartContents({
+  lines: serverLines,
+  freeDeliveryOver,
+  deliveryDays,
+}: {
+  lines: CartLineView[]
+  /** Lowest free-delivery threshold on offer, or null if the store has none. */
+  freeDeliveryOver: number | null
+  deliveryDays: { min: number; max: number } | null
+}) {
   const [lines, applyChange] = useOptimistic(serverLines, (current, change: Change) =>
     current
       .map((line) =>
@@ -69,7 +78,50 @@ export function CartContents({ lines: serverLines }: { lines: CartLineView[] }) 
           <span className="font-medium tabular-nums">{formatBdt(subtotal)}</span>
         </div>
 
-        <p className="text-xs text-(--color-muted)">Delivery is calculated at checkout.</p>
+        {/*
+          Driven by the same optimistic subtotal as everything else, so the bar
+          moves on the click rather than after a round trip.
+
+          The cart does not know the destination yet, so this shows the lowest
+          threshold on offer — promising the easiest one and then charging more
+          at checkout would be worse than saying nothing.
+        */}
+        {freeDeliveryOver !== null ? (
+          subtotal >= freeDeliveryOver ? (
+            <p className="rounded-md bg-(--color-success)/10 px-3 py-2 text-xs font-medium text-(--color-success)">
+              Free delivery unlocked
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs text-(--color-muted)">
+                Add{' '}
+                <span className="font-medium text-(--color-fg)">
+                  {formatBdt(freeDeliveryOver - subtotal)}
+                </span>{' '}
+                more for free delivery
+              </p>
+              <div
+                className="h-1.5 overflow-hidden rounded-full bg-(--color-bg)"
+                role="progressbar"
+                aria-valuenow={Math.min(100, Math.round((subtotal / freeDeliveryOver) * 100))}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Progress towards free delivery"
+              >
+                <div
+                  className="h-full rounded-full bg-(--color-accent) transition-[width] duration-300"
+                  style={{ width: `${Math.min(100, (subtotal / freeDeliveryOver) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )
+        ) : null}
+
+        <p className="text-xs text-(--color-muted)">
+          {deliveryDays
+            ? `Delivery in ${deliveryDays.min}–${deliveryDays.max} days. Charge calculated at checkout.`
+            : 'Delivery is calculated at checkout.'}
+        </p>
 
         {hasIssues ? (
           <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-xs text-(--color-danger)">

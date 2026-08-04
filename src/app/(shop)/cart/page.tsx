@@ -1,14 +1,27 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { connection } from 'next/server'
 
 import { storage } from '@/lib/storage'
 import { readCart } from '@/modules/cart'
 import { CartContents } from '@/modules/cart/components/cart-contents'
+import { deliveryEstimate, lowestFreeThreshold } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Your cart' }
 
 export default async function CartPage() {
-  const cart = await readCart()
+  /**
+   * Declares this page per-request before anything else runs. The cart is never
+   * cacheable, and without this Next attempts to prerender it and then fails
+   * when the auth stack reaches for crypto during that prerender.
+   */
+  await connection()
+
+  const [cart, freeDeliveryOver, deliveryDays] = await Promise.all([
+    readCart(),
+    lowestFreeThreshold(),
+    deliveryEstimate(),
+  ])
 
   if (cart.lines.length === 0) {
     return (
@@ -37,9 +50,13 @@ export default async function CartPage() {
     <div className="flex flex-col gap-8">
       <h1 className="text-3xl font-semibold tracking-tight">Your cart</h1>
 
-      {/* Lines and summary share one optimistic state, so quantity, line total
-          and subtotal all move on the same click. */}
-      <CartContents lines={lines} />
+      {/* Lines and summary share one optimistic state, so quantity, line total,
+          subtotal and the free-delivery bar all move on the same click. */}
+      <CartContents
+        lines={lines}
+        freeDeliveryOver={freeDeliveryOver}
+        deliveryDays={deliveryDays}
+      />
     </div>
   )
 }
