@@ -8,3 +8,7 @@
 
 export * from '@/modules/accounts/schema'
 export * from '@/modules/catalog/schema'
+export * from '@/modules/cart/schema'
+export * from '@/modules/orders/schema'
+export * from '@/modules/payments/schema'
+export * from '@/modules/inventory/schema'

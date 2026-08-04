@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { and, asc, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 
@@ -96,7 +96,12 @@ export function getProductById(id: string) {
     where: eq(products.id, id),
     with: {
       category: true,
-      variants: { orderBy: [asc(productVariants.position), asc(productVariants.sku)] },
+      // Archived variants stay in the database for order history but must never
+      // appear in the store or the edit form.
+      variants: {
+        where: isNull(productVariants.archivedAt),
+        orderBy: [asc(productVariants.position), asc(productVariants.sku)],
+      },
       images: { orderBy: [asc(productImages.position)] },
     },
   })
@@ -107,7 +112,12 @@ export function getProductBySlug(slug: string) {
     where: eq(products.slug, slug),
     with: {
       category: true,
-      variants: { orderBy: [asc(productVariants.position), asc(productVariants.sku)] },
+      // Archived variants stay in the database for order history but must never
+      // appear in the store or the edit form.
+      variants: {
+        where: isNull(productVariants.archivedAt),
+        orderBy: [asc(productVariants.position), asc(productVariants.sku)],
+      },
       images: { orderBy: [asc(productImages.position)] },
     },
   })
@@ -150,7 +160,10 @@ export async function listProductsForAdmin(filters: ProductFilters) {
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(productVariants, eq(productVariants.productId, products.id))
+      .leftJoin(
+        productVariants,
+        and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+      )
       .where(where)
       .groupBy(products.id, categories.name)
       .orderBy(desc(products.createdAt))
@@ -220,7 +233,10 @@ export async function listActiveProducts(
         totalStock,
       })
       .from(products)
-      .leftJoin(productVariants, eq(productVariants.productId, products.id))
+      .leftJoin(
+        productVariants,
+        and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+      )
       .where(where)
       .groupBy(products.id)
       .orderBy(...orderBy)
@@ -303,14 +319,26 @@ export async function updateProductWithVariants(id: string, input: ProductInput)
 
     const keptIds = input.variants.map((v) => v.id).filter((v): v is string => Boolean(v))
 
-    // Variants dropped from the form are removed. Safe in P1 because nothing
-    // references them yet; once orders exist (P2) this becomes an archive flag,
-    // since order_items must keep pointing somewhere.
-    await tx.delete(productVariants).where(
-      keptIds.length
-        ? and(eq(productVariants.productId, id), notInArray(productVariants.id, keptIds))
-        : eq(productVariants.productId, id),
-    )
+    /**
+     * Variants dropped from the form are ARCHIVED, not deleted.
+     *
+     * order_items and inventory_movements reference them. Deleting a variant
+     * someone has bought would either violate the foreign key or erase the
+     * record of the sale, so removing a size in admin hides it from the store
+     * and leaves history intact.
+     */
+    await tx
+      .update(productVariants)
+      .set({ archivedAt: new Date(), updatedAt: new Date() })
+      .where(
+        keptIds.length
+          ? and(
+              eq(productVariants.productId, id),
+              isNull(productVariants.archivedAt),
+              notInArray(productVariants.id, keptIds),
+            )
+          : and(eq(productVariants.productId, id), isNull(productVariants.archivedAt)),
+      )
 
     for (const [i, v] of input.variants.entries()) {
       const values = {

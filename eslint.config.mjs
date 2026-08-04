@@ -74,6 +74,20 @@ const config = [
     files: ['src/lib/db/schema.ts'],
     rules: { 'boundaries/element-types': 'off', 'boundaries/entry-point': 'off' },
   },
+
+  /**
+   * Schema files may reference each other directly.
+   *
+   * A foreign key is a database-level relationship — order_items genuinely
+   * points at product_variants — and routing that through a module's public API
+   * would mean re-exporting table objects just to satisfy a lint rule. The
+   * boundary that matters is on behaviour, and that still holds: nothing here
+   * imports another module's service, repository or actions.
+   */
+  {
+    files: ['src/modules/*/schema.ts'],
+    rules: { 'boundaries/element-types': 'off', 'boundaries/entry-point': 'off' },
+  },
 ]
 
 export default config

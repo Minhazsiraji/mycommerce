@@ -1,4 +1,5 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 
 /**
  * Identity tables. Shapes are dictated by Better Auth's Drizzle adapter — field
@@ -76,6 +77,44 @@ export const verifications = pgTable(
   (t) => [index('verifications_identifier_idx').on(t.identifier)],
 )
 
+/**
+ * Saved delivery addresses.
+ *
+ * Orders do NOT reference this table — they copy the address in as a JSONB
+ * snapshot. Customers edit and delete saved addresses, and a shipped order must
+ * not change underneath them. See docs/02-data-model.md decision 5.
+ *
+ * Fields follow Bangladeshi addressing: house/road, then area, then city and
+ * district. Couriers here route on district, so it is required.
+ */
+export const addresses = pgTable(
+  'addresses',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    label: text('label'),
+    recipient: text('recipient').notNull(),
+    phone: text('phone').notNull(),
+    line1: text('line1').notNull(),
+    line2: text('line2'),
+    city: text('city').notNull(),
+    district: text('district').notNull(),
+    postalCode: text('postal_code'),
+    country: text('country').notNull().default('BD'),
+    isDefault: boolean('is_default').notNull().default(false),
+    /** Soft delete, so historical references stay resolvable. */
+    archivedAt: timestamp('archived_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('addresses_user_idx').on(t.userId, t.isDefault)],
+)
+
+export type Address = typeof addresses.$inferSelect
 export type User = typeof users.$inferSelect
 export type Session = typeof sessions.$inferSelect
 export type Role = 'customer' | 'admin'

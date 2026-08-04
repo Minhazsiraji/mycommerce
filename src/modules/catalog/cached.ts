@@ -2,6 +2,8 @@ import 'server-only'
 
 import { cacheLife, cacheTag } from 'next/cache'
 
+import { withDbRetry } from '@/lib/db/retry'
+
 import * as repo from './repository'
 import { CATALOG_TAGS } from './tags'
 import type { ProductFilters } from './validators'
@@ -13,6 +15,10 @@ import type { ProductFilters } from './validators'
  * `cacheLife('max')` because freshness is driven by tags, not by a clock: the
  * catalog actions call `updateTag`, so there is no window during which a page
  * is stale, and no time-based expiry to pay for.
+ *
+ * Every read is wrapped in `withDbRetry`. These run during prerendering, so a
+ * dropped Neon socket does not just serve one visitor a 500 — it fails the
+ * build and therefore the deploy. That happened twice before this was added.
  */
 
 export async function getCachedActiveProducts(
@@ -23,7 +29,7 @@ export async function getCachedActiveProducts(
   cacheTag(CATALOG_TAGS.products)
   cacheLife('max')
 
-  return repo.listActiveProducts(filters, options)
+  return withDbRetry(() => repo.listActiveProducts(filters, options), 'listActiveProducts')
 }
 
 export async function getCachedProductBySlug(slug: string) {
@@ -31,7 +37,7 @@ export async function getCachedProductBySlug(slug: string) {
   cacheTag(CATALOG_TAGS.products)
   cacheLife('max')
 
-  return repo.getProductBySlug(slug)
+  return withDbRetry(() => repo.getProductBySlug(slug), 'getProductBySlug')
 }
 
 export async function getCachedCategories() {
@@ -39,7 +45,7 @@ export async function getCachedCategories() {
   cacheTag(CATALOG_TAGS.categories)
   cacheLife('max')
 
-  return repo.listCategories()
+  return withDbRetry(() => repo.listCategories(), 'listCategories')
 }
 
 export async function getCachedCategoryBySlug(slug: string) {
@@ -47,5 +53,5 @@ export async function getCachedCategoryBySlug(slug: string) {
   cacheTag(CATALOG_TAGS.categories)
   cacheLife('max')
 
-  return repo.getCategoryBySlug(slug)
+  return withDbRetry(() => repo.getCategoryBySlug(slug), 'getCategoryBySlug')
 }

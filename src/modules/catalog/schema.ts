@@ -123,6 +123,14 @@ export const productVariants = pgTable(
     /** e.g. {"size": "M", "colour": "Red"} */
     options: jsonb('options').$type<Record<string, string>>().notNull().default({}),
     position: integer('position').notNull().default(0),
+    /**
+     * Archived, never deleted, from P2 onward.
+     *
+     * order_items and inventory_movements point here. Removing a variant an
+     * order was placed against would either break the foreign key or erase the
+     * record of what was sold — so an admin removing a size hides it instead.
+     */
+    archivedAt: timestamp('archived_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
