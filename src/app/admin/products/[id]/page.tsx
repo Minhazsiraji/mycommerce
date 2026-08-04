@@ -31,7 +31,18 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         >
           ← Products
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">{product.title}</h1>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">{product.title}</h1>
+          {product.status === 'active' ? (
+            <Link
+              href={`/p/${product.slug}`}
+              target="_blank"
+              className="text-sm underline underline-offset-4"
+            >
+              View on store ↗
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <ImageManager productId={product.id} images={images} />

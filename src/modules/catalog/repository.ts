@@ -172,12 +172,25 @@ export async function listProductsForAdmin(filters: ProductFilters) {
  * Storefront listing — active products only. Relevance sorting is only
  * meaningful with a query, so callers fall back to newest without one.
  */
-export async function listActiveProducts(filters: ProductFilters) {
+export async function listActiveProducts(
+  filters: ProductFilters,
+  /**
+   * A parent category page shows everything beneath it, so callers pass the
+   * category plus its children rather than a single id.
+   */
+  options?: { categoryIds?: string[] },
+) {
   const tsQuery = filters.q ? sql`websearch_to_tsquery('english', ${filters.q})` : null
+
+  const categoryFilter = options?.categoryIds?.length
+    ? inArray(products.categoryId, options.categoryIds)
+    : filters.categoryId
+      ? eq(products.categoryId, filters.categoryId)
+      : undefined
 
   const where = and(
     eq(products.status, 'active'),
-    filters.categoryId ? eq(products.categoryId, filters.categoryId) : undefined,
+    categoryFilter,
     tsQuery ? sql`${products.searchVector} @@ ${tsQuery}` : undefined,
   )
 
