@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { formatBdt } from '@/lib/money'
 import { storage } from '@/lib/storage'
 import { readCart } from '@/modules/cart'
-import { CartLines } from '@/modules/cart/components/cart-lines'
+import { CartContents } from '@/modules/cart/components/cart-contents'
 
 export const metadata: Metadata = { title: 'Your cart' }
 
@@ -38,40 +37,9 @@ export default async function CartPage() {
     <div className="flex flex-col gap-8">
       <h1 className="text-3xl font-semibold tracking-tight">Your cart</h1>
 
-      <div className="grid gap-10 lg:grid-cols-[1fr_320px]">
-        <CartLines lines={lines} />
-
-        <aside className="flex h-fit flex-col gap-4 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
-          <h2 className="text-sm font-semibold">Summary</h2>
-
-          <div className="flex justify-between text-sm">
-            <span className="text-(--color-muted)">
-              Subtotal ({cart.itemCount} {cart.itemCount === 1 ? 'item' : 'items'})
-            </span>
-            <span className="font-medium tabular-nums">{formatBdt(cart.subtotal)}</span>
-          </div>
-
-          <p className="text-xs text-(--color-muted)">
-            Delivery is calculated at checkout.
-          </p>
-
-          {cart.hasIssues ? (
-            <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-xs text-(--color-danger)">
-              Some items changed. Review them before continuing.
-            </p>
-          ) : null}
-
-          <Link
-            href="/checkout"
-            aria-disabled={cart.hasIssues}
-            className={`inline-flex h-11 items-center justify-center rounded-md bg-(--color-accent) px-6 text-sm font-medium text-(--color-accent-fg) hover:opacity-90 ${
-              cart.hasIssues ? 'pointer-events-none opacity-40' : ''
-            }`}
-          >
-            Checkout
-          </Link>
-        </aside>
-      </div>
+      {/* Lines and summary share one optimistic state, so quantity, line total
+          and subtotal all move on the same click. */}
+      <CartContents lines={lines} />
     </div>
   )
 }

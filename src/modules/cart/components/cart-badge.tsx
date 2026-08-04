@@ -3,9 +3,9 @@ import Link from 'next/link'
 import { readCart } from '../service'
 
 /**
- * Per-visitor, so it must never be part of a cached layout. Rendered inside a
- * Suspense boundary in the shop header: the rest of the header stays static and
- * this streams in.
+ * Per-visitor, so it must never be baked into the cached layout. Rendered
+ * inside a Suspense boundary in the shop header: the rest of the header stays
+ * static and this streams in.
  */
 export async function CartBadge() {
   const cart = await readCart()
@@ -13,7 +13,7 @@ export async function CartBadge() {
   return (
     <Link
       href="/cart"
-      className="relative inline-flex h-9 items-center gap-2 rounded-md px-2 text-sm text-(--color-muted) hover:text-(--color-fg)"
+      className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-md text-(--color-muted) transition-colors hover:bg-(--color-surface) hover:text-(--color-fg) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-accent)"
       aria-label={
         cart.itemCount === 0
           ? 'Cart, empty'
@@ -21,19 +21,29 @@ export async function CartBadge() {
       }
     >
       <CartIcon />
+
+      {/*
+        Overlaid on the icon rather than sitting beside it. A count in the flow
+        makes the header jump sideways as it changes width, and reads as a
+        separate control; the corner overlay is the pattern people already
+        recognise from every other store.
+      */}
       {cart.itemCount > 0 ? (
-        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-(--color-accent) px-1.5 text-xs font-medium text-(--color-accent-fg) tabular-nums">
-          {cart.itemCount}
+        <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[10px] leading-none font-semibold text-(--color-accent-fg) tabular-nums">
+          {cart.itemCount > 99 ? '99+' : cart.itemCount}
         </span>
       ) : null}
     </Link>
   )
 }
 
-/** Same footprint as the real badge, so the header does not shift when it lands. */
+/** Identical footprint, so the header does not shift when the real badge lands. */
 export function CartBadgeFallback() {
   return (
-    <span className="inline-flex h-9 items-center px-2 text-(--color-muted)" aria-hidden="true">
+    <span
+      className="inline-flex size-9 shrink-0 items-center justify-center text-(--color-muted)"
+      aria-hidden="true"
+    >
       <CartIcon />
     </span>
   )
@@ -47,7 +57,7 @@ function CartIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
