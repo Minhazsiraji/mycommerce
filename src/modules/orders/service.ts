@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 
 import { getSession, saveAddress } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
+import { sendOrderCancelled, sendOrderConfirmed, sendOrderShipped } from '@/modules/notifications'
 import { resolveRate } from '@/modules/shipping'
 
 import * as repo from './repository'
@@ -136,4 +137,90 @@ export async function listMyOrders() {
   return repo.listOrdersForUser(session.user.id)
 }
 
-export { markPaid, releaseHold, listExpiredHolds, findGuestOrder } from './repository'
+export { releaseHold, listExpiredHolds, findGuestOrder } from './repository'
+
+/**
+ * Every notification below is best-effort.
+ *
+ * An email that fails must never fail the thing it describes — a customer whose
+ * payment succeeded but whose confirmation bounced still has a paid order, and
+ * throwing here would roll back work that genuinely happened. Failures are
+ * logged for a human instead.
+ *
+ * They also cannot reach anyone yet: without a verified sending domain, Resend
+ * only delivers to the account owner's address. The code is correct and the
+ * addressing is not, which is a domain purchase away.
+ */
+async function notify(what: string, send: () => Promise<unknown>) {
+  try {
+    await send()
+  } catch (error) {
+    console.error(`[notifications] ${what} failed`, error)
+  }
+}
+
+export async function markPaid(orderId: string, providerRef: string | null) {
+  await repo.markPaid(orderId, providerRef)
+
+  const order = await repo.getOrderById(orderId)
+  if (!order) return
+
+  await notify('order confirmation', () =>
+    sendOrderConfirmed({
+      orderNumber: order.orderNumber,
+      email: order.email,
+      recipient: order.shippingAddress.recipient,
+      total: order.total,
+      subtotal: order.subtotal,
+      shippingCost: order.shippingCost,
+      items: order.items,
+    }),
+  )
+}
+
+export async function addShipment(input: {
+  orderId: string
+  carrier: string
+  trackingNumber: string | null
+}) {
+  const shipment = await repo.addShipment(input)
+
+  const order = await repo.getOrderById(input.orderId)
+  if (!order) return shipment
+
+  await notify('shipped email', () =>
+    sendOrderShipped(
+      {
+        orderNumber: order.orderNumber,
+        email: order.email,
+        recipient: order.shippingAddress.recipient,
+      },
+      { carrier: input.carrier, trackingNumber: input.trackingNumber },
+    ),
+  )
+
+  return shipment
+}
+
+export async function cancelOrder(orderId: string, reason: string) {
+  // Read before cancelling: the status is about to change.
+  const before = await repo.getOrderById(orderId)
+  const wasPaid = before?.paymentStatus === 'paid'
+
+  await repo.cancelOrder(orderId, reason)
+
+  if (!before) return
+
+  await notify('cancellation email', () =>
+    sendOrderCancelled(
+      {
+        orderNumber: before.orderNumber,
+        email: before.email,
+        recipient: before.shippingAddress.recipient,
+        total: before.total,
+      },
+      reason,
+      wasPaid,
+    ),
+  )
+}

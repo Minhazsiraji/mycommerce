@@ -48,7 +48,7 @@ export async function addShipment(input: unknown): Promise<ActionResult<null>> {
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
-    await repo.addShipment({
+    await service.addShipment({
       orderId: parsed.data.orderId,
       carrier: parsed.data.carrier,
       trackingNumber: parsed.data.trackingNumber || null,
@@ -67,7 +67,7 @@ export async function cancelOrder(input: unknown): Promise<ActionResult<null>> {
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
-    await repo.cancelOrder(parsed.data.orderId, parsed.data.reason)
+    await service.cancelOrder(parsed.data.orderId, parsed.data.reason)
     refresh()
     return ok(null)
   } catch (error) {

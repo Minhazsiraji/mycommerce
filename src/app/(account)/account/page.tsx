@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 
 import { requireSession } from '@/modules/accounts'
 import { SignOutButton } from '@/modules/accounts/components/sign-out-button'
@@ -13,7 +14,9 @@ export default async function AccountPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-6 py-16">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
-        <p className="text-(--color-muted)">Order history arrives in Phase 3.</p>
+        <Link href="/account/orders" className="text-sm underline underline-offset-4">
+          View your orders →
+        </Link>
       </div>
 
       <dl className="flex flex-col gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-5 text-sm">
