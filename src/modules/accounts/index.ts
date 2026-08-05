@@ -8,6 +8,13 @@
 
 export { auth, type AuthSession } from './auth'
 export { getSession, requireSession, requireRole } from './guards'
+export {
+  archiveAddress,
+  getAddress,
+  listAddresses,
+  saveAddress,
+  setDefaultAddress,
+} from './addresses'
 export type { Role, User, Session } from './schema'
 export {
   emailSchema,

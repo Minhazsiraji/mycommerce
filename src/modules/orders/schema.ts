@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 import {
   char,
   index,
@@ -133,6 +133,14 @@ export const orderItems = pgTable(
   },
   (t) => [index('order_items_order_idx').on(t.orderId)],
 )
+
+export const ordersRelations = relations(orders, ({ many }) => ({
+  items: many(orderItems),
+}))
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+}))
 
 export type Order = typeof orders.$inferSelect
 export type OrderItem = typeof orderItems.$inferSelect

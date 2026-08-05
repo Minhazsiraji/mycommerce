@@ -98,6 +98,21 @@ const config = [
     files: ['src/modules/*/schema.ts'],
     rules: { 'boundaries/element-types': 'off', 'boundaries/entry-point': 'off' },
   },
+
+  /**
+   * Validators may reference each other directly, for the same reason as
+   * schemas.
+   *
+   * They are pure shared contracts with no behaviour — checkout genuinely
+   * validates an address using the accounts module's address rules. Routing
+   * that through the module barrel is not an option either: barrels re-export
+   * server-only code, and validators must stay importable from client
+   * components.
+   */
+  {
+    files: ['src/modules/*/validators.ts'],
+    rules: { 'boundaries/element-types': 'off', 'boundaries/entry-point': 'off' },
+  },
 ]
 
 export default config
