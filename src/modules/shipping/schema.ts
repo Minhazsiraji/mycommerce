@@ -10,6 +10,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { orders } from '@/modules/orders/schema'
+
 /**
  * Delivery options the store owner defines. Nothing about rates is hardcoded —
  * amounts, thresholds, districts and delivery estimates are all editable in
@@ -60,4 +62,34 @@ export const shippingRates = pgTable(
   (t) => [index('shipping_rates_active_idx').on(t.active, t.position)],
 )
 
+/**
+ * A parcel handed to a courier.
+ *
+ * Separate from the order because one order can ship in several parcels — a
+ * pre-order item following later, or a split across couriers. A single tracking
+ * number on the order would make that impossible without a migration.
+ */
+export const shipments = pgTable(
+  'shipments',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+
+    /** Free text: Pathao, Steadfast, RedX, Sundarban — couriers come and go. */
+    carrier: text('carrier').notNull(),
+    trackingNumber: text('tracking_number'),
+
+    shippedAt: timestamp('shipped_at').notNull().defaultNow(),
+    deliveredAt: timestamp('delivered_at'),
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('shipments_order_idx').on(t.orderId)],
+)
+
+export type Shipment = typeof shipments.$inferSelect
 export type ShippingRate = typeof shippingRates.$inferSelect

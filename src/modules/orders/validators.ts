@@ -34,4 +34,31 @@ export const submitTransferSchema = z.object({
   reference: z.string().trim().min(3, 'Enter the transaction reference').max(120),
 })
 
+export const orderFiltersSchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
+  paymentStatus: z
+    .enum(['unpaid', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'])
+    .optional(),
+  fulfillmentStatus: z.enum(['unfulfilled', 'processing', 'shipped', 'delivered']).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+})
+
+export const fulfillmentUpdateSchema = z.object({
+  orderId: z.uuid(),
+  status: z.enum(['unfulfilled', 'processing', 'shipped', 'delivered']),
+})
+
+export const shipmentSchema = z.object({
+  orderId: z.uuid(),
+  carrier: z.string().trim().min(1, 'Which courier?').max(80),
+  trackingNumber: z.string().trim().max(120).optional(),
+})
+
+export const cancelOrderSchema = z.object({
+  orderId: z.uuid(),
+  reason: z.string().trim().min(1, 'A reason is required').max(200),
+})
+
+export type OrderFilters = z.infer<typeof orderFiltersSchema>
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>

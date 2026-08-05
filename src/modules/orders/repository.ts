@@ -2,7 +2,7 @@ import 'server-only'
 
 import { randomBytes } from 'node:crypto'
 
-import { and, desc, eq, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lt, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import {
@@ -13,9 +13,11 @@ import {
   productImages,
   products,
   productVariants,
+  shipments,
 } from '@/lib/db/schema'
 
 import { orderItems, orders, type AddressSnapshot } from './schema'
+import type { OrderFilters } from './validators'
 
 export class OutOfStockError extends Error {
   constructor(readonly productTitle: string) {
@@ -180,6 +182,136 @@ export async function placeOrder(args: PlaceOrderArgs) {
     await tx.delete(carts).where(eq(carts.id, args.cartId))
 
     return order
+  })
+}
+
+export const ORDERS_PAGE_SIZE = 25
+
+/** Admin listing. Every status, newest first. */
+export async function listOrdersForAdmin(filters: OrderFilters) {
+  const where = and(
+    filters.status ? eq(orders.status, filters.status) : undefined,
+    filters.paymentStatus ? eq(orders.paymentStatus, filters.paymentStatus) : undefined,
+    filters.fulfillmentStatus ? eq(orders.fulfillmentStatus, filters.fulfillmentStatus) : undefined,
+    // Order number or email — the two things a customer can quote on the phone.
+    filters.q
+      ? sql`(${orders.orderNumber} ilike ${'%' + filters.q + '%'} or ${orders.email} ilike ${'%' + filters.q + '%'})`
+      : undefined,
+  )
+
+  const [rows, [totals]] = await Promise.all([
+    db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        email: orders.email,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+        fulfillmentStatus: orders.fulfillmentStatus,
+        total: orders.total,
+        paymentMethod: orders.paymentMethod,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .where(where)
+      .orderBy(desc(orders.createdAt))
+      .limit(ORDERS_PAGE_SIZE)
+      .offset((filters.page - 1) * ORDERS_PAGE_SIZE),
+    db.select({ n: count() }).from(orders).where(where),
+  ])
+
+  return { rows, total: totals?.n ?? 0, pageSize: ORDERS_PAGE_SIZE }
+}
+
+export function getOrderById(id: string) {
+  return db.query.orders.findFirst({
+    where: eq(orders.id, id),
+    with: { items: true },
+  })
+}
+
+export async function setFulfillmentStatus(orderId: string, status: string) {
+  const [row] = await db
+    .update(orders)
+    .set({ fulfillmentStatus: status, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning()
+
+  return row
+}
+
+export async function addShipment(input: {
+  orderId: string
+  carrier: string
+  trackingNumber: string | null
+}) {
+  return db.transaction(async (tx) => {
+    const [shipment] = await tx.insert(shipments).values(input).returning()
+
+    // Recording a parcel IS the act of shipping — leaving the order at
+    // "processing" afterwards would be a second thing to remember.
+    await tx
+      .update(orders)
+      .set({ fulfillmentStatus: 'shipped', updatedAt: new Date() })
+      .where(eq(orders.id, input.orderId))
+
+    return shipment
+  })
+}
+
+export function listShipments(orderId: string) {
+  return db.select().from(shipments).where(eq(shipments.orderId, orderId))
+}
+
+/**
+ * Cancels an order and returns its stock.
+ *
+ * Money is NOT moved here. A bank transfer is refunded by the owner making a
+ * transfer; a gateway payment through the provider's own dashboard. Marking an
+ * order refunded in the database while the customer has not been paid would be
+ * worse than not tracking it at all, so this records intent and the admin
+ * completes it.
+ */
+export async function cancelOrder(orderId: string, reason: string) {
+  await db.transaction(async (tx) => {
+    const order = await tx.query.orders.findFirst({ where: eq(orders.id, orderId) })
+    if (!order) throw new Error('Order not found')
+
+    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))
+
+    // Only return stock that is still reserved. A delivered order's stock left
+    // the building; restocking it would invent inventory.
+    const stillHeld = order.fulfillmentStatus !== 'shipped' && order.fulfillmentStatus !== 'delivered'
+
+    if (stillHeld) {
+      for (const item of items) {
+        if (!item.variantId) continue
+
+        await tx
+          .update(productVariants)
+          .set({ stock: sql`${productVariants.stock} + ${item.quantity}`, updatedAt: new Date() })
+          .where(eq(productVariants.id, item.variantId))
+
+        await tx.insert(inventoryMovements).values({
+          variantId: item.variantId,
+          delta: item.quantity,
+          reason: 'release',
+          referenceId: orderId,
+          note: `cancelled: ${reason}`,
+        })
+      }
+    }
+
+    await tx
+      .update(orders)
+      .set({
+        status: 'cancelled',
+        paymentStatus: order.paymentStatus === 'paid' ? 'refunded' : order.paymentStatus,
+        stockHoldExpiresAt: null,
+        notes: order.notes ? `${order.notes}\n\nCancelled: ${reason}` : `Cancelled: ${reason}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(orders.id, orderId))
   })
 }
 

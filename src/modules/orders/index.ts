@@ -3,7 +3,16 @@
  * `./actions` or `./validators` directly.
  */
 
-export { placeOrder } from './actions'
+export { addShipment, cancelOrder, placeOrder, setFulfillmentStatus } from './actions'
+
+export {
+  getOrderById,
+  listOrdersForAdmin,
+  listShipments,
+  ORDERS_PAGE_SIZE,
+} from './repository'
+
+export { orderFiltersSchema, type OrderFilters } from './validators'
 
 export {
   CheckoutError,

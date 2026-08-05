@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 
 export default function AdminIndex() {
-  redirect('/admin/products')
+  // Orders are what needs attention daily; products change far less often.
+  redirect('/admin/orders')
 }
