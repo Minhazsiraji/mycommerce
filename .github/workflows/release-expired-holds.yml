@@ -1,0 +1,34 @@
+name: Release expired stock holds
+
+# Vercel's Hobby plan caps cron at once per day, which is useless for a
+# 30-minute stock hold: an abandoned checkout would keep items unbuyable until
+# the next morning. GitHub Actions schedules freely, so it drives the real
+# cadence and the Vercel cron stays as a daily safety net.
+#
+# Requires two repository secrets (Settings -> Secrets and variables -> Actions):
+#   CRON_SECRET  - the same value as the Vercel environment variable
+#   SITE_URL     - https://mycommerce-sepia.vercel.app
+on:
+  schedule:
+    # GitHub queues rather than guarantees this, so it can drift by a few
+    # minutes under load. Acceptable: the hold window is 30 minutes, and
+    # releasing late only means stock returns slightly later than ideal.
+    - cron: '*/15 * * * *'
+  # Lets the endpoint be triggered by hand while testing.
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Release holds on unpaid orders
+        run: |
+          response=$(curl --silent --show-error --fail-with-body \
+            --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SITE_URL }}/api/cron/release-expired-holds")
+
+          echo "$response"

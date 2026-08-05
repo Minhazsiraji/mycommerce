@@ -34,6 +34,23 @@ from the CDN edge regardless.
   not a second compute region — two regions against one database just moves the latency
   around.
 
+## Scheduled work
+
+Vercel's Hobby plan allows **one cron run per day**. A `*/15` expression is not
+merely ignored — it fails the build outright, which is how it went unnoticed that
+several deploys were being rejected.
+
+Releasing a 30-minute stock hold once a day is useless: an abandoned checkout
+would keep items unbuyable until the next morning. So the real cadence comes from
+a GitHub Actions workflow calling the same endpoint every 15 minutes, and the
+Vercel cron stays as a daily safety net in case the workflow is disabled.
+
+The endpoint is authorised by `CRON_SECRET` and is idempotent, so it does not
+matter if both fire, or if one fires twice.
+
+Moving to Pro? Raise the Vercel schedule to `*/15` and delete the workflow —
+one scheduler is easier to reason about than two.
+
 ## Checking it
 
 The region is visible per deployment in the Vercel dashboard under **Functions**. After

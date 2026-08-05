@@ -4,7 +4,8 @@
   "crons": [
     {
       "path": "/api/cron/release-expired-holds",
-      "schedule": "*/15 * * * *"
+      "comment": "Daily is the maximum frequency a Vercel Hobby plan allows. That is far too slow for a 30-minute stock hold, so this is only a safety net — the GitHub Actions workflow in .github/workflows/release-expired-holds.yml does the real work every 15 minutes. Remove that workflow and raise this to */15 if the project ever moves to Pro.",
+      "schedule": "0 3 * * *"
     }
   ]
 }

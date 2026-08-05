@@ -46,3 +46,6 @@ Thumbs.db
 *.db
 *.sqlite
 docker-data/
+
+.vercel
+.env*
