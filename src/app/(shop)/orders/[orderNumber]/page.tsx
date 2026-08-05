@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 
 import { env } from '@/lib/env'
@@ -44,9 +44,15 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
   const { orderNumber } = await params
   const order = await getVisibleOrder(orderNumber)
 
-  // 404 rather than 403: an order someone cannot see should not be confirmed
-  // to exist at all.
-  if (!order) notFound()
+  /**
+   * Send anyone who cannot see this to the lookup form, prefilled.
+   *
+   * The viewing cookie only lasts a week, so the commonest visitor here is a
+   * guest coming back to an old confirmation email — a 404 would strand them.
+   * Redirecting unconditionally also keeps this from being an oracle: a missing
+   * order and someone else's order produce exactly the same response.
+   */
+  if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
   const copy = STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!
   const address = order.shippingAddress

@@ -55,6 +55,21 @@ export const shipmentSchema = z.object({
   trackingNumber: z.string().trim().max(120).optional(),
 })
 
+export const updateShipmentSchema = shipmentSchema.extend({
+  shipmentId: z.uuid(),
+})
+
+export const deleteShipmentSchema = z.object({
+  orderId: z.uuid(),
+  shipmentId: z.uuid(),
+})
+
+export const orderNotesSchema = z.object({
+  orderId: z.uuid(),
+  // Empty is allowed and clears the field — deleting a note is a legitimate edit.
+  notes: z.string().trim().max(2000),
+})
+
 export const cancelOrderSchema = z.object({
   orderId: z.uuid(),
   reason: z.string().trim().min(1, 'A reason is required').max(200),

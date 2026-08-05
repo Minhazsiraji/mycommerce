@@ -3,4 +3,9 @@
  */
 
 export { sendMail, sendVerificationEmail, sendPasswordResetEmail } from './mailer'
-export { sendOrderCancelled, sendOrderConfirmed, sendOrderShipped } from './order-emails'
+export {
+  sendOrderCancelled,
+  sendOrderConfirmed,
+  sendOrderDelivered,
+  sendOrderShipped,
+} from './order-emails'

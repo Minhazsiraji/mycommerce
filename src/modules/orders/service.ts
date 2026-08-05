@@ -4,7 +4,12 @@ import { cookies } from 'next/headers'
 
 import { getSession, saveAddress } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
-import { sendOrderCancelled, sendOrderConfirmed, sendOrderShipped } from '@/modules/notifications'
+import {
+  sendOrderCancelled,
+  sendOrderConfirmed,
+  sendOrderDelivered,
+  sendOrderShipped,
+} from '@/modules/notifications'
 import { resolveRate } from '@/modules/shipping'
 
 import * as repo from './repository'
@@ -109,6 +114,25 @@ async function rememberOrder(orderNumber: string) {
   })
 }
 
+/**
+ * Proves a guest owns an order, then grants the same cookie the checkout does.
+ *
+ * Order number and email must both match, and the answer is identical whether
+ * the order is missing or the email is wrong — a lookup form that distinguishes
+ * the two is an order-number oracle.
+ *
+ * Throttling is deliberately not here. On Vercel each invocation may be a fresh
+ * instance, so an in-process counter would be security theatre; per-IP limits on
+ * this path belong in the Cloudflare WAF rule (docs/04-security.md).
+ */
+export async function lookupGuestOrder(orderNumber: string, email: string) {
+  const order = await repo.findGuestOrder(orderNumber.trim(), email.trim().toLowerCase())
+  if (!order) return null
+
+  await rememberOrder(order.orderNumber)
+  return order
+}
+
 async function wasPlacedHere(orderNumber: string) {
   const jar = await cookies()
   return (jar.get(RECENT_ORDERS_COOKIE)?.value?.split(',') ?? []).includes(orderNumber)
@@ -137,7 +161,7 @@ export async function listMyOrders() {
   return repo.listOrdersForUser(session.user.id)
 }
 
-export { releaseHold, listExpiredHolds, findGuestOrder } from './repository'
+export { releaseHold, listExpiredHolds, deleteShipment, setNotes, updateShipment } from './repository'
 
 /**
  * Every notification below is best-effort.
@@ -176,6 +200,27 @@ export async function markPaid(orderId: string, providerRef: string | null) {
       items: order.items,
     }),
   )
+}
+
+export async function setFulfillmentStatus(orderId: string, status: string) {
+  // Read first: after the update there is no way to tell whether this was a
+  // change or someone re-saving the status it already had.
+  const before = await repo.getOrderById(orderId)
+  if (!before) return null
+
+  const row = await repo.setFulfillmentStatus(orderId, status)
+
+  if (status === 'delivered' && before.fulfillmentStatus !== 'delivered') {
+    await notify('delivered email', () =>
+      sendOrderDelivered({
+        orderNumber: before.orderNumber,
+        email: before.email,
+        recipient: before.shippingAddress.recipient,
+      }),
+    )
+  }
+
+  return row
 }
 
 export async function addShipment(input: {

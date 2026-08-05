@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { STORAGE_FOLDERS, storage, type UploadSignature } from '@/lib/storage'
 import { requireRole } from '@/modules/accounts'
+import { recordAudit } from '@/modules/admin'
 
 import * as service from './service'
 import { CatalogError } from './service'
@@ -52,13 +53,19 @@ function toResult(error: unknown): ActionResult<never> {
 }
 
 export async function createProduct(input: unknown): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const parsed = productInputSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     const product = await service.createProduct(parsed.data)
+    await recordAudit(admin, {
+      action: 'product.created',
+      entityType: 'product',
+      entityId: product.id,
+      detail: { title: parsed.data.title },
+    })
     invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
@@ -70,7 +77,7 @@ export async function updateProduct(
   rawId: unknown,
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const id = idSchema.safeParse(rawId)
   if (!id.success) return fail('validation', 'Invalid product id.')
@@ -80,6 +87,12 @@ export async function updateProduct(
 
   try {
     const product = await service.updateProduct(id.data, parsed.data)
+    await recordAudit(admin, {
+      action: 'product.updated',
+      entityType: 'product',
+      entityId: product.id,
+      detail: { title: parsed.data.title },
+    })
     invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
@@ -91,7 +104,7 @@ export async function setProductStatus(
   rawId: unknown,
   rawStatus: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const id = idSchema.safeParse(rawId)
   const status = productStatusSchema.safeParse(rawStatus)
@@ -99,6 +112,12 @@ export async function setProductStatus(
 
   try {
     const product = await service.setProductStatus(id.data, status.data)
+    await recordAudit(admin, {
+      action: 'product.status_changed',
+      entityType: 'product',
+      entityId: product.id,
+      detail: { status: status.data },
+    })
     invalidate(PRODUCTS)
     return ok({ id: product.id })
   } catch (error) {
@@ -107,13 +126,19 @@ export async function setProductStatus(
 }
 
 export async function createCategory(input: unknown): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const parsed = categoryInputSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     const category = await service.createCategory(parsed.data)
+    await recordAudit(admin, {
+      action: 'category.created',
+      entityType: 'category',
+      entityId: category.id,
+      detail: { name: parsed.data.name },
+    })
     invalidate(CATEGORIES, PRODUCTS)
     return ok({ id: category.id })
   } catch (error) {
@@ -125,7 +150,7 @@ export async function updateCategory(
   rawId: unknown,
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const id = idSchema.safeParse(rawId)
   if (!id.success) return fail('validation', 'Invalid category id.')
@@ -135,6 +160,12 @@ export async function updateCategory(
 
   try {
     const category = await service.updateCategory(id.data, parsed.data)
+    await recordAudit(admin, {
+      action: 'category.updated',
+      entityType: 'category',
+      entityId: category.id,
+      detail: { name: parsed.data.name },
+    })
     invalidate(CATEGORIES, PRODUCTS)
     return ok({ id: category.id })
   } catch (error) {
@@ -143,13 +174,14 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(rawId: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const id = idSchema.safeParse(rawId)
   if (!id.success) return fail('validation', 'Invalid category id.')
 
   try {
     await service.deleteCategory(id.data)
+    await recordAudit(admin, { action: 'category.deleted', entityType: 'category', entityId: id.data })
     invalidate(CATEGORIES, PRODUCTS)
     return ok(null)
   } catch (error) {
@@ -162,6 +194,8 @@ export async function deleteCategory(rawId: unknown): Promise<ActionResult<null>
  * server, which keeps large product photos clear of the request body limit.
  */
 export async function createImageUploadSignature(): Promise<ActionResult<UploadSignature>> {
+  // Not audited: issuing a signature changes nothing. The `image.attached` entry
+  // that follows a real upload is the one worth keeping.
   await requireRole('admin')
 
   try {
@@ -173,13 +207,19 @@ export async function createImageUploadSignature(): Promise<ActionResult<UploadS
 }
 
 export async function attachImage(input: unknown): Promise<ActionResult<{ id: string }>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const parsed = attachImageSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     const image = await service.attachImage(parsed.data)
+    await recordAudit(admin, {
+      action: 'image.attached',
+      entityType: 'product',
+      entityId: parsed.data.productId,
+      detail: { imageId: image.id },
+    })
     invalidate(PRODUCTS)
     return ok({ id: image.id })
   } catch (error) {
@@ -188,13 +228,14 @@ export async function attachImage(input: unknown): Promise<ActionResult<{ id: st
 }
 
 export async function removeImage(rawId: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const id = idSchema.safeParse(rawId)
   if (!id.success) return fail('validation', 'Invalid image id.')
 
   try {
     await service.removeImage(id.data)
+    await recordAudit(admin, { action: 'image.removed', entityType: 'image', entityId: id.data })
     invalidate(PRODUCTS)
     return ok(null)
   } catch (error) {
@@ -203,13 +244,18 @@ export async function removeImage(rawId: unknown): Promise<ActionResult<null>> {
 }
 
 export async function reorderImages(input: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
+  const admin = await requireRole('admin')
 
   const parsed = reorderSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     await service.reorderImages(parsed.data.productId, parsed.data.ids)
+    await recordAudit(admin, {
+      action: 'image.reordered',
+      entityType: 'product',
+      entityId: parsed.data.productId,
+    })
     invalidate(PRODUCTS)
     return ok(null)
   } catch (error) {

@@ -98,11 +98,18 @@ them explicitly rather than loosening the policy.
 Enforced at Cloudflare and again in the application, keyed by IP and, where available,
 user ID.
 
+**Guest order lookup is Cloudflare-only, deliberately.** On Vercel each invocation may
+be a fresh instance, so an in-process counter would count to one and reset — security
+theatre that reads like a control. `POST /orders/lookup` therefore needs a rate-limit
+rule in the WAF; until that rule exists the endpoint is unthrottled, and the thing
+actually protecting it is that a lookup requires order number **and** matching email,
+with the same response for a missing order and a wrong address.
+
 | Endpoint | Limit |
 |---|---|
 | Login / register | 5 per 15 min |
 | Password reset request | 3 per hour |
-| Guest order lookup | 10 per hour |
+| Guest order lookup | 10 per hour (WAF rule — **not yet configured**) |
 | `placeOrder` | 10 per hour |
 | Review submission | 5 per day |
 | Search | 60 per minute |
@@ -127,9 +134,24 @@ custom card form, no matter how much nicer it would look.
 
 ## Audit logging
 
-Every admin mutation writes actor, action, entity type and ID, JSONB diff, IP, and
-timestamp. Append-only; no update or delete path exists in the application. Retained
-one year.
+Every admin mutation writes actor ID, actor email, action, entity type and ID, a JSONB
+detail object, and a timestamp to `audit_logs`. Append-only; no update or delete path
+exists in the application. Retained one year. Readable at `/admin/activity`.
+
+Two implementation notes that matter:
+
+- `auditedAdmin()` performs the role check **and** the log write in one call, so an
+  action that forgets to audit is also an action that forgot to check the role — a
+  much louder bug. Where the entity ID only exists after the mutation (creating a
+  product), `recordAudit(session, …)` is used after the fact instead.
+- The write is best-effort and swallows its own errors. Losing a log line is bad;
+  failing a refund because the log insert timed out is worse.
+
+Actor email is stored alongside the FK because the FK is `ON DELETE SET NULL` —
+deleting a user must not erase what they did.
+
+Not covered: reads. Viewing a customer's address writes nothing. With one operator
+that is the right trade; revisit if the store ever has staff accounts.
 
 ## Pre-launch checklist
 

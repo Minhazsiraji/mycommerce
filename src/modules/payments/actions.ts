@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { parseBdt } from '@/lib/money'
 import { requireRole } from '@/modules/accounts'
+import { recordAudit } from '@/modules/admin'
 
 import * as service from './service'
 import { PaymentError } from './service'
@@ -87,6 +88,14 @@ export async function confirmTransfer(input: unknown): Promise<ActionResult<null
       observedAmount: parsed.data.observedAmount,
       adminUserId: session.user.id,
     })
+    // The highest-trust action in the admin: one person deciding, from a bank
+    // statement, that money arrived. The amount they say they saw is the record.
+    await recordAudit(session, {
+      action: 'transfer.confirmed',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: { observedAmount: parsed.data.observedAmount },
+    })
     refresh()
     return ok(null)
   } catch (error) {
@@ -98,7 +107,7 @@ export async function rejectTransfer(
   orderId: unknown,
   reason: unknown,
 ): Promise<ActionResult<null>> {
-  await requireRole('admin')
+  const session = await requireRole('admin')
 
   const id = z.uuid().safeParse(orderId)
   const why = z.string().trim().min(1).max(200).safeParse(reason)
@@ -106,6 +115,12 @@ export async function rejectTransfer(
 
   try {
     await service.rejectTransfer(id.data, why.data)
+    await recordAudit(session, {
+      action: 'transfer.rejected',
+      entityType: 'order',
+      entityId: id.data,
+      detail: { reason: why.data },
+    })
     refresh()
     return ok(null)
   } catch (error) {

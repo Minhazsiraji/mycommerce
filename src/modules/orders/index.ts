@@ -3,7 +3,15 @@
  * `./actions` or `./validators` directly.
  */
 
-export { addShipment, cancelOrder, placeOrder, setFulfillmentStatus } from './actions'
+export {
+  addShipment,
+  cancelOrder,
+  deleteShipment,
+  placeOrder,
+  setFulfillmentStatus,
+  setOrderNotes,
+  updateShipment,
+} from './actions'
 
 export {
   getOrderById,
@@ -17,8 +25,8 @@ export { orderFiltersSchema, type OrderFilters } from './validators'
 export {
   CheckoutError,
   OutOfStockError,
-  findGuestOrder,
   getVisibleOrder,
+  lookupGuestOrder,
   listExpiredHolds,
   listMyOrders,
   markPaid,

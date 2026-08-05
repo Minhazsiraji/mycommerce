@@ -65,17 +65,28 @@ rejected; duplicate IPN is a no-op; **forged IPN with a valid-looking body but b
 
 Making it operable by the person who runs the store.
 
-- Order lifecycle: payment, fulfilment, and refund states
-- Admin order list with filters, detail view, status transitions
-- Shipment creation, tracking numbers, carrier webhook
-- Customer order history and guest order lookup
-- Cancellation and refund with restock
-- Transactional emails: shipped, delivered, cancelled, refunded
-- Outbox drain cron
-- Audit logging on all admin mutations
+- [x] Order lifecycle: payment, fulfilment, and refund states
+- [x] Admin order list with filters, detail view, status transitions
+- [x] Shipment creation, tracking numbers — parcels are editable and removable, and
+      removing the last one rolls fulfilment back to processing
+- [x] Customer order history and guest order lookup
+- [x] Cancellation and refund with restock
+- [x] Transactional emails: confirmed, shipped, delivered, cancelled/refunded
+- [x] Audit logging on all admin mutations, viewable at `/admin/activity`
+- [x] Editable order notes (the field previously only ever grew, by machine)
+- [ ] Carrier webhook — **deliberately not built.** Pathao and Steadfast both want a
+      public callback URL and a per-merchant contract; with one operator, opening the
+      parcel and reading the courier's own page costs less than maintaining an
+      endpoint that has to be idempotent and forgery-resistant. Revisit at ~20
+      parcels a day.
+- [ ] Outbox drain cron — **deferred, not forgotten.** Emails currently send inline
+      and best-effort: a failure is logged and the order still stands. An outbox buys
+      retry, and it is worth building the day a lost "shipped" email costs a sale.
+      Until the sending domain is verified, nothing reaches customers anyway, so the
+      queue would only be retrying into a wall.
 
 **Done when:** an order can be taken from placed to delivered without touching the
-database directly.
+database directly. **Met.**
 
 ## P4 — Trust and conversion
 

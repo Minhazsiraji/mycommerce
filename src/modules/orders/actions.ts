@@ -1,20 +1,63 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
-import { requireRole } from '@/modules/accounts'
+import { auditedAdmin } from '@/modules/admin'
 import { ShippingError } from '@/modules/shipping'
 
-import * as repo from './repository'
 import * as service from './service'
 import { CheckoutError, OutOfStockError } from './service'
 import {
   cancelOrderSchema,
+  deleteShipmentSchema,
   fulfillmentUpdateSchema,
+  guestLookupSchema,
+  orderNotesSchema,
   placeOrderSchema,
   shipmentSchema,
+  updateShipmentSchema,
 } from './validators'
+
+export type LookupState = {
+  error?: string
+  fieldErrors?: { orderNumber?: string; email?: string }
+}
+
+/**
+ * Guest order lookup. Returns state for `useActionState` rather than
+ * `ActionResult`, because on success it redirects and never returns at all.
+ */
+export async function lookupGuestOrder(
+  _prev: LookupState,
+  formData: FormData,
+): Promise<LookupState> {
+  const parsed = guestLookupSchema.safeParse({
+    orderNumber: formData.get('orderNumber'),
+    email: formData.get('email'),
+  })
+
+  if (!parsed.success) {
+    const fieldErrors: LookupState['fieldErrors'] = {}
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0]
+      if (key === 'orderNumber' || key === 'email') fieldErrors[key] ??= issue.message
+    }
+    return { error: 'Check the order number and email address.', fieldErrors }
+  }
+
+  const order = await service.lookupGuestOrder(parsed.data.orderNumber, parsed.data.email)
+
+  // One message for both "no such order" and "wrong email" — see the service.
+  if (!order) {
+    return {
+      error: 'We could not find an order with that number and email address together.',
+    }
+  }
+
+  redirect(`/orders/${order.orderNumber}`)
+}
 
 function toResult(error: unknown): ActionResult<never> {
   // Out-of-stock is the one a customer is most likely to hit, and the message
@@ -26,13 +69,92 @@ function toResult(error: unknown): ActionResult<never> {
 }
 
 export async function setFulfillmentStatus(input: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
-
   const parsed = fulfillmentUpdateSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
+  await auditedAdmin({
+    action: 'order.fulfillment_changed',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    detail: { status: parsed.data.status },
+  })
+
   try {
-    const row = await repo.setFulfillmentStatus(parsed.data.orderId, parsed.data.status)
+    const row = await service.setFulfillmentStatus(parsed.data.orderId, parsed.data.status)
+    if (!row) return fail('not_found', 'Order not found.')
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
+}
+
+export async function updateShipment(input: unknown): Promise<ActionResult<null>> {
+  const parsed = updateShipmentSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  await auditedAdmin({
+    action: 'order.shipment_updated',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    detail: {
+      shipmentId: parsed.data.shipmentId,
+      carrier: parsed.data.carrier,
+      trackingNumber: parsed.data.trackingNumber ?? null,
+    },
+  })
+
+  try {
+    const row = await service.updateShipment({
+      id: parsed.data.shipmentId,
+      orderId: parsed.data.orderId,
+      carrier: parsed.data.carrier,
+      trackingNumber: parsed.data.trackingNumber || null,
+    })
+    if (!row) return fail('not_found', 'That parcel is no longer on this order.')
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
+}
+
+export async function deleteShipment(input: unknown): Promise<ActionResult<null>> {
+  const parsed = deleteShipmentSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  await auditedAdmin({
+    action: 'order.shipment_deleted',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    detail: { shipmentId: parsed.data.shipmentId },
+  })
+
+  try {
+    const row = await service.deleteShipment(parsed.data.shipmentId, parsed.data.orderId)
+    if (!row) return fail('not_found', 'That parcel is no longer on this order.')
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
+}
+
+export async function setOrderNotes(input: unknown): Promise<ActionResult<null>> {
+  const parsed = orderNotesSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  await auditedAdmin({
+    action: 'order.notes_edited',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    // The text itself goes in the log: notes are where a cancellation reason
+    // lives, so overwriting one without a record would erase the trail.
+    detail: { notes: parsed.data.notes },
+  })
+
+  try {
+    const row = await service.setNotes(parsed.data.orderId, parsed.data.notes)
     if (!row) return fail('not_found', 'Order not found.')
     refresh()
     return ok(null)
@@ -42,10 +164,15 @@ export async function setFulfillmentStatus(input: unknown): Promise<ActionResult
 }
 
 export async function addShipment(input: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
-
   const parsed = shipmentSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
+
+  await auditedAdmin({
+    action: 'order.shipment_added',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    detail: { carrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber ?? null },
+  })
 
   try {
     await service.addShipment({
@@ -61,10 +188,15 @@ export async function addShipment(input: unknown): Promise<ActionResult<null>> {
 }
 
 export async function cancelOrder(input: unknown): Promise<ActionResult<null>> {
-  await requireRole('admin')
-
   const parsed = cancelOrderSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
+
+  await auditedAdmin({
+    action: 'order.cancelled',
+    entityType: 'order',
+    entityId: parsed.data.orderId,
+    detail: { reason: parsed.data.reason },
+  })
 
   try {
     await service.cancelOrder(parsed.data.orderId, parsed.data.reason)

@@ -110,6 +110,21 @@ export function sendOrderShipped(
   })
 }
 
+export function sendOrderDelivered(
+  order: Pick<OrderSummary, 'orderNumber' | 'email' | 'recipient'>,
+) {
+  return sendMail({
+    to: order.email,
+    subject: `Order ${order.orderNumber} delivered`,
+    html: shell(
+      'Delivered',
+      `Your order arrived, ${order.recipient}. If anything is wrong with it, reply to this email within seven days and we will sort it out.`,
+      '',
+      { label: 'View your order', url: `${BASE}/orders/${order.orderNumber}` },
+    ),
+  })
+}
+
 export function sendOrderCancelled(
   order: Pick<OrderSummary, 'orderNumber' | 'email' | 'recipient' | 'total'>,
   reason: string,

@@ -263,6 +263,65 @@ export function listShipments(orderId: string) {
   return db.select().from(shipments).where(eq(shipments.orderId, orderId))
 }
 
+export async function updateShipment(input: {
+  id: string
+  orderId: string
+  carrier: string
+  trackingNumber: string | null
+}) {
+  const [row] = await db
+    .update(shipments)
+    // orderId is in the predicate, not the update: a mistyped id must miss
+    // rather than move someone else's parcel onto this order.
+    .set({ carrier: input.carrier, trackingNumber: input.trackingNumber })
+    .where(and(eq(shipments.id, input.id), eq(shipments.orderId, input.orderId)))
+    .returning()
+
+  return row
+}
+
+/**
+ * Removes a parcel, and walks fulfilment back if it was the last one.
+ *
+ * `addShipment` moves the order to "shipped", so deleting the only parcel has to
+ * undo that too — otherwise a parcel added by mistake leaves the order claiming
+ * to be shipped with nothing to show for it.
+ */
+export async function deleteShipment(id: string, orderId: string) {
+  return db.transaction(async (tx) => {
+    const [removed] = await tx
+      .delete(shipments)
+      .where(and(eq(shipments.id, id), eq(shipments.orderId, orderId)))
+      .returning()
+
+    if (!removed) return null
+
+    const [remaining] = await tx
+      .select({ n: count() })
+      .from(shipments)
+      .where(eq(shipments.orderId, orderId))
+
+    if ((remaining?.n ?? 0) === 0) {
+      await tx
+        .update(orders)
+        .set({ fulfillmentStatus: 'processing', updatedAt: new Date() })
+        .where(and(eq(orders.id, orderId), eq(orders.fulfillmentStatus, 'shipped')))
+    }
+
+    return removed
+  })
+}
+
+export async function setNotes(orderId: string, notes: string) {
+  const [row] = await db
+    .update(orders)
+    .set({ notes: notes || null, updatedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning()
+
+  return row
+}
+
 /**
  * Cancels an order and returns its stock.
  *

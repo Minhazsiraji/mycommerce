@@ -6,6 +6,8 @@ import { connection } from 'next/server'
 import { formatBdt } from '@/lib/money'
 import { getOrderById, listShipments } from '@/modules/orders'
 import { OrderAdminActions } from '@/modules/orders/components/order-admin-actions'
+import { OrderNotes } from '@/modules/orders/components/order-notes'
+import { OrderParcels } from '@/modules/orders/components/order-parcels'
 
 export const metadata: Metadata = { title: 'Order' }
 
@@ -106,29 +108,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <p className="text-xs text-(--color-muted)">{order.email}</p>
           </section>
 
-          {parcels.length > 0 ? (
-            <section className="flex flex-col gap-2 rounded-lg border border-(--color-border) p-5 text-sm">
-              <h2 className="text-sm font-semibold">Parcels</h2>
-              <ul className="flex flex-col gap-2 text-(--color-muted)">
-                {parcels.map((p) => (
-                  <li key={p.id}>
-                    {p.carrier}
-                    {p.trackingNumber ? ` · ${p.trackingNumber}` : ''}
-                    <span className="block text-xs">
-                      {p.shippedAt.toLocaleDateString('en-GB')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          <OrderParcels orderId={order.id} parcels={parcels} />
 
-          {order.notes ? (
-            <section className="flex flex-col gap-2 rounded-lg border border-(--color-border) p-5 text-sm">
-              <h2 className="text-sm font-semibold">Notes</h2>
-              <p className="whitespace-pre-line text-(--color-muted)">{order.notes}</p>
-            </section>
-          ) : null}
+          <OrderNotes orderId={order.id} notes={order.notes} />
         </aside>
       </div>
     </div>
