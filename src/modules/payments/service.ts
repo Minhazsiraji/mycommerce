@@ -92,6 +92,47 @@ export async function handleGatewayNotification(valId: string): Promise<'ok' | '
   return 'ok'
 }
 
+/**
+ * Switches an unpaid order to bank transfer.
+ *
+ * Without this, a customer whose card payment fails is stranded: the order
+ * exists, the cart was consumed by the transaction, and going back leaves them
+ * with an empty cart and no way to pay. The order is already correct — only the
+ * method needs to change.
+ *
+ * The hold is extended to the transfer window at the same time, or a 30-minute
+ * gateway hold would expire long before anyone could reach a bank.
+ */
+export async function switchToBankTransfer(orderNumber: string) {
+  const order = await getVisibleOrder(orderNumber)
+  if (!order) throw new PaymentError('Order not found.')
+
+  if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
+  if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(orders)
+      .set({
+        paymentMethod: 'bank_transfer',
+        paymentStatus: 'awaiting_transfer',
+        stockHoldExpiresAt: new Date(Date.now() + 72 * 60 * 60_000),
+        updatedAt: new Date(),
+      })
+      .where(eq(orders.id, order.id))
+
+    // A fresh attempt row rather than editing the failed one — the card
+    // attempt is history worth keeping if anyone disputes it later.
+    await tx.insert(payments).values({
+      orderId: order.id,
+      provider: 'bank_transfer',
+      amount: order.total,
+      currency: order.currency,
+      status: 'awaiting_verification',
+    })
+  })
+}
+
 /** Customer submits the reference for a transfer they have made. */
 export async function submitTransferReference(orderNumber: string, reference: string) {
   const order = await getVisibleOrder(orderNumber)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatBdt, formatBdtPlain, MoneyParseError, parseBdt } from './money'
+import { formatBdt, formatBdtPlain, MoneyParseError, parseBdt, toDecimalString } from './money'
 
 describe('parseBdt', () => {
   it('converts whole and decimal amounts to poisha', () => {
@@ -50,6 +50,34 @@ describe('formatBdt', () => {
 
   it('refuses a non-integer, which would mean poisha got lost upstream', () => {
     expect(() => formatBdtPlain(1999.5)).toThrow(MoneyParseError)
+  })
+})
+
+describe('toDecimalString', () => {
+  it('never groups thousands', () => {
+    // A separator here is not cosmetic: SSLCommerz rejected "11,700.00" with
+    // "'total_amount' must be numeric", which failed every card payment.
+    expect(toDecimalString(1170000)).toBe('11700.00')
+    expect(toDecimalString(123456789)).toBe('1234567.89')
+    expect(toDecimalString(199950)).not.toContain(',')
+  })
+
+  it('always keeps two decimal places', () => {
+    expect(toDecimalString(199900)).toBe('1999.00')
+    expect(toDecimalString(5)).toBe('0.05')
+    expect(toDecimalString(0)).toBe('0.00')
+  })
+
+  it('avoids float error by building from integer parts', () => {
+    // 1999 / 100 is not exactly representable in binary floating point.
+    expect(toDecimalString(1999)).toBe('19.99')
+    expect(toDecimalString(29)).toBe('0.29')
+  })
+
+  it('parses back to the same amount', () => {
+    for (const poisha of [0, 5, 1999, 199950, 1170000]) {
+      expect(parseBdt(toDecimalString(poisha))).toBe(poisha)
+    }
   })
 })
 

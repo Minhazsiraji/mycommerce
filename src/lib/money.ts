@@ -57,3 +57,23 @@ export function formatBdtPlain(poisha: number): string {
 export function formatBdt(poisha: number): string {
   return `৳${formatBdtPlain(poisha)}`
 }
+
+/**
+ * 199950 -> '1999.50'. For APIs, never for display.
+ *
+ * Separate from `formatBdtPlain` because that one groups thousands, which is
+ * correct on a page and rejected by a payment gateway — SSLCommerz answered
+ * "'total_amount' must be numeric" for "11,700.00". Built from integer parts
+ * rather than dividing by 100, so no float rounding can creep into an amount
+ * someone is charged.
+ */
+export function toDecimalString(poisha: number): string {
+  if (!Number.isInteger(poisha)) {
+    throw new MoneyParseError(`Expected integer poisha, received ${poisha}`)
+  }
+
+  const negative = poisha < 0
+  const abs = Math.abs(poisha)
+
+  return `${negative ? '-' : ''}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
+}

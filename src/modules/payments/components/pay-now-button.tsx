@@ -1,12 +1,14 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { formatBdt } from '@/lib/money'
 
-import { startGatewayPayment } from '../actions'
+import { startGatewayPayment, switchToBankTransfer } from '../actions'
 
 export function PayNowButton({ orderNumber, amount }: { orderNumber: string; amount: number }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
 
@@ -23,6 +25,16 @@ export function PayNowButton({ orderNumber, amount }: { orderNumber: string; amo
 
       // Full navigation, not router.push — the gateway is another origin.
       window.location.href = result.data.redirectUrl
+    })
+  }
+
+  function switchToTransfer() {
+    setError(undefined)
+
+    startTransition(async () => {
+      const result = await switchToBankTransfer(orderNumber)
+      if (!result.ok) setError(result.error.message)
+      else router.refresh()
     })
   }
 
@@ -47,6 +59,23 @@ export function PayNowButton({ orderNumber, amount }: { orderNumber: string; amo
           {error}
         </p>
       ) : null}
+
+      {/*
+        Always offered, not only after a failure. The cart was consumed when the
+        order was created, so a customer who cannot complete card payment would
+        otherwise be stranded with an order they cannot pay for and an empty
+        cart to go back to.
+      */}
+      <div className="border-t border-(--color-border) pt-3">
+        <button
+          type="button"
+          onClick={switchToTransfer}
+          disabled={pending}
+          className="text-sm underline underline-offset-4 disabled:opacity-40"
+        >
+          Pay by bank transfer instead
+        </button>
+      </div>
     </div>
   )
 }

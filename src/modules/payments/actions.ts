@@ -49,6 +49,19 @@ export async function startGatewayPayment(
   }
 }
 
+export async function switchToBankTransfer(orderNumber: unknown): Promise<ActionResult<null>> {
+  const parsed = z.string().trim().min(4).max(32).safeParse(orderNumber)
+  if (!parsed.success) return fail('validation', 'Invalid order.')
+
+  try {
+    await service.switchToBankTransfer(parsed.data)
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
+}
+
 export async function submitTransferReference(input: unknown): Promise<ActionResult<null>> {
   const parsed = submitSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { env } from '@/lib/env'
-import { formatBdtPlain } from '@/lib/money'
+import { toDecimalString } from '@/lib/money'
 import type { AddressSnapshot } from '@/modules/orders'
 
 /**
@@ -52,7 +52,8 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     store_id: storeId,
     store_passwd: storePassword,
     // Decimal BDT at the provider boundary; poisha everywhere inside.
-    total_amount: formatBdtPlain(input.amount),
+    // Must be the ungrouped form — a thousands separator is rejected outright.
+    total_amount: toDecimalString(input.amount),
     currency: 'BDT',
     tran_id: input.orderNumber,
 
@@ -72,7 +73,21 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     cus_postcode: input.address.postalCode ?? '',
     cus_country: 'Bangladesh',
 
+    /**
+     * Declaring a shipping method makes the whole ship_* block mandatory —
+     * omitting it is rejected with "'ship_name' is missing" rather than being
+     * treated as optional. Same address as the order, since that is where the
+     * goods actually go.
+     */
     shipping_method: 'Courier',
+    ship_name: input.address.recipient,
+    ship_add1: input.address.line1,
+    ship_add2: input.address.line2 ?? '',
+    ship_city: input.address.city,
+    ship_state: input.address.district,
+    ship_postcode: input.address.postalCode ?? '1000',
+    ship_country: 'Bangladesh',
+
     num_of_item: '1',
     product_name: `Order ${input.orderNumber}`,
     product_category: 'General',
