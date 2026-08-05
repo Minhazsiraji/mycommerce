@@ -18,7 +18,7 @@ export {
   type QuotedRate,
 } from './service'
 
-export { listRates } from './repository'
+export { listActiveRates, listRates } from './repository'
 
 export type { ShippingRate } from './schema'
-export { BD_DISTRICTS, shippingRateInputSchema, type ShippingRateInput } from './validators'
+export { shippingRateInputSchema, type ShippingRateInput } from './validators'

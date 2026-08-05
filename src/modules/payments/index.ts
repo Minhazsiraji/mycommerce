@@ -1,0 +1,20 @@
+/**
+ * Public API of the payments module. Server-side only — client components
+ * import `./actions` directly.
+ */
+
+export {
+  confirmTransfer,
+  rejectTransfer,
+  startGatewayPayment,
+  submitTransferReference,
+} from './actions'
+
+export {
+  handleGatewayNotification,
+  listPendingTransfers,
+  PaymentError,
+} from './service'
+
+export type { Payment, PaymentProvider } from './schema'
+export { PAYMENT_PROVIDERS } from './schema'

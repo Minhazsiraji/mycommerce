@@ -28,6 +28,27 @@ const serverSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+
+  /**
+   * SSLCommerz. Sandbox and live differ only by these credentials and the host,
+   * so the same code path serves both.
+   */
+  SSLCOMMERZ_STORE_ID: z.string().optional(),
+  SSLCOMMERZ_STORE_PASSWORD: z.string().optional(),
+  SSLCOMMERZ_SANDBOX: z
+    .string()
+    .optional()
+    .transform((v) => v !== 'false'),
+
+  /**
+   * Bank details shown to customers paying by transfer. Env rather than admin
+   * because they are set once and changing them is a deliberate, rare act —
+   * and a typo here sends money to the wrong account.
+   */
+  BANK_ACCOUNT_NAME: z.string().optional(),
+  BANK_ACCOUNT_NUMBER: z.string().optional(),
+  BANK_NAME: z.string().optional(),
+  BANK_BRANCH: z.string().optional(),
 })
 
 const clientSchema = z.object({

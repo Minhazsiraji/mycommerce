@@ -3,57 +3,70 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 
-import { formatBdt } from '@/lib/money'
+import { getSession, listAddresses } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
+import { CheckoutForm } from '@/modules/orders/components/checkout-form'
+import { listActiveRates } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Checkout' }
 
-/**
- * Placeholder. Delivery details, shipping rates and payment land in the next
- * step of P2; this exists so the cart's checkout button is not a dead link and
- * so the order summary it will build on is already correct.
- */
 export default async function CheckoutPage() {
   // Per-request for the same reason as the cart — see the note there.
   await connection()
 
-  const cart = await readCart()
+  const [cart, session, rates] = await Promise.all([readCart(), getSession(), listActiveRates()])
 
   if (cart.lines.length === 0) redirect('/cart')
 
+  // Refuse rather than silently adjusting; the customer fixes it in the cart.
+  if (cart.hasIssues) redirect('/cart')
+
+  const saved = session ? await listAddresses(session.user.id) : []
+  const preferred = saved.find((a) => a.isDefault) ?? saved[0]
+
+  if (rates.length === 0) {
+    return (
+      <div className="mx-auto flex max-w-lg flex-col gap-4 py-20 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">Checkout is unavailable</h1>
+        <p className="text-(--color-muted)">
+          No delivery options are configured yet, so orders cannot be taken. Please try again
+          shortly.
+        </p>
+        <Link href="/cart" className="text-sm underline underline-offset-4">
+          ← Back to cart
+        </Link>
+      </div>
+    )
+  }
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <h1 className="text-3xl font-semibold tracking-tight">Checkout</h1>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
-        <h2 className="text-sm font-semibold">Order summary</h2>
-
-        <ul className="flex flex-col gap-2 text-sm">
-          {cart.lines.map((line) => (
-            <li key={line.id} className="flex justify-between gap-4">
-              <span className="min-w-0 truncate">
-                {line.productTitle}
-                {line.variantTitle ? ` · ${line.variantTitle}` : ''}
-                <span className="text-(--color-muted)"> × {line.quantity}</span>
-              </span>
-              <span className="shrink-0 tabular-nums">{formatBdt(line.lineTotal)}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex justify-between border-t border-(--color-border) pt-3 text-sm font-medium">
-          <span>Subtotal</span>
-          <span className="tabular-nums">{formatBdt(cart.subtotal)}</span>
-        </div>
-      </div>
-
-      <p className="rounded-lg border border-dashed border-(--color-border) px-5 py-8 text-center text-sm text-(--color-muted)">
-        Delivery details and payment are being built. Your cart is saved.
-      </p>
-
-      <Link href="/cart" className="text-sm underline underline-offset-4">
-        ← Back to cart
-      </Link>
+      <CheckoutForm
+        subtotal={cart.subtotal}
+        signedIn={Boolean(session)}
+        rates={rates.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          cost: r.cost,
+          freeOverSubtotal: r.freeOverSubtotal,
+          districts: r.districts,
+          estimatedDaysMin: r.estimatedDaysMin,
+          estimatedDaysMax: r.estimatedDaysMax,
+        }))}
+        defaults={{
+          email: session?.user.email ?? '',
+          recipient: preferred?.recipient ?? session?.user.name ?? '',
+          phone: preferred?.phone ?? '',
+          line1: preferred?.line1 ?? '',
+          line2: preferred?.line2 ?? '',
+          city: preferred?.city ?? '',
+          district: preferred?.district ?? '',
+          postalCode: preferred?.postalCode ?? '',
+        }}
+      />
     </div>
   )
 }

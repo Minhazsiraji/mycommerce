@@ -74,10 +74,43 @@ export async function placeOrder(input: PlaceOrderInput) {
     await saveAddress(session.user.id, input.address).catch(() => {})
   }
 
+  const jar = await cookies()
+
   // The cart was consumed inside the transaction; drop the guest cookie too.
-  if (!session) (await cookies()).delete('mycommerce_cart')
+  if (!session) jar.delete('mycommerce_cart')
+
+  await rememberOrder(order.orderNumber)
 
   return order
+}
+
+const RECENT_ORDERS_COOKIE = 'mycommerce_orders'
+
+/**
+ * Lets a guest see the order they just placed.
+ *
+ * They have no session to prove ownership with, and putting the email in the
+ * URL would leak it into history, logs and referrers. Instead the order number
+ * goes into an httpOnly cookie the browser already trusts. It grants viewing
+ * only, expires in a week, and the guest lookup form — which needs order number
+ * AND matching email — remains the route back after that.
+ */
+async function rememberOrder(orderNumber: string) {
+  const jar = await cookies()
+  const existing = jar.get(RECENT_ORDERS_COOKIE)?.value?.split(',').filter(Boolean) ?? []
+
+  jar.set(RECENT_ORDERS_COOKIE, [orderNumber, ...existing].slice(0, 10).join(','), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  })
+}
+
+async function wasPlacedHere(orderNumber: string) {
+  const jar = await cookies()
+  return (jar.get(RECENT_ORDERS_COOKIE)?.value?.split(',') ?? []).includes(orderNumber)
 }
 
 /**
@@ -92,6 +125,7 @@ export async function getVisibleOrder(orderNumber: string, email?: string) {
 
   if (session && order.userId === session.user.id) return order
   if (email && order.email === email.toLowerCase()) return order
+  if (await wasPlacedHere(orderNumber)) return order
 
   return null
 }
