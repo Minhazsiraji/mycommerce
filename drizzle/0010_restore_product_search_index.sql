@@ -1,0 +1,14 @@
+-- Restores the GIN index that 0009 silently destroyed.
+--
+-- 0009 changed the generated `search_vector` column, and the only way to alter a
+-- generated column is to drop and re-add it. Dropping a column drops every index
+-- on it — but drizzle-kit's snapshot still lists `products_search_idx` as
+-- present, so it will never generate the CREATE INDEX itself. Left alone, every
+-- product search falls back to a sequential scan: invisible at nine products,
+-- and not at nine thousand.
+--
+-- Hand-written because it cannot be generated. This is a custom migration, not
+-- an edit to a generated one.
+--
+-- Do this again any time the search vector definition changes.
+CREATE INDEX IF NOT EXISTS "products_search_idx" ON "products" USING gin ("search_vector");

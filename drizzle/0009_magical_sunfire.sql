@@ -1,0 +1,2 @@
+ALTER TABLE "products" drop column "search_vector";--> statement-breakpoint
+ALTER TABLE "products" ADD COLUMN "search_vector" "tsvector" GENERATED ALWAYS AS (setweight(to_tsvector('english', coalesce("products"."title", '')), 'A') || setweight(to_tsvector('english', coalesce("products"."keywords", '')), 'B') || setweight(to_tsvector('english', coalesce("products"."brand", '')), 'B') || setweight(to_tsvector('english', coalesce("products"."description", '')), 'C')) STORED;

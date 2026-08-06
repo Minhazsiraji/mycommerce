@@ -78,6 +78,32 @@ Read replicas are **not** needed at this scale and add replication-lag bugs — 
 customer seeing their own just-placed order missing from their order list. Revisit only
 with evidence from real load.
 
+## Product search
+
+Three layers, tried in order, all in Postgres. No Elasticsearch, no Algolia — the
+catalogue is small and the stack already has the tools.
+
+1. **Full-text** over a generated `tsvector`: title (A), keywords and brand (B),
+   description (C), with a GIN index.
+2. **Category names**, matched by join — including the *parent* category, because the
+   tree is two deep and a t-shirt lives in "T-shirts" under "Apparel".
+3. **Trigram similarity** (`pg_trgm`), as a fallback only when the first two return
+   nothing, so an exact hit is never diluted or reordered by fuzzy noise.
+
+The threshold is `word_similarity >= 0.5`, chosen by measuring the real catalogue:
+genuine typos score 0.55–0.75 against the intended product, unrelated products top out
+near 0.36, and nonsense scores 0.00. Gibberish therefore still returns nothing.
+
+**The lesson that produced the `keywords` column:** the store sold four pairs of shoes
+and searching "shoes" returned zero, because the titles say "Suede Desert Boot" and
+"Canvas Low Top". No ranking algorithm fixes a word that is not in the index. Vocabulary
+beats relevance tuning on a small catalogue.
+
+**Whenever the search vector definition changes**, remember that the only way to alter a
+generated column is to drop and re-add it — which silently drops its GIN index, while
+drizzle-kit's snapshot still believes the index exists and will never regenerate it. Add
+a custom migration recreating `products_search_idx`, as `0010` does.
+
 ## Caching layers
 
 | Layer | Holds | Invalidated by |

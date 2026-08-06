@@ -1,10 +1,32 @@
 import 'server-only'
 
-import { and, asc, count, desc, eq, inArray, isNull, ne, notInArray, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  notInArray,
+  sql,
+  type SQL,
+} from 'drizzle-orm'
+
+import { alias } from 'drizzle-orm/pg-core'
 
 import { db } from '@/lib/db'
 
 import { categories, productImages, products, productVariants } from './schema'
+
+/**
+ * The category tree is two deep, so a product's category may itself have a
+ * parent. Searching needs both names, which means joining `categories` twice —
+ * hence the alias.
+ */
+const parentCategory = alias(categories, 'parent_category')
 import type { CategoryInput, ProductFilters, ProductInput } from './validators'
 
 /**
@@ -201,11 +223,29 @@ export async function listActiveProducts(
       ? eq(products.categoryId, filters.categoryId)
       : undefined
 
-  const where = and(
-    eq(products.status, 'active'),
-    categoryFilter,
-    tsQuery ? sql`${products.searchVector} @@ ${tsQuery}` : undefined,
-  )
+  /**
+   * A query matches the product's own text, its category, or its parent
+   * category.
+   *
+   * Categories are a real part of how people search — "footwear", "apparel" —
+   * and they live in another table, so a generated column on `products` cannot
+   * see them. Matching here costs two joins and keeps each category name in one
+   * place, which denormalising onto every product would not.
+   *
+   * The parent is included because the tree is two deep: a t-shirt sits in
+   * "T-shirts" under "Apparel", and without this a search for "apparel" returns
+   * nothing at all.
+   *
+   * Synonyms present in none of them — "shoes" for a desert boot — are what the
+   * `keywords` column is for.
+   */
+  const where = tsQuery
+    ? sql`(
+        ${products.searchVector} @@ ${tsQuery}
+        or to_tsvector('english', coalesce(${categories.name}, '')) @@ ${tsQuery}
+        or to_tsvector('english', coalesce(${parentCategory.name}, '')) @@ ${tsQuery}
+      )`
+    : undefined
 
   const orderBy = (() => {
     switch (filters.sort) {
@@ -222,28 +262,67 @@ export async function listActiveProducts(
     }
   })()
 
-  const [rows, [totals]] = await Promise.all([
-    db
-      .select({
-        id: products.id,
-        slug: products.slug,
-        title: products.title,
-        brand: products.brand,
-        fromPrice,
-        totalStock,
-      })
-      .from(products)
-      .leftJoin(
-        productVariants,
-        and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
-      )
-      .where(where)
-      .groupBy(products.id)
-      .orderBy(...orderBy)
-      .limit(PAGE_SIZE)
-      .offset((filters.page - 1) * PAGE_SIZE),
-    db.select({ n: count() }).from(products).where(where),
-  ])
+  const run = async (clause: SQL | undefined, order: SQL[]) => {
+    const predicate = and(eq(products.status, 'active'), categoryFilter, clause)
+
+    return Promise.all([
+      db
+        .select({
+          id: products.id,
+          slug: products.slug,
+          title: products.title,
+          brand: products.brand,
+          fromPrice,
+          totalStock,
+        })
+        .from(products)
+        .leftJoin(
+          productVariants,
+          and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+        )
+        .leftJoin(categories, eq(categories.id, products.categoryId))
+        .leftJoin(parentCategory, eq(parentCategory.id, categories.parentId))
+        .where(predicate)
+        .groupBy(products.id)
+        .orderBy(...order)
+        .limit(PAGE_SIZE)
+        .offset((filters.page - 1) * PAGE_SIZE),
+      // Same joins: the predicate references `categories`, so a count without
+      // them would fail rather than merely disagree.
+      db
+        .select({ n: countDistinct(products.id) })
+        .from(products)
+        .leftJoin(categories, eq(categories.id, products.categoryId))
+        .leftJoin(parentCategory, eq(parentCategory.id, categories.parentId))
+        .where(predicate),
+    ])
+  }
+
+  let [rows, [totals]] = await run(where, orderBy)
+
+  /**
+   * Nothing matched exactly — try again allowing for typos.
+   *
+   * Full-text search only matches lexemes that are present, so "cotten tee"
+   * finds nothing however good the ranking is. Trigram similarity closes that
+   * gap. It runs strictly as a fallback: an exact hit must never be diluted or
+   * reordered by fuzzy noise, so this only executes when the first pass came
+   * back empty.
+   *
+   * 0.5 comes from measuring the real catalogue rather than taste. Genuine
+   * typos score 0.55–0.75 against the intended product, unrelated products top
+   * out around 0.36, and nonsense scores 0.00 — so the threshold sits in a gap,
+   * and gibberish still correctly returns nothing.
+   */
+  if (tsQuery && totals?.n === 0 && filters.page === 1) {
+    const haystack = sql`(coalesce(${products.title}, '') || ' ' || coalesce(${products.keywords}, '') || ' ' || coalesce(${products.brand}, ''))`
+    const similarity = sql`word_similarity(${filters.q}, ${haystack})`
+
+    ;[rows, [totals]] = await run(sql`${similarity} >= 0.5`, [
+      desc(similarity),
+      desc(products.createdAt),
+    ])
+  }
 
   const images = await firstImageByProduct(rows.map((r) => r.id))
 
@@ -323,6 +402,7 @@ export async function insertProductWithVariants(input: ProductInput) {
         slug: input.slug,
         description: input.description ?? null,
         brand: input.brand ?? null,
+        keywords: input.keywords ?? null,
         categoryId: input.categoryId,
         status: input.status,
       })
@@ -357,6 +437,7 @@ export async function updateProductWithVariants(id: string, input: ProductInput)
         slug: input.slug,
         description: input.description ?? null,
         brand: input.brand ?? null,
+        keywords: input.keywords ?? null,
         categoryId: input.categoryId,
         status: input.status,
         updatedAt: new Date(),

@@ -67,6 +67,8 @@ export const productInputSchema = z.object({
   slug: slugSchema,
   description: z.string().trim().max(5000).optional(),
   brand: z.string().trim().max(120).optional(),
+  /** Search synonyms — words a customer would type that the title does not use. */
+  keywords: z.string().trim().max(300).optional(),
   categoryId: z.uuid().nullable().default(null),
   status: productStatusSchema.default('draft'),
   variants: z.array(variantInputSchema).min(1, 'A product needs at least one variant'),

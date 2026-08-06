@@ -60,6 +60,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           slug: product.slug,
           description: product.description,
           brand: product.brand,
+          keywords: product.keywords,
           categoryId: product.categoryId,
           status: product.status,
           variants: product.variants.map((v) => ({

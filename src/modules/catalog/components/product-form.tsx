@@ -29,6 +29,7 @@ export type ProductFormInitial = {
   slug: string
   description: string | null
   brand: string | null
+  keywords: string | null
   categoryId: string | null
   status: string
   variants: {
@@ -105,6 +106,7 @@ export function ProductForm({
         slug: String(formData.get('slug') ?? ''),
         description: String(formData.get('description') ?? ''),
         brand: String(formData.get('brand') ?? ''),
+      keywords: String(formData.get('keywords') ?? ''),
         categoryId: String(formData.get('categoryId') ?? '') || null,
         status: String(formData.get('status') ?? 'draft'),
         variants: (hasOptions ? rows : rows.slice(0, 1)).map((r) => ({
@@ -208,6 +210,18 @@ export function ProductForm({
             <option value="archived">Archived</option>
           </Select>
         </div>
+
+        <Input
+          label="Search keywords"
+          name="keywords"
+          defaultValue={initial?.keywords ?? ''}
+          placeholder="shoes, sneakers, trainers"
+          error={errors.keywords}
+        />
+        <p className="-mt-2 text-xs text-(--color-muted)">
+          Words customers might search for that are not in the title. A boot is found by
+          &ldquo;shoes&rdquo; only if you put it here. The category name already works on its own.
+        </p>
       </section>
 
       <section className="flex flex-col gap-4">
