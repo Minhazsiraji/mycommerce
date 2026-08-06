@@ -1,7 +1,9 @@
+import type { Route } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
 import { ThemeToggle } from '@/components/theme-toggle'
+import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
@@ -63,6 +65,96 @@ async function TrustBar() {
         ))}
       </ul>
     </div>
+  )
+}
+
+/**
+ * The footer.
+ *
+ * Every link here goes somewhere that exists. That constraint is the whole
+ * design: the usual e-commerce footer is a wall of About / Careers / Returns /
+ * Privacy, and shipping one of those against pages that 404 is worse than
+ * having no footer at all — it reads as a store that was abandoned halfway.
+ *
+ * "Track your order" is the highest-value link on the page and the one most
+ * stores bury. A guest with no account and a lost confirmation email has
+ * exactly one route back in, and this is it.
+ *
+ * Contact details appear only when configured, same rule as the trust bar.
+ */
+function SiteFooter({ categories }: { categories: { id: string; slug: string; name: string }[] }) {
+  const email = env.STORE_CONTACT_EMAIL
+  const phone = env.STORE_CONTACT_PHONE
+
+  return (
+    <footer className="mt-16 border-t border-(--color-border) bg-(--color-surface)">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-8 px-6 py-12 md:grid-cols-4">
+        <div className="col-span-2 flex flex-col gap-3 md:col-span-1">
+          <Link href="/" className="text-base font-semibold tracking-tight">
+            MyCommerce
+          </Link>
+          <p className="max-w-xs text-sm text-(--color-muted)">
+            Everyday essentials, delivered across Bangladesh.
+          </p>
+        </div>
+
+        <FooterColumn title="Shop">
+          {categories.map((category) => (
+            <FooterLink key={category.id} href={`/c/${category.slug}`}>
+              {category.name}
+            </FooterLink>
+          ))}
+          <FooterLink href="/search">Search</FooterLink>
+        </FooterColumn>
+
+        <FooterColumn title="Orders">
+          <FooterLink href="/orders/lookup">Track your order</FooterLink>
+          <FooterLink href="/account/orders">Order history</FooterLink>
+          <FooterLink href="/cart">Your cart</FooterLink>
+        </FooterColumn>
+
+        <FooterColumn title="Account">
+          <FooterLink href="/account">Your account</FooterLink>
+          <FooterLink href="/account/security">Security</FooterLink>
+          {email ? <FooterLink href={`mailto:${email}`}>{email}</FooterLink> : null}
+          {phone ? <FooterLink href={`tel:${phone.replace(/\s+/g, '')}`}>{phone}</FooterLink> : null}
+        </FooterColumn>
+      </div>
+
+      {/*
+        No year. Reading the clock in a prerendered component bakes whatever
+        year the build ran into a cached page, so it would go quietly wrong
+        rather than stay current. A copyright line does not need one.
+      */}
+      <div className="border-t border-(--color-border)">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-5 text-xs text-(--color-muted) sm:flex-row sm:items-center sm:justify-between">
+          <span>© MyCommerce</span>
+          <span>Secure checkout · bKash · Nagad · Rocket · Card · Bank transfer</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+function FooterColumn({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h2 className="text-xs font-semibold tracking-wide uppercase">{title}</h2>
+      <ul className="flex flex-col gap-2 text-sm">{children}</ul>
+    </div>
+  )
+}
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link
+        href={href as Route}
+        className="text-(--color-muted) transition-colors hover:text-(--color-fg)"
+      >
+        {children}
+      </Link>
+    </li>
   )
 }
 
@@ -194,17 +286,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">{children}</main>
 
-      <footer className="border-t border-(--color-border)">
-        {/*
-          No year here on purpose. Reading the clock in a prerendered component
-          bakes whatever year the build ran into a cached page, so it would go
-          quietly wrong rather than stay current. A copyright line does not need
-          one, and it is not worth making the whole layout render per request.
-        */}
-        <div className="mx-auto w-full max-w-6xl px-6 py-8 text-sm text-(--color-muted)">
-          © MyCommerce
-        </div>
-      </footer>
+      <SiteFooter categories={tops} />
     </div>
   )
 }

@@ -41,6 +41,14 @@ const serverSchema = z.object({
     .transform((v) => v !== 'false'),
 
   /**
+   * How a customer reaches a human. Shown in the footer, omitted when unset —
+   * a store with no way to contact it is one customers do not trust with a card
+   * number, and payment gateways commonly ask for this at merchant review.
+   */
+  STORE_CONTACT_EMAIL: z.email().optional(),
+  STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
+
+  /**
    * Bank details shown to customers paying by transfer. Env rather than admin
    * because they are set once and changing them is a deliberate, rare act —
    * and a typo here sends money to the wrong account.
