@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { parseBdt } from '@/lib/money'
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit'
 import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
@@ -40,6 +41,11 @@ export async function startGatewayPayment(
   const parsed = z.string().trim().min(4).max(32).safeParse(orderNumber)
   if (!parsed.success) return fail('validation', 'Invalid order.')
 
+  // Each call opens a session at SSLCommerz. Retrying a failed card is normal;
+  // doing it thirty times a minute is not.
+  const limit = await rateLimit('gateway-session', 15, 3600)
+  if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
+
   try {
     return ok(await service.startGatewayPayment(parsed.data))
   } catch (error) {
@@ -66,6 +72,11 @@ export async function switchToBankTransfer(orderNumber: unknown): Promise<Action
 export async function submitTransferReference(input: unknown): Promise<ActionResult<null>> {
   const parsed = submitSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
+
+  // Reachable by a guest holding only an order number; correcting a mistyped
+  // reference is expected, flooding the admin queue is not.
+  const limit = await rateLimit('transfer-reference', 20, 3600)
+  if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
 
   try {
     await service.submitTransferReference(parsed.data.orderNumber, parsed.data.reference)

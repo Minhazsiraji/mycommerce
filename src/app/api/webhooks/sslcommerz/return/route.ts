@@ -27,10 +27,21 @@ async function handle(request: Request) {
 
   if (!orderNumber) orderNumber = url.searchParams.get('tran_id') ?? ''
 
-  if (!orderNumber) redirect('/')
+  /**
+   * Both values come from the request, so neither is trusted into a URL.
+   *
+   * The fixed origin prefix already rules out an off-site redirect, but
+   * unencoded input in a Location header is the response-splitting shape, and
+   * `..%2f` in the path segment would walk out of /orders. Order numbers are
+   * `MC-XXXXXX-XXXXXX`, so anything else is not a real return trip; the status
+   * is narrowed to the three values the gateway actually sends.
+   */
+  if (!/^[A-Z0-9-]{4,32}$/i.test(orderNumber)) redirect('/')
 
-  const query = status === 'success' ? '' : `?payment=${status ?? 'cancelled'}`
-  redirect(`${env.BETTER_AUTH_URL}/orders/${orderNumber}${query}` as Route)
+  const outcome = status === 'failed' || status === 'cancelled' ? status : 'cancelled'
+  const query = status === 'success' ? '' : `?payment=${outcome}`
+
+  redirect(`${env.BETTER_AUTH_URL}/orders/${encodeURIComponent(orderNumber)}${query}` as Route)
 }
 
 export async function GET(request: Request) {

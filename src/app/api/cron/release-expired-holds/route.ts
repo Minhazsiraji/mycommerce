@@ -1,5 +1,27 @@
+import { timingSafeEqual } from 'node:crypto'
+
 import { env } from '@/lib/env'
+import { pruneRateLimits } from '@/lib/rate-limit'
+import { pruneAuditLogs } from '@/modules/admin'
 import { listExpiredHolds, releaseHold } from '@/modules/orders'
+
+/**
+ * Compares without leaking length or position through timing.
+ *
+ * `!==` returns on the first differing byte. Over the public internet that
+ * signal is buried in jitter, but this endpoint cancels orders and returns
+ * stock, and the constant-time version is three lines.
+ */
+function secretMatches(provided: string | null, expected: string): boolean {
+  if (!provided) return false
+
+  const a = Buffer.from(provided)
+  const b = Buffer.from(`Bearer ${expected}`)
+
+  // timingSafeEqual throws on a length mismatch, which would itself be a signal.
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
 
 /**
  * Returns stock reserved by orders that were never paid.
@@ -13,10 +35,9 @@ import { listExpiredHolds, releaseHold } from '@/modules/orders'
  * its hold, so a second run finds nothing.
  */
 export async function POST(request: Request) {
-  const secret = request.headers.get('authorization')
-
-  // Vercel Cron sends this header; without the check anyone could invoke it.
-  if (!env.CRON_SECRET || secret !== `Bearer ${env.CRON_SECRET}`) {
+  // Vercel Cron sends this header. No secret configured means no caller can
+  // ever authenticate — closed, not open.
+  if (!env.CRON_SECRET || !secretMatches(request.headers.get('authorization'), env.CRON_SECRET)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -33,5 +54,23 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ checked: expired.length, released })
+  /**
+   * Retention, piggybacked on the job that already runs.
+   *
+   * docs/04-security.md promises audit logs are kept one year; a promise with no
+   * code behind it is just a sentence. Rate-limit windows older than a day can
+   * never be counted against again. Neither is allowed to fail the release pass,
+   * which is the part that actually affects customers.
+   */
+  let pruned = { auditLogs: 0, rateLimits: 0 }
+  try {
+    pruned = {
+      auditLogs: await pruneAuditLogs(),
+      rateLimits: await pruneRateLimits(),
+    }
+  } catch (error) {
+    console.error('[cron] retention pass failed', error)
+  }
+
+  return Response.json({ checked: expired.length, released, pruned })
 }

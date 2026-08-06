@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, lt } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { requireRole } from '@/modules/accounts'
@@ -58,10 +58,29 @@ export function listAuditLogs(limit = 100) {
   return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit)
 }
 
+/**
+ * Enforces the one-year retention docs/04-security.md commits to.
+ *
+ * Keeping admin actions forever is not more secure, it is more liability: the
+ * log holds order notes and customer-facing detail, and data you no longer need
+ * is data that can only ever be leaked. Run from the nightly cron.
+ */
+export async function pruneAuditLogs(): Promise<number> {
+  const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60_000)
+  const deleted = await db
+    .delete(auditLogs)
+    .where(lt(auditLogs.createdAt, cutoff))
+    .returning({ id: auditLogs.id })
+
+  return deleted.length
+}
+
 export function listAuditLogsFor(entityType: string, entityId: string) {
   return db
     .select()
     .from(auditLogs)
-    .where(eq(auditLogs.entityId, entityId))
+    // Both columns: entity ids are unique in practice but not by constraint,
+    // and the composite index is on (entityType, entityId) anyway.
+    .where(and(eq(auditLogs.entityType, entityType), eq(auditLogs.entityId, entityId)))
     .orderBy(desc(auditLogs.createdAt))
 }

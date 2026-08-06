@@ -70,7 +70,13 @@ Commerce-specific risks, each with the control that addresses it.
 | 14 | **Dependency compromise** | Lockfile committed, Dependabot on, `pnpm audit` in CI, builds fail on high severity. |
 | 15 | **Forged transfer receipt** — customer uploads a fake screenshot to claim payment | The upload is **evidence for a human, never proof**. Confirmation is authorised against the bank statement alone. `confirmTransfer` requires the admin to enter the observed amount, and rejects a mismatch with the order total. |
 | 16 | **Wrong or malicious transfer confirmation** | `confirmTransfer` is admin-only, audit logged with actor and amount, and irreversible only forward — a mistaken confirmation is corrected by a refund record, never by editing the payment row. |
-| 17 | **Stock hostage via unpaid orders** | Bank transfers reserve stock for 72 hours, gateway checkouts for 30 minutes; a cron releases both. Without separate windows, either legitimate transfers get cancelled or a bot can freeze inventory by starting checkouts. |
+| 17 | **Stock hostage via unpaid orders** | Bank transfers reserve stock for 72 hours, gateway checkouts for 30 minutes; a cron releases both. Without separate windows, either legitimate transfers get cancelled or a bot can freeze inventory by starting checkouts. **The hold windows alone are not the control** — they bound how long one order squats, not how many an attacker opens. `placeOrder` is rate limited to 10/hour per IP; without that, a loop empties the catalogue for free. |
+| 18 | **HTML injection into transactional email** | The email templates are hand-built strings, so React's escaping does not apply. Every interpolated value goes through `lib/escape-html.ts`. The live case is the shipping recipient: it is typed by the customer and rendered into the confirmation. |
+| 19 | **Payment history tampering by overreach** | Updates to `payments` are scoped to a single row by id, never `WHERE order_id = ...`. An order that failed by card and switched to transfer has two rows, and the earlier code stamped "verified by an admin" onto the card attempt as well — destroying the record `switchToBankTransfer` deliberately keeps for disputes. |
+| 20 | **Confirming a transfer against returned stock** | `confirmTransfer` guards on status, payment status and method. The dangerous path is a late transfer on an order whose hold expired: cron cancelled it and returned the stock, which was then sold to someone else. Taking that money is an oversell; the admin is told to refund and have the customer reorder. `rejectTransfer` has the same guards, or a rejection would set a cancelled order back to `awaiting_transfer` and quietly revive it. |
+| 21 | **Attacker-controlled input in a redirect** | The SSLCommerz return handler builds a URL from `tran_id`. The order number is matched against `^[A-Z0-9-]{4,32}$` and encoded, and the status is narrowed to a known set — a fixed origin prefix stops an off-site redirect, but not path traversal or a CRLF payload in a `Location` header. |
+| 22 | **Attaching an arbitrary Cloudinary asset** | The browser uploads directly and reports back the key it got. The signature restricts where an upload *lands*; `attachImageSchema` restricts what we accept as having landed there, via a `mycommerce/<folder>/…` pattern. |
+| 23 | **Cron endpoint secret recovery** | `CRON_SECRET` compared with `timingSafeEqual`, length-checked first so the throw is not itself a signal. No secret configured means no caller can authenticate — closed, not open. |
 
 SQL injection is covered by Drizzle's parameterisation — the only way to reintroduce it
 is `sql.raw()` with interpolated input, which is banned. CSRF is covered by Server
@@ -78,41 +84,84 @@ Actions' built-in origin checks plus `SameSite=Lax`.
 
 ## Headers
 
-Set in `next.config.ts`, verified in an e2e test so a regression fails CI:
+The CSP is per-request in `src/proxy.ts`; the rest are static in `next.config.ts`.
+A P5 e2e test asserts them so a regression fails CI.
 
 ```
-Content-Security-Policy: default-src 'self'; img-src 'self' https://<r2-domain> data:;
-  script-src 'self' 'nonce-<generated>'; style-src 'self' 'unsafe-inline';
-  frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://res.cloudinary.com;
+  font-src 'self'; connect-src 'self' https://api.cloudinary.com;
+  form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none';
+  upgrade-insecure-requests
 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: camera=(), microphone=(), geolocation=()
+Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()
+X-Frame-Options: DENY
+Cross-Origin-Opener-Policy: same-origin
+X-DNS-Prefetch-Control: off
 ```
 
-Payment provider iframes require their domains in `frame-src` and `script-src` — add
-them explicitly rather than loosening the policy.
+**There is no nonce, and that is not an oversight.** `'strict-dynamic'` with a
+per-request nonce is the stronger policy and it broke the entire site — Next cannot
+stamp a nonce onto a statically prerendered page, so every chunk was blocked while the
+pages still returned 200 with correct markup. The full account is in the header
+comment of `src/proxy.ts`; read it before trying again. What survives is
+`script-src 'self'`, which still blocks loading code from another origin — the actual
+exfiltration route. What is given up is protection against injected *inline* script,
+which first requires an XSS hole (threats 10 and 18).
+
+`Referrer-Policy` is load-bearing for privacy here, not boilerplate: order numbers
+appear in URL paths, and the default would send them to any third-party origin a page
+links out to.
+
+Payment provider iframes would require their domains in `frame-src` and `script-src` —
+add them explicitly rather than loosening the policy. SSLCommerz is a full redirect
+today, so none are needed.
 
 ## Rate limits
 
-Enforced at Cloudflare and again in the application, keyed by IP and, where available,
-user ID.
+Two independent layers. Better Auth's own limiter covers `/api/auth/*`; everything
+else is `lib/rate-limit.ts`, a fixed-window counter **in Postgres**.
 
-**Guest order lookup is Cloudflare-only, deliberately.** On Vercel each invocation may
-be a fresh instance, so an in-process counter would count to one and reset — security
-theatre that reads like a control. `POST /orders/lookup` therefore needs a rate-limit
-rule in the WAF; until that rule exists the endpoint is unthrottled, and the thing
-actually protecting it is that a lookup requires order number **and** matching email,
-with the same response for a missing order and a wrong address.
+It has to be Postgres. On Vercel each invocation may be a cold instance, so an
+in-process `Map` counts to one and resets — a control that reads like a control and
+stops nothing. The same reasoning as the queue rule in CLAUDE.md: if we think we need
+Redis, we need a Postgres table and a cron route.
 
-| Endpoint | Limit |
-|---|---|
-| Login / register | 5 per 15 min |
-| Password reset request | 3 per hour |
-| Guest order lookup | 10 per hour (WAF rule — **not yet configured**) |
-| `placeOrder` | 10 per hour |
-| Review submission | 5 per day |
-| Search | 60 per minute |
+| Endpoint | Limit | Enforced by |
+|---|---|---|
+| Login / register | 5 per 15 min | Better Auth |
+| Password reset request | 3 per hour | Better Auth |
+| Guest order lookup | 10 per hour | `order-lookup` bucket |
+| `placeOrder` | 10 per hour | `place-order` bucket |
+| Gateway session | 15 per hour | `gateway-session` bucket |
+| Transfer reference | 20 per hour | `transfer-reference` bucket |
+| Review submission | 5 per day | not built (P4) |
+| Search | 60 per minute | Cloudflare |
+
+`placeOrder` is the one that matters most, and it is not about spam. Placing an order
+decrements real stock and holds it for up to 72 hours with nothing paid, so an
+unthrottled loop takes the whole catalogue to zero for free — a competitor could make
+the store show "out of stock" on everything for three days. Ten an hour is far above
+a real customer and far below what that attack needs.
+
+Design notes worth keeping:
+
+- The count is one atomic upsert. Read-then-write would let two concurrent requests
+  both see `hits = limit - 1` and both proceed, which is the exact case a limiter
+  exists to stop. A test asserts twenty concurrent calls produce twenty distinct
+  counts.
+- It **fails open**. If the database is unreachable the limiter cannot answer — but
+  neither can checkout, so refusing here protects nothing and turns a database blip
+  into a self-inflicted outage.
+- A fixed window admits up to 2x the limit across a boundary. Accepted: this is a
+  "stop a script" control, not a billing meter.
+- Identity is the leftmost `x-forwarded-for` entry. Vercel overwrites that header at
+  the edge, so it is trustworthy **there and only there** — re-check this assumption
+  before running behind any other proxy. A missing header falls back to one shared
+  bucket, not to unlimited.
+- Windows older than 24 hours are pruned by the nightly cron.
 
 ## PCI scope
 
@@ -150,8 +199,30 @@ Two implementation notes that matter:
 Actor email is stored alongside the FK because the FK is `ON DELETE SET NULL` —
 deleting a user must not erase what they did.
 
+Retention is enforced by `pruneAuditLogs()` on the nightly cron, not by intention. The
+log holds order notes and customer-facing detail, so keeping it forever is not more
+secure — it is more liability. Data you no longer need is data that can only ever leak.
+
 Not covered: reads. Viewing a customer's address writes nothing. With one operator
 that is the right trade; revisit if the store ever has staff accounts.
+
+## Known gaps
+
+Written down rather than left implied. None is a live vulnerability; each is a control
+that does not exist yet.
+
+- **No account deletion or data export.** The "account deletion anonymises orders"
+  paragraph above describes a design, not a shipped feature. If this store ever serves
+  EU customers, that is a compliance gap, not just a missing nicety.
+- **No customer-facing session management.** A customer cannot see or revoke their
+  other sessions. Sessions last 30 days.
+- **`placeOrder` accepts any email address.** A signed-in customer can put someone
+  else's address on an order. No mail is sent until payment succeeds, so this is not
+  an email-amplification vector, but the confirmation would go to the wrong person.
+- **No admin 2FA.** One password stands between an attacker and the order book. This
+  is the single highest-value hardening left, and Better Auth ships a TOTP plugin.
+- **Bot protection is Cloudflare-only** and unconfigured until the domain is live.
+- **No Sentry**, so server errors are only in Vercel's log retention window.
 
 ## Pre-launch checklist
 

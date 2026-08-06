@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { escapeHtml } from '@/lib/escape-html'
 import { env } from '@/lib/env'
 
 /**
@@ -16,6 +17,8 @@ type Mail = {
   subject: string
   html: string
 }
+
+export { escapeHtml }
 
 export async function sendMail({ to, subject, html }: Mail): Promise<void> {
   if (!env.RESEND_API_KEY) {
@@ -42,14 +45,18 @@ export async function sendMail({ to, subject, html }: Mail): Promise<void> {
 }
 
 function layout(heading: string, body: string, action?: { label: string; url: string }) {
+  // Both call sites pass fixed copy, but escaping unconditionally means that
+  // stays true even if someone later threads a user value through here.
+  const url = action ? escapeHtml(action.url) : ''
+
   return `
     <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#111">
-      <h1 style="font-size:20px;margin:0 0 16px">${heading}</h1>
-      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#444">${body}</p>
+      <h1 style="font-size:20px;margin:0 0 16px">${escapeHtml(heading)}</h1>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 24px;color:#444">${escapeHtml(body)}</p>
       ${
         action
-          ? `<a href="${action.url}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:15px">${action.label}</a>
-             <p style="font-size:13px;color:#777;margin:24px 0 0;line-height:1.6">If the button does not work, paste this into your browser:<br><span style="word-break:break-all">${action.url}</span></p>`
+          ? `<a href="${url}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:15px">${escapeHtml(action.label)}</a>
+             <p style="font-size:13px;color:#777;margin:24px 0 0;line-height:1.6">If the button does not work, paste this into your browser:<br><span style="word-break:break-all">${url}</span></p>`
           : ''
       }
     </div>

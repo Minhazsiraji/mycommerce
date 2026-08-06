@@ -2,7 +2,7 @@ import 'server-only'
 
 import { formatBdt } from '@/lib/money'
 
-import { sendMail } from './mailer'
+import { escapeHtml, sendMail } from './mailer'
 
 /**
  * Transactional order emails.
@@ -28,15 +28,20 @@ type OrderSummary = {
 
 const BASE = process.env.BETTER_AUTH_URL ?? ''
 
+/**
+ * `heading` and `intro` are escaped here because they carry interpolated user
+ * and admin text. `body` is not — it is HTML this file built, and every value
+ * inside it was escaped at the point it was inserted.
+ */
 function shell(heading: string, intro: string, body: string, action?: { label: string; url: string }) {
   return `
     <div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#111">
-      <h1 style="font-size:20px;margin:0 0 12px">${heading}</h1>
-      <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#444">${intro}</p>
+      <h1 style="font-size:20px;margin:0 0 12px">${escapeHtml(heading)}</h1>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 20px;color:#444">${escapeHtml(intro)}</p>
       ${body}
       ${
         action
-          ? `<p style="margin:24px 0 0"><a href="${action.url}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:15px">${action.label}</a></p>`
+          ? `<p style="margin:24px 0 0"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:15px">${escapeHtml(action.label)}</a></p>`
           : ''
       }
       <p style="font-size:12px;color:#888;margin:28px 0 0">MyCommerce</p>
@@ -50,7 +55,7 @@ function itemsTable(order: OrderSummary) {
       (i) => `
       <tr>
         <td style="padding:6px 0;font-size:14px;color:#444">
-          ${i.productTitle}${i.variantTitle ? ` · ${i.variantTitle}` : ''} × ${i.quantity}
+          ${escapeHtml(i.productTitle)}${i.variantTitle ? ` · ${escapeHtml(i.variantTitle)}` : ''} × ${i.quantity}
         </td>
         <td style="padding:6px 0;font-size:14px;text-align:right;white-space:nowrap">${formatBdt(i.lineTotal)}</td>
       </tr>`,
@@ -95,7 +100,7 @@ export function sendOrderShipped(
   parcel: { carrier: string; trackingNumber: string | null },
 ) {
   const tracking = parcel.trackingNumber
-    ? `<p style="font-size:15px;margin:0 0 8px">Tracking number: <strong>${parcel.trackingNumber}</strong></p>`
+    ? `<p style="font-size:15px;margin:0 0 8px">Tracking number: <strong>${escapeHtml(parcel.trackingNumber)}</strong></p>`
     : ''
 
   return sendMail({

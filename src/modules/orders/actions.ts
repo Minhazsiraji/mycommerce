@@ -4,6 +4,7 @@ import { refresh } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit'
 import { auditedAdmin } from '@/modules/admin'
 import { ShippingError } from '@/modules/shipping'
 
@@ -33,6 +34,11 @@ export async function lookupGuestOrder(
   _prev: LookupState,
   formData: FormData,
 ): Promise<LookupState> {
+  // Throttled before parsing: an attacker grinding order numbers should not get
+  // free validation feedback, and this is the enumeration surface threat 7 names.
+  const limit = await rateLimit('order-lookup', 10, 3600)
+  if (!limit.ok) return { error: tooManyRequests(limit.retryAfter) }
+
   const parsed = guestLookupSchema.safeParse({
     orderNumber: formData.get('orderNumber'),
     email: formData.get('email'),
@@ -212,6 +218,17 @@ export async function placeOrder(
 ): Promise<ActionResult<{ orderNumber: string; paymentMethod: string }>> {
   const parsed = placeOrderSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
+
+  /**
+   * The most important limit in the application.
+   *
+   * Placing an order decrements real stock and holds it for up to 72 hours with
+   * nothing paid. Unthrottled, a loop empties the catalogue for free. Ten an
+   * hour is far above what a real customer does and far below what an attacker
+   * needs.
+   */
+  const limit = await rateLimit('place-order', 10, 3600)
+  if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
 
   try {
     const order = await service.placeOrder(parsed.data)

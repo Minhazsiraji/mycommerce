@@ -90,7 +90,21 @@ export const productFiltersSchema = z.object({
 
 export const attachImageSchema = z.object({
   productId: z.uuid(),
-  key: z.string().trim().min(1).max(300),
+  /**
+   * Constrained to our own upload folder.
+   *
+   * The browser gets a signed upload ticket and then reports back the key it
+   * received. Without this, that report could name any asset in the Cloudinary
+   * account — or one crafted to sit outside it — and the store would render it
+   * as a product photo. The signature restricts where an upload *lands*; this
+   * restricts what we will accept as having landed there.
+   */
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(300)
+    .regex(/^mycommerce\/[a-z]+\/[\w.\-/]+$/, 'Unexpected image key'),
   alt: z.string().trim().max(200).optional(),
 })
 

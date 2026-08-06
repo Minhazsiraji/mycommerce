@@ -6,5 +6,11 @@
  * the relevant domain module directly.
  */
 
-export { auditedAdmin, listAuditLogs, listAuditLogsFor, recordAudit } from './audit'
+export {
+  auditedAdmin,
+  listAuditLogs,
+  listAuditLogsFor,
+  pruneAuditLogs,
+  recordAudit,
+} from './audit'
 export type { AuditLog } from './schema'

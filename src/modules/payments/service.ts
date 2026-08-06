@@ -133,6 +133,27 @@ export async function switchToBankTransfer(orderNumber: string) {
   })
 }
 
+/**
+ * The live bank-transfer attempt for an order.
+ *
+ * Scoped to the provider and to the newest row, both deliberately. An order that
+ * failed by card and then switched to transfer has two payment rows, and a bare
+ * `where orderId = ...` updates both — stamping "verified by an admin for the
+ * full amount" onto a card attempt nobody verified. `switchToBankTransfer` keeps
+ * that row precisely so a dispute can be reconstructed; overwriting it defeats
+ * the reason it exists.
+ */
+async function currentTransfer(orderId: string) {
+  const [row] = await db
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.orderId, orderId), eq(payments.provider, 'bank_transfer')))
+    .orderBy(desc(payments.createdAt))
+    .limit(1)
+
+  return row
+}
+
 /** Customer submits the reference for a transfer they have made. */
 export async function submitTransferReference(orderNumber: string, reference: string) {
   const order = await getVisibleOrder(orderNumber)
@@ -141,13 +162,17 @@ export async function submitTransferReference(orderNumber: string, reference: st
   if (order.paymentMethod !== 'bank_transfer') {
     throw new PaymentError('This order is not being paid by transfer.')
   }
+  if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
+
+  const attempt = await currentTransfer(order.id)
+  if (!attempt) throw new PaymentError('No transfer is pending on this order.')
 
   await db.transaction(async (tx) => {
     await tx
       .update(payments)
       .set({ submittedReference: reference, status: 'awaiting_verification', updatedAt: new Date() })
-      .where(eq(payments.orderId, order.id))
+      .where(eq(payments.id, attempt.id))
 
     await tx
       .update(orders)
@@ -189,31 +214,65 @@ export async function confirmTransfer(input: {
   const order = await db.query.orders.findFirst({ where: eq(orders.id, input.orderId) })
   if (!order) throw new PaymentError('Order not found.')
 
+  /**
+   * State guards, not paperwork.
+   *
+   * The dangerous case is a late transfer against an order whose hold expired:
+   * cron already cancelled it and returned the stock, which has since been sold
+   * to somebody else. Confirming that order takes the money for goods the store
+   * no longer has. Refund it and let the customer reorder — that is a bad
+   * afternoon; silently overselling is a bad reputation.
+   */
+  if (order.paymentMethod !== 'bank_transfer') {
+    throw new PaymentError('This order is not being paid by transfer.')
+  }
+  if (order.status === 'cancelled') {
+    throw new PaymentError(
+      'This order was cancelled and its stock returned. Refund the transfer and ask the customer to order again.',
+    )
+  }
+  if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
+
   if (input.observedAmount !== order.total) {
     throw new PaymentError(
       'That amount does not match the order total. Check the statement before confirming.',
     )
   }
 
+  const attempt = await currentTransfer(order.id)
+  if (!attempt) throw new PaymentError('No transfer is pending on this order.')
+
   await db
     .update(payments)
     .set({
+      status: 'paid',
       verifiedBy: input.adminUserId,
       verifiedAt: new Date(),
       verifiedAmount: input.observedAmount,
       updatedAt: new Date(),
     })
-    .where(eq(payments.orderId, order.id))
+    .where(eq(payments.id, attempt.id))
 
   await markPaid(order.id, null)
 }
 
 export async function rejectTransfer(orderId: string, reason: string) {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+  if (!order) throw new PaymentError('Order not found.')
+
+  // Without this a rejection would set a cancelled order back to
+  // awaiting_transfer, quietly bringing it back to life.
+  if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
+  if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
+
+  const attempt = await currentTransfer(orderId)
+  if (!attempt) throw new PaymentError('No transfer is pending on this order.')
+
   await db.transaction(async (tx) => {
     await tx
       .update(payments)
       .set({ status: 'failed', rawPayload: { reason }, updatedAt: new Date() })
-      .where(eq(payments.orderId, orderId))
+      .where(eq(payments.id, attempt.id))
 
     await tx
       .update(orders)
