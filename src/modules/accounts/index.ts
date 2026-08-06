@@ -15,6 +15,7 @@ export {
   listMySessions,
   verifyPassword,
   type AccountExport,
+  type DeviceSession,
 } from './account-data'
 export {
   archiveAddress,

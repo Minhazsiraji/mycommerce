@@ -6,8 +6,12 @@ import { Button } from '@/components/ui/button'
 
 import { revokeOtherSessions, revokeSession } from '../actions'
 
+/**
+ * No token field, deliberately. A session token is a bearer credential, and
+ * this object is serialised into the page — see `listMySessions`.
+ */
 export type SessionRow = {
-  token: string
+  id: string
   createdAt: string
   expiresAt: string
   ipAddress: string | null
@@ -54,7 +58,7 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
       <ul className="flex flex-col gap-3">
         {sessions.map((s) => (
           <li
-            key={s.token}
+            key={s.id}
             className="flex items-start justify-between gap-4 rounded-lg border border-(--color-border) p-4 text-sm"
           >
             <div className="min-w-0">
@@ -81,7 +85,7 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
                 onClick={() => {
                   setError(undefined)
                   startTransition(async () => {
-                    const result = await revokeSession({ token: s.token })
+                    const result = await revokeSession({ sessionId: s.id })
                     if (!result.ok) setError(result.error?.message)
                   })
                 }}

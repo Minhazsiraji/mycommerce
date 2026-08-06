@@ -1,35 +1,81 @@
 import 'server-only'
 
-import { eq } from 'drizzle-orm'
-import { headers } from 'next/headers'
+import { and, desc, eq, ne } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { anonymiseOrdersForUser, listOrdersForUser } from '@/modules/orders'
 
 import { auth } from './auth'
-import { accounts, addresses, users } from './schema'
+import { accounts, addresses, sessions, users } from './schema'
 
 export class AccountError extends Error {}
 
 /* ------------------------------------------------------------------ sessions */
 
-/**
- * Every device signed in as this user.
- *
- * Better Auth scopes this to the caller's own session, so there is no user id
- * to pass and no way to ask about somebody else.
- */
-export async function listMySessions() {
-  return auth.api.listSessions({ headers: await headers() })
+export type DeviceSession = {
+  id: string
+  createdAt: Date
+  expiresAt: Date
+  ipAddress: string | null
+  userAgent: string | null
+  current: boolean
 }
 
-export async function revokeSession(token: string) {
-  return auth.api.revokeSession({ body: { token }, headers: await headers() })
+/**
+ * Every device signed in as this user — read directly, and without tokens.
+ *
+ * Better Auth's own `listSessions` is deliberately not used here. It sits behind
+ * a freshness check and returns each session's **token**, which is a bearer
+ * credential: anything holding one is signed in as that user. Rendering those
+ * into a page would put live credentials in the HTML, in the RSC payload, and
+ * in any screenshot of the screen — so the token never leaves the server, and
+ * revocation is keyed on the row id instead.
+ *
+ * That also fixes the practical problem: freshness meant the page 500'd for
+ * anyone whose session was more than a day old, which is almost everyone.
+ */
+export async function listMySessions(
+  userId: string,
+  currentToken: string,
+): Promise<DeviceSession[]> {
+  const rows = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.userId, userId))
+    .orderBy(desc(sessions.createdAt))
+
+  return rows.map((s) => ({
+    id: s.id,
+    createdAt: s.createdAt,
+    expiresAt: s.expiresAt,
+    ipAddress: s.ipAddress,
+    userAgent: s.userAgent,
+    // Compared server-side; only the boolean crosses to the client.
+    current: s.token === currentToken,
+  }))
+}
+
+/**
+ * Ends one session. Scoped by user id in the WHERE clause, so a guessed row id
+ * matches nothing rather than signing somebody else out.
+ */
+export async function revokeSession(userId: string, sessionId: string): Promise<boolean> {
+  const removed = await db
+    .delete(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)))
+    .returning({ id: sessions.id })
+
+  return removed.length > 0
 }
 
 /** Signs out every other device. The one asking stays signed in. */
-export async function revokeOtherSessions() {
-  return auth.api.revokeOtherSessions({ headers: await headers() })
+export async function revokeOtherSessions(userId: string, currentToken: string): Promise<number> {
+  const removed = await db
+    .delete(sessions)
+    .where(and(eq(sessions.userId, userId), ne(sessions.token, currentToken)))
+    .returning({ id: sessions.id })
+
+  return removed.length
 }
 
 /* ------------------------------------------------------------------- re-auth */

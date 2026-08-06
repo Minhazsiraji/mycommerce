@@ -257,9 +257,25 @@ Decisions worth keeping:
 ## Sessions
 
 Customers can see every signed-in device at `/account/security` — browser, OS, IP,
-sign-in date — and revoke any one, or all others at once. Better Auth scopes both the
-listing and the revocation to the caller's own sessions, so there is no user id to pass
-and no way to ask about somebody else.
+sign-in date — and revoke any one, or all others at once.
+
+**Sessions are read directly from the table, not through `auth.api.listSessions`.**
+That endpoint returns each session's *token*, which is a bearer credential: anything
+holding one is signed in as that user. Passing those to a client component would put
+live credentials in the HTML, in the RSC payload, and in any screenshot of the page.
+The token never leaves the server; the UI keys revocation on the row id, and every
+delete is scoped by user id in the `WHERE` clause. A test asserts no token appears in
+the rendered HTML.
+
+Better Auth also gates `listSessions` behind a freshness check for exactly this reason,
+which is how the mistake surfaced — the page 500'd with `SESSION_NOT_FRESH` for anyone
+whose session was over a day old. The freshness error was the symptom; the token
+exposure was the bug.
+
+Revocation deliberately does **not** require password re-auth, unlike export and
+deletion. Signing a device out is what someone does *because* they think they have been
+compromised, and a password prompt slows down the one moment it matters. The worst case
+is a user ending their own sessions, which they fix by signing back in.
 
 Sessions last 30 days and refresh daily. That is long, and the mitigation is that the
 list makes a stranger's session visible and one click ends it.

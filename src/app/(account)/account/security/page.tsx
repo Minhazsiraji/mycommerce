@@ -26,15 +26,15 @@ async function SecurityPanels({ searchParams }: { searchParams: Promise<{ requir
   await connection()
 
   const [{ user, session }, { required }] = await Promise.all([requireSession(), searchParams])
-  const sessions = await listMySessions()
+  const sessions = await listMySessions(user.id, session.token)
 
   const rows: SessionRow[] = sessions.map((s) => ({
-    token: s.token,
-    createdAt: new Date(s.createdAt).toISOString(),
-    expiresAt: new Date(s.expiresAt).toISOString(),
-    ipAddress: s.ipAddress ?? null,
-    userAgent: s.userAgent ?? null,
-    current: s.token === session.token,
+    id: s.id,
+    createdAt: s.createdAt.toISOString(),
+    expiresAt: s.expiresAt.toISOString(),
+    ipAddress: s.ipAddress,
+    userAgent: s.userAgent,
+    current: s.current,
   }))
 
   return (

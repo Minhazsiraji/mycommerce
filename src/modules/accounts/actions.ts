@@ -15,7 +15,8 @@ const passwordSchema = z.object({
 })
 
 const revokeSchema = z.object({
-  token: z.string().trim().min(10).max(400),
+  // A row id, never a session token — see the note in account-data.ts.
+  sessionId: z.string().trim().min(1).max(200),
 })
 
 /**
@@ -41,21 +42,31 @@ export async function revokeSession(input: unknown): Promise<ActionResult<null>>
   const parsed = revokeSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
-  // Better Auth scopes revocation to the caller's own sessions; a token
-  // belonging to somebody else simply does not match.
-  await requireSession()
-  await data.revokeSession(parsed.data.token)
+  const { user } = await requireSession()
+
+  // Scoped by user id inside the delete, so a guessed row id matches nothing.
+  const removed = await data.revokeSession(user.id, parsed.data.sessionId)
+  if (!removed) return fail('not_found', 'That device is already signed out.')
 
   refresh()
   return ok(null)
 }
 
-export async function revokeOtherSessions(): Promise<ActionResult<null>> {
-  await requireSession()
-  await data.revokeOtherSessions()
+/**
+ * No password re-auth here, unlike export and deletion.
+ *
+ * Signing a device out is the thing someone does *because* they think they have
+ * been compromised. Putting a password prompt in front of it would slow down the
+ * exact moment it matters, and the worst case is a user ending their own
+ * sessions — recoverable by signing back in.
+ */
+export async function revokeOtherSessions(): Promise<ActionResult<{ count: number }>> {
+  const { user, session } = await requireSession()
+
+  const count = await data.revokeOtherSessions(user.id, session.token)
 
   refresh()
-  return ok(null)
+  return ok({ count })
 }
 
 export async function exportMyData(input: unknown): Promise<ActionResult<string>> {
