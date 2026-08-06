@@ -1,6 +1,6 @@
 'use server'
 
-import { refresh } from 'next/cache'
+import { refresh, updateTag } from 'next/cache'
 import { z } from 'zod'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
@@ -9,7 +9,19 @@ import { recordAudit } from '@/modules/admin'
 
 import * as service from './service'
 import { ShippingError } from './service'
+import { SHIPPING_TAGS } from './tags'
 import { shippingRateInputSchema } from './validators'
+
+/**
+ * `refresh()` alone only clears the router cache for the admin screen. The
+ * storefront trust bar is a tagged cached read, so a rate change has to clear
+ * the tag too — otherwise the free-delivery threshold shown to customers stays
+ * on the old number indefinitely.
+ */
+function invalidate() {
+  updateTag(SHIPPING_TAGS.rates)
+  refresh()
+}
 
 const idSchema = z.uuid()
 
@@ -33,7 +45,7 @@ export async function createShippingRate(input: unknown): Promise<ActionResult<{
       entityId: rate.id,
       detail: parsed.data,
     })
-    refresh()
+    invalidate()
     return ok({ id: rate.id })
   } catch (error) {
     return toResult(error)
@@ -60,7 +72,7 @@ export async function updateShippingRate(
       entityId: rate.id,
       detail: parsed.data,
     })
-    refresh()
+    invalidate()
     return ok({ id: rate.id })
   } catch (error) {
     return toResult(error)
@@ -80,7 +92,7 @@ export async function deleteShippingRate(rawId: unknown): Promise<ActionResult<n
       entityType: 'shipping_rate',
       entityId: id.data,
     })
-    refresh()
+    invalidate()
     return ok(null)
   } catch (error) {
     return toResult(error)

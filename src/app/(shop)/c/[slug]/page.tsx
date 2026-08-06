@@ -79,16 +79,23 @@ export default async function CategoryPage({
         </nav>
       ) : null}
 
-      <div className="flex items-center justify-between gap-4 text-sm">
+      {/*
+        Stacked on a phone, one row from sm up. Forced onto a single row at
+        375px the three sort labels each wrap mid-phrase — "Price: low / to
+        high" — and the count breaks to "2 / products". The negative margin lets
+        the scroll strip bleed to the screen edge so it reads as scrollable
+        rather than clipped.
+      */}
+      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <span className="text-(--color-muted)">
           {total} {total === 1 ? 'product' : 'products'}
         </span>
-        <div className="flex gap-2">
+        <div className="-mx-6 flex gap-2 overflow-x-auto px-6 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {SORTS.map((option) => (
             <Link
               key={option.value}
               href={hrefFor({ sort: option.value, page: '1' })}
-              className={`rounded-md px-2 py-1 ${
+              className={`rounded-md px-2 py-1 whitespace-nowrap ${
                 filters.sort === option.value
                   ? 'bg-(--color-surface) font-medium'
                   : 'text-(--color-muted) hover:text-(--color-fg)'

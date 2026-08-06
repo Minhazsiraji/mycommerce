@@ -20,5 +20,9 @@ export {
 
 export { listActiveRates, listRates } from './repository'
 
+/** Cached read for the storefront. Invalidated by tag from the actions. */
+export { getCachedDeliverySummary } from './cached'
+export { SHIPPING_TAGS } from './tags'
+
 export type { ShippingRate } from './schema'
 export { shippingRateInputSchema, type ShippingRateInput } from './validators'

@@ -1,12 +1,11 @@
 import Link from 'next/link'
-import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { ThemeToggle } from '@/components/theme-toggle'
 import { formatBdt } from '@/lib/money'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
-import { deliveryEstimate, lowestFreeThreshold } from '@/modules/shipping'
+import { getCachedDeliverySummary } from '@/modules/shipping'
 
 /**
  * What a first-time visitor needs to know before they trust the store with a
@@ -20,36 +19,82 @@ import { deliveryEstimate, lowestFreeThreshold } from '@/modules/shipping'
  */
 async function TrustBar() {
   /**
-   * Declares this subtree per-request before it reads anything.
+   * A cached read, deliberately.
    *
-   * These are the layout's only database calls, and without this Next pulls
-   * them into the static shell of every storefront page — where the Neon
-   * driver's WebSocket handshake asks for random bytes before any request data
-   * exists, and the build fails. It surfaces as an error on whichever page is
-   * reported first, which is misleading: the cause is here, in the layout.
+   * Reading the rates uncached here makes every storefront page blocking, since
+   * the layout is prerendered — and putting it behind `connection()` instead
+   * only trades that for the same problem wearing a different hat. Caching is
+   * the honest answer: rates change a few times a year, and the shipping
+   * actions clear the tag when they do.
    */
-  await connection()
+  const { freeOver, estimate } = await getCachedDeliverySummary()
 
-  const [freeOver, estimate] = await Promise.all([lowestFreeThreshold(), deliveryEstimate()])
+  const days =
+    estimate && (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
 
   const facts = [
-    estimate
-      ? `Delivery across Bangladesh in ${estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`} working days`
-      : null,
-    freeOver ? `Free delivery over ${formatBdt(freeOver)}` : null,
-    'bKash · Nagad · Rocket · Card · Bank transfer',
-  ].filter(Boolean)
+    days ? { icon: <TruckIcon />, label: `Delivery in ${days} days`, detail: 'across Bangladesh' } : null,
+    freeOver ? { icon: <TagIcon />, label: `Free over ${formatBdt(freeOver)}`, detail: 'delivery' } : null,
+    { icon: <CardIcon />, label: 'bKash · Nagad · Rocket · Card', detail: '· Bank transfer' },
+  ].filter((f) => f !== null)
 
   if (facts.length === 0) return null
 
   return (
     <div className="border-b border-(--color-border) bg-(--color-surface)">
-      <ul className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-6 py-2 text-xs text-(--color-muted)">
-        {facts.map((fact) => (
-          <li key={fact}>{fact}</li>
+      {/*
+        Icons and dividers rather than three lines of grey text. Stacked as a
+        paragraph these read as boilerplate nobody scans; as separate chips each
+        one registers on its own. The longer half of each fact is hidden on a
+        phone, so the band stays a single line instead of eating three rows
+        above the fold.
+      */}
+      <ul className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1.5 px-6 py-2.5 text-xs text-(--color-muted) sm:gap-x-6">
+        {facts.map((fact, i) => (
+          <li key={fact.label} className="flex items-center gap-1.5 whitespace-nowrap">
+            {i > 0 ? (
+              <span aria-hidden className="mr-2 hidden h-3 w-px bg-(--color-border) sm:block" />
+            ) : null}
+            <span className="text-(--color-fg)/60">{fact.icon}</span>
+            <span>
+              {fact.label} <span className="hidden sm:inline">{fact.detail}</span>
+            </span>
+          </li>
         ))}
       </ul>
     </div>
+  )
+}
+
+/* Inline SVG rather than an icon package — three glyphs is not a dependency,
+   and inline markup needs no CSP allowance for an external image host. */
+
+function TruckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+      <path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </svg>
+  )
+}
+
+function TagIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12.6 2.7a2 2 0 0 0-1.4-.6H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.5 8.5a2 2 0 0 0 2.8 0l6.8-6.8a2 2 0 0 0 0-2.8Z" />
+      <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function CardIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+    </svg>
   )
 }
 
@@ -87,12 +132,19 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               MyCommerce
             </Link>
 
+            {/*
+              Plain links, no active-state highlight. Deriving one needs
+              `usePathname`, and a client hook reading the route inside this
+              cached layout breaks prerendering for every storefront page. The
+              page's own <h1> already says where you are; that is not worth
+              trading static rendering for.
+            */}
             <nav className="hidden gap-5 text-sm text-(--color-muted) md:flex">
               {tops.map((category) => (
                 <Link
                   key={category.id}
                   href={`/c/${category.slug}`}
-                  className="hover:text-(--color-fg)"
+                  className="transition-colors hover:text-(--color-fg)"
                 >
                   {category.name}
                 </Link>
@@ -129,7 +181,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
             <Link
               key={category.id}
               href={`/c/${category.slug}`}
-              className="whitespace-nowrap hover:text-(--color-fg)"
+              className="whitespace-nowrap transition-colors hover:text-(--color-fg)"
             >
               {category.name}
             </Link>
@@ -137,10 +189,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         </nav>
       </header>
 
-      {/* Reads delivery rates, so it streams rather than blocking the header. */}
-      <Suspense fallback={null}>
-        <TrustBar />
-      </Suspense>
+      {/* Cached, so it prerenders with the rest of the shell — no boundary. */}
+      <TrustBar />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">{children}</main>
 
