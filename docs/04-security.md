@@ -228,7 +228,10 @@ Decisions worth keeping:
   their authenticator produces a working code. Enabling on trust is how people lock
   themselves out with a mis-scanned QR.
 - Ten single-use backup codes, shown once. They are the recovery path, and there is no
-  second admin to perform a reset.
+  second admin to perform a reset. They can be replaced from `/account/security` behind
+  a password — needed for the two situations that end the same way, codes never written
+  down and codes used up, both of which leave a working authenticator and no way back
+  in when the phone breaks. Generating a new set invalidates the old one immediately.
 - `accountLockout` after 5 failed codes, 15 minutes. The plugin separately rate limits
   `/two-factor/*` to 3 requests per 10 seconds.
 - The TOTP secret and backup codes are encrypted at rest by Better Auth using
@@ -291,10 +294,11 @@ Written down rather than left implied.
   else's address on an order. No mail is sent until payment succeeds, so this is not an
   email-amplification vector, but the confirmation would go to the wrong person.
 - **No Sentry**, so server errors live only in Vercel's log retention window.
-- **No admin account recovery.** If the only admin loses both their phone and their
-  backup codes, recovery is a manual `UPDATE users SET two_factor_enabled = false`
-  against the database. Acceptable with one operator who controls the database; not
-  acceptable the day there are staff accounts.
+- **No admin account recovery of last resort.** Backup codes can be replaced while
+  signed in, but if the only admin loses their phone *and* their codes with no live
+  session, recovery is a manual `UPDATE users SET two_factor_enabled = false` against
+  the database. Acceptable with one operator who controls the database; not acceptable
+  the day there are staff accounts.
 - **Reads are not audited.** Viewing a customer's address writes nothing.
 
 ## Pre-launch checklist

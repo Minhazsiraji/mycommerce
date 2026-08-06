@@ -86,6 +86,38 @@ export function TwoFactorSetup({
     }
   }
 
+  /**
+   * Issues a fresh set and discards the old one.
+   *
+   * Needed for two situations that both end the same way: codes that were never
+   * written down, and codes that have been used up. Either leaves an account
+   * with a working authenticator and no recovery path, which is fine until the
+   * phone breaks.
+   */
+  async function regenerate() {
+    setError(undefined)
+    setPending(true)
+    try {
+      const { data, error: authError } = await twoFactor.generateBackupCodes({ password })
+
+      if (authError || !data) {
+        setError(
+          authError?.status === 401
+            ? 'That password is not correct.'
+            : (authError?.message ?? 'Could not generate new codes.'),
+        )
+        return
+      }
+
+      // Reuses the "saved" stage, so the new codes get the same show-once
+      // treatment and the same acknowledgement before they disappear.
+      setStage({ name: 'saved', backupCodes: data.backupCodes })
+      setPassword('')
+    } finally {
+      setPending(false)
+    }
+  }
+
   async function disable() {
     setError(undefined)
     setPending(true)
@@ -117,6 +149,36 @@ export function TwoFactorSetup({
           <span className="font-medium text-(--color-fg)">Two-step verification is on.</span> You
           will be asked for a code from your authenticator app each time you sign in.
         </p>
+
+        <details className="text-sm">
+          <summary className="cursor-pointer text-(--color-muted) underline underline-offset-4">
+            Replace my backup codes
+          </summary>
+
+          <div className="mt-3 flex flex-col gap-3">
+            <p className="text-xs text-(--color-muted)">
+              Use this if you did not save the codes, or have used some up. Generating a new set
+              immediately invalidates the old one, so do not do it until you are ready to write the
+              new codes down.
+            </p>
+            <Input
+              label="Confirm your password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={error}
+            />
+            <Button
+              type="button"
+              className="self-start"
+              disabled={pending || !password}
+              onClick={() => void regenerate()}
+            >
+              {pending ? 'Working…' : 'Generate new backup codes'}
+            </Button>
+          </div>
+        </details>
 
         <details className="text-sm">
           <summary className="cursor-pointer text-(--color-muted) underline underline-offset-4">
@@ -160,7 +222,12 @@ export function TwoFactorSetup({
         <p className="text-sm">
           <span className="font-medium">Two-step verification is on.</span> Save these backup codes
           somewhere safe — they are the only way in if you lose your phone, and this is the last
-          time they are shown.
+          time they are shown. Any codes issued before now have stopped working.
+        </p>
+
+        <p className="text-xs text-(--color-muted)">
+          Store them somewhere that survives losing the phone holding your authenticator — a
+          password manager, or on paper. A screenshot on that same phone is not a backup.
         </p>
 
         <BackupCodes codes={stage.backupCodes} />
