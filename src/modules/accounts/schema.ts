@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 /**
  * Identity tables. Shapes are dictated by Better Auth's Drizzle adapter — field
@@ -19,10 +28,38 @@ export const users = pgTable(
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
     role: text('role').notNull().default('customer'),
+    /** Owned by Better Auth's two-factor plugin; never set from a request body. */
+    twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('users_email_idx').on(t.email)],
+)
+
+/**
+ * TOTP secrets and backup codes. Shape dictated by the two-factor plugin.
+ *
+ * Both `secret` and `backupCodes` are encrypted by Better Auth with
+ * `BETTER_AUTH_SECRET` before they reach this table, and neither is ever
+ * returned by an API response. Rotating that secret invalidates every
+ * enrolment — which is the correct behaviour, but means it cannot be rotated
+ * casually.
+ */
+export const twoFactors = pgTable(
+  'two_factors',
+  {
+    id: text('id').primaryKey(),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    verified: boolean('verified').notNull().default(true),
+    /** Drives the plugin's lockout after repeated bad codes. */
+    failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until'),
+  },
+  (t) => [index('two_factors_user_idx').on(t.userId), index('two_factors_secret_idx').on(t.secret)],
 )
 
 export const sessions = pgTable(

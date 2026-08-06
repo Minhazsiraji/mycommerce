@@ -7,7 +7,15 @@
  */
 
 export { auth, type AuthSession } from './auth'
-export { getSession, requireSession, requireRole } from './guards'
+export { getSession, requireSession, requireRole, TWO_FACTOR_SETUP_PATH } from './guards'
+export {
+  AccountError,
+  deleteAccount,
+  exportAccountData,
+  listMySessions,
+  verifyPassword,
+  type AccountExport,
+} from './account-data'
 export {
   archiveAddress,
   getAddress,

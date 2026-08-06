@@ -59,7 +59,21 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string | undefined
       }
 
       const data = parsed.data as { email: string; password: string }
-      const { error } = await signIn.email(data)
+      const { data: result, error } = await signIn.email(data)
+
+      /**
+       * The password was right but a second factor is owed.
+       *
+       * There is no session yet, so the cart merge and the redirect below must
+       * not run — Better Auth has issued only a short-lived challenge cookie.
+       * `next` is carried across so the customer still lands where they meant
+       * to after the code.
+       */
+      if (result && 'twoFactorRedirect' in result && result.twoFactorRedirect) {
+        const query = next ? `?next=${encodeURIComponent(next)}` : ''
+        router.push(`/two-factor${query}` as Route)
+        return
+      }
 
       if (error) {
         // Deliberately identical for "no such user" and "wrong password" — a

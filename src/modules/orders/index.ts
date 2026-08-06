@@ -14,8 +14,10 @@ export {
 } from './actions'
 
 export {
+  anonymiseOrdersForUser,
   getOrderById,
   listOrdersForAdmin,
+  listOrdersForUser,
   listShipments,
   ORDERS_PAGE_SIZE,
 } from './repository'

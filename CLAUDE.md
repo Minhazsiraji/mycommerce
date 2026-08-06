@@ -106,6 +106,11 @@ Violating any of these is a bug, regardless of what a task asks for.
    from the request alone.
 7. **Every Server Action validates its input with Zod** as the first statement.
 8. **Admin mutations write an audit log entry.**
+9. **Admin access requires a second factor.** `requireRole('admin')` enforces it;
+   Better Auth cannot, because it has no notion of "mandatory for this role". Do not
+   add an admin surface that bypasses `requireRole`.
+10. **Rate limit anything a stranger can call in a loop**, via `lib/rate-limit.ts`.
+    It counts in Postgres because an in-process counter resets on every cold start.
 
 ## Conventions
 
@@ -145,6 +150,7 @@ Violating any of these is a bug, regardless of what a task asks for.
 | Auth, RBAC, threat model | `docs/04-security.md` |
 | Caching and perf budgets | `docs/05-performance.md` |
 | Build order | `docs/06-roadmap.md` |
+| Cloudflare / WAF runbook | `docs/08-cloudflare.md` |
 
 Read the relevant doc before implementing in that area. Update it in the same commit
 when a decision changes.

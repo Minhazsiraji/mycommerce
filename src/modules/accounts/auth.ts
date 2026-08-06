@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { nextCookies } from 'better-auth/next-js'
+import { twoFactor } from 'better-auth/plugins'
 
 import { db, schema } from '@/lib/db'
 import { env } from '@/lib/env'
@@ -73,7 +74,37 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [nextCookies()],
+  plugins: [
+    /**
+     * TOTP second factor.
+     *
+     * Optional for customers, mandatory for admin — enforced in `guards.ts`
+     * rather than here, because Better Auth has no concept of "required for
+     * this role". Without that guard the plugin is a setting nobody turns on.
+     *
+     * `skipVerificationOnEnable` stays false: enrolment is only complete once
+     * the user has proved their authenticator produces a working code. Enabling
+     * on trust is how people lock themselves out with a mis-scanned QR.
+     */
+    twoFactor({
+      issuer: 'MyCommerce',
+      skipVerificationOnEnable: false,
+      /**
+       * Rate limiting a 6-digit code is not optional — 10 guesses a second
+       * exhausts the space in under two days, and a fixed window per IP does
+       * not help when the attacker already holds the password. The plugin locks
+       * the factor itself after repeated failures.
+       */
+      accountLockout: {
+        enabled: true,
+        maxFailedAttempts: 5,
+        durationSeconds: 900,
+      },
+    }),
+    // Must stay last: it writes Better Auth's Set-Cookie headers through Next's
+    // cookie API, and plugins registered after it would not be covered.
+    nextCookies(),
+  ],
 })
 
 export type AuthSession = typeof auth.$Infer.Session

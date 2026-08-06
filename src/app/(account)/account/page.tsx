@@ -14,9 +14,14 @@ export default async function AccountPage() {
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-6 py-16">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
-        <Link href="/account/orders" className="text-sm underline underline-offset-4">
-          View your orders →
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <Link href="/account/orders" className="underline underline-offset-4">
+            View your orders →
+          </Link>
+          <Link href="/account/security" className="underline underline-offset-4">
+            Security and your data →
+          </Link>
+        </div>
       </div>
 
       <dl className="flex flex-col gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-5 text-sm">

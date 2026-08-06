@@ -66,6 +66,9 @@ Commerce-specific risks, each with the control that addresses it.
 | 10 | **Stored XSS via product/review content** | React escapes by default; no `dangerouslySetInnerHTML` on user or admin input. Rich text sanitised server-side with an allowlist. |
 | 11 | **Malicious file upload** | Presigned R2 uploads, extension + MIME + magic-byte check, 5 MB cap, served from a separate origin with `Content-Disposition: attachment`. Two surfaces with different limits: admin product images, and **customer transfer receipts** — the latter is unauthenticated-adjacent, so it is order-scoped, rate limited to 3 per order, and images only. |
 | 12 | **Privilege escalation** | `role` is never accepted from a request body. Changing it is a separate, audited admin action. |
+| 24 | **Stolen admin password** | Admin access requires TOTP, enforced in `requireRole` because Better Auth has no notion of "mandatory for this role". A password alone reaches nothing. |
+| 25 | **Long-lived session on a shared device** | Sessions last 30 days, so every device is listed at `/account/security` and can be revoked individually or all at once. Password re-auth is required before an export or a deletion, because the cookie proves the browser was once trusted, not that the person is. |
+| 26 | **Deletion used to erase evidence** | Account deletion anonymises orders rather than removing them: totals, dates and line items survive for the accounts, identity does not. A customer cannot make a disputed order disappear. |
 | 13 | **Secret leakage** | No secrets in the repo. Server-only env validated at boot by Zod; anything client-visible must be `NEXT_PUBLIC_` and is reviewed. |
 | 14 | **Dependency compromise** | Lockfile committed, Dependabot on, `pnpm audit` in CI, builds fail on high severity. |
 | 15 | **Forged transfer receipt** — customer uploads a fake screenshot to claim payment | The upload is **evidence for a human, never proof**. Confirmation is authorised against the bank statement alone. `confirmTransfer` requires the admin to enter the observed amount, and rejects a mismatch with the order total. |
@@ -133,6 +136,8 @@ Redis, we need a Postgres table and a cron route.
 |---|---|---|
 | Login / register | 5 per 15 min | Better Auth |
 | Password reset request | 3 per hour | Better Auth |
+| `/two-factor/*` | 3 per 10 sec, then lockout at 5 failures | two-factor plugin |
+| Password re-auth (export, delete) | 5 per 15 min **per user** | `reauth` bucket |
 | Guest order lookup | 10 per hour | `order-lookup` bucket |
 | `placeOrder` | 10 per hour | `place-order` bucket |
 | Gateway session | 15 per hour | `gateway-session` bucket |
@@ -206,23 +211,75 @@ secure — it is more liability. Data you no longer need is data that can only e
 Not covered: reads. Viewing a customer's address writes nothing. With one operator
 that is the right trade; revisit if the store ever has staff accounts.
 
+## Two-factor authentication
+
+TOTP, via Better Auth's plugin. **Optional for customers, mandatory for admin.**
+
+The mandatory half is ours, not the plugin's — Better Auth can verify a code but has no
+concept of "required for this role", so `requireRole('admin')` checks
+`user.twoFactorEnabled` and redirects to `/account/security` when it is false. Without
+that check the plugin is a setting nobody turns on, which is the usual fate of optional
+2FA. An admin who has not enrolled is redirected rather than refused; refusing would
+lock the store's owner out of their own store.
+
+Decisions worth keeping:
+
+- `skipVerificationOnEnable: false`. Enrolment only completes once the user has proved
+  their authenticator produces a working code. Enabling on trust is how people lock
+  themselves out with a mis-scanned QR.
+- Ten single-use backup codes, shown once. They are the recovery path, and there is no
+  second admin to perform a reset.
+- `accountLockout` after 5 failed codes, 15 minutes. The plugin separately rate limits
+  `/two-factor/*` to 3 requests per 10 seconds.
+- The TOTP secret and backup codes are encrypted at rest by Better Auth using
+  `BETTER_AUTH_SECRET`, and never returned by an API response. **Rotating that secret
+  invalidates every enrolment** — correct behaviour, but it means the secret cannot be
+  rotated casually.
+- Admin accounts cannot delete themselves. One misplaced click should not end all
+  access to the order book, and there is no second admin to undo it.
+
+## Data rights
+
+- **Export** — `/account/security` produces a JSON file with profile, addresses and
+  full order history. Built from the same reads the account screens already use, so it
+  cannot surface more than the UI does. Assembled into a blob in the browser rather
+  than served from a URL: a link that returns someone's whole order history is a link
+  that leaks through referrers, proxy logs and shared screens.
+- **Deletion** — erases profile, addresses, cart, sessions and the TOTP secret. Orders
+  are **anonymised, not deleted**: the rows are the store's accounting record, and
+  removing them would put a hole in the books every time a customer leaves. Email,
+  phone, recipient name and street address are replaced with `[deleted]`; totals, line
+  items, dates and the destination district survive, because that is what tax and sales
+  reporting need and a district alone identifies nobody.
+- Both re-prove the password first. A 30-day session means the browser in front of us
+  may have been left open a month ago.
+
+## Sessions
+
+Customers can see every signed-in device at `/account/security` — browser, OS, IP,
+sign-in date — and revoke any one, or all others at once. Better Auth scopes both the
+listing and the revocation to the caller's own sessions, so there is no user id to pass
+and no way to ask about somebody else.
+
+Sessions last 30 days and refresh daily. That is long, and the mitigation is that the
+list makes a stranger's session visible and one click ends it.
+
 ## Known gaps
 
-Written down rather than left implied. None is a live vulnerability; each is a control
-that does not exist yet.
+Written down rather than left implied.
 
-- **No account deletion or data export.** The "account deletion anonymises orders"
-  paragraph above describes a design, not a shipped feature. If this store ever serves
-  EU customers, that is a compliance gap, not just a missing nicety.
-- **No customer-facing session management.** A customer cannot see or revoke their
-  other sessions. Sessions last 30 days.
+- **Cloudflare is not configured** until the domain is live. `docs/08-cloudflare.md` is
+  the runbook; the WAF rate limits there duplicate `lib/rate-limit.ts` deliberately, so
+  the application is not defenceless in the meantime.
 - **`placeOrder` accepts any email address.** A signed-in customer can put someone
-  else's address on an order. No mail is sent until payment succeeds, so this is not
-  an email-amplification vector, but the confirmation would go to the wrong person.
-- **No admin 2FA.** One password stands between an attacker and the order book. This
-  is the single highest-value hardening left, and Better Auth ships a TOTP plugin.
-- **Bot protection is Cloudflare-only** and unconfigured until the domain is live.
-- **No Sentry**, so server errors are only in Vercel's log retention window.
+  else's address on an order. No mail is sent until payment succeeds, so this is not an
+  email-amplification vector, but the confirmation would go to the wrong person.
+- **No Sentry**, so server errors live only in Vercel's log retention window.
+- **No admin account recovery.** If the only admin loses both their phone and their
+  backup codes, recovery is a manual `UPDATE users SET two_factor_enabled = false`
+  against the database. Acceptable with one operator who controls the database; not
+  acceptable the day there are staff accounts.
+- **Reads are not audited.** Viewing a customer's address writes nothing.
 
 ## Pre-launch checklist
 

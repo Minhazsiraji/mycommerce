@@ -50,6 +50,13 @@
       "when": 1785979831222,
       "tag": "0006_outstanding_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785983384128,
+      "tag": "0007_bright_sandman",
+      "breakpoints": true
     }
   ]
 }

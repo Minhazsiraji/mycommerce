@@ -381,6 +381,51 @@ export function getOrderByNumber(orderNumber: string) {
   })
 }
 
+/** The marker left in place of a deleted customer's details. */
+export const REDACTED = '[deleted]'
+
+/**
+ * Strips a departed customer's identity from their orders, keeping the order.
+ *
+ * The rows themselves have to survive: they are the store's accounting record,
+ * and deleting them would put a hole in the books for every month a customer
+ * ever leaves. What does not have to survive is who the customer was. Email,
+ * phone, recipient name and street address go; totals, line items, dates and
+ * the destination district stay, because that is what sales reporting and tax
+ * actually need and a district alone identifies nobody.
+ *
+ * `orders.userId` is already `ON DELETE SET NULL`, so the link breaks on its
+ * own — this handles the copies the FK cannot reach, which is the JSONB address
+ * snapshot most of all.
+ */
+export async function anonymiseOrdersForUser(userId: string): Promise<number> {
+  const rows = await db
+    .update(orders)
+    .set({
+      userId: null,
+      email: `${REDACTED}@invalid`,
+      phone: null,
+      notes: null,
+      shippingAddress: sql`
+        jsonb_build_object(
+          'recipient', ${REDACTED}::text,
+          'phone', ${REDACTED}::text,
+          'line1', ${REDACTED}::text,
+          'line2', null,
+          'city', ${orders.shippingAddress}->>'city',
+          'district', ${orders.shippingAddress}->>'district',
+          'postalCode', null,
+          'country', ${orders.shippingAddress}->>'country'
+        )
+      `,
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.userId, userId))
+    .returning({ id: orders.id })
+
+  return rows.length
+}
+
 export function listOrdersForUser(userId: string) {
   return db.query.orders.findMany({
     where: eq(orders.userId, userId),
