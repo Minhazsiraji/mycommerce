@@ -72,6 +72,23 @@ export function StorefrontHeader({
           </div>
 
           <SearchBar id="site-search-mobile" className="pb-4 md:hidden" label="Search SirajiBD products" />
+
+          {categories.length > 0 ? (
+            <nav aria-label="Browse categories" className="-mx-4 overflow-x-auto px-4 pb-3 md:hidden">
+              <ul className="flex w-max min-w-full items-center gap-2">
+                {categories.slice(0, 5).map((category) => (
+                  <li key={category.id}>
+                    <Link
+                      href={`/c/${category.slug}`}
+                      className="inline-flex min-h-11 items-center rounded-full border border-(--border-subtle) bg-(--surface-secondary) px-4 text-sm font-medium whitespace-nowrap text-(--text-secondary) transition-colors hover:border-(--border-strong) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                    >
+                      {category.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
         </div>
       </header>
     </>
