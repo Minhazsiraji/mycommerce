@@ -30,9 +30,9 @@ export function ProductCard({
   return (
     <Link
       href={`/p/${product.slug}`}
-      className="group flex min-w-0 flex-col gap-3 rounded-(--radius-xl) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
+      className="group flex h-full min-w-0 flex-col gap-3 rounded-(--radius-xl) border border-(--border-strong) bg-(--surface-elevated) p-2 shadow-(--shadow-1) transition-[transform,border-color,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:-translate-y-0.5 hover:border-(--border-interactive) hover:shadow-(--shadow-2) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) motion-reduce:transform-none sm:p-3"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-secondary) shadow-(--shadow-1) transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-2) motion-reduce:transform-none">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-lg) border border-(--border-subtle) bg-(--surface-secondary)">
         {product.imageKey ? (
           <Image
             src={storage.url(product.imageKey, { width: 560, height: 700, fit: 'cover' })}
@@ -56,7 +56,7 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 px-1 pb-1">
         {product.brand ? (
           <span className="text-xs text-(--text-muted)">{product.brand}</span>
         ) : null}
