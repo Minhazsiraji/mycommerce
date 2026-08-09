@@ -56,7 +56,7 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-0.5 px-1 pb-1">
+      <div className="flex h-[4.75rem] flex-col gap-0.5 px-1 pb-1 sm:h-[5.25rem]">
         {product.brand ? (
           <span className="text-xs text-(--text-muted)">{product.brand}</span>
         ) : null}

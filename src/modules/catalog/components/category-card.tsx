@@ -14,9 +14,9 @@ export function CategoryCard({ category }: { category: CategoryCardData }) {
   return (
     <Link
       href={`/c/${category.slug}`}
-      className="group flex min-w-0 flex-col gap-3 rounded-(--radius-xl) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
+      className="group flex h-full min-w-0 flex-col gap-3 rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) p-2 shadow-(--shadow-1) backdrop-blur-[12px] transition-[transform,border-color,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:-translate-y-0.5 hover:border-(--border-interactive) hover:shadow-(--shadow-2) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) motion-reduce:transform-none sm:p-3 dark:border-white/20"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-secondary) shadow-(--shadow-1) transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-2) motion-reduce:transform-none">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-lg) border border-(--border-subtle) bg-(--surface-secondary)">
         {category.imageKey ? (
           <Image
             src={storage.url(category.imageKey, { width: 560, height: 700, fit: 'cover' })}
@@ -32,9 +32,11 @@ export function CategoryCard({ category }: { category: CategoryCardData }) {
           </div>
         )}
       </div>
-      <h3 className="line-clamp-2 text-base font-semibold text-(--text-primary) underline-offset-4 group-hover:underline sm:text-lg">
-        {category.name}
-      </h3>
+      <div className="flex h-[4.75rem] items-start px-1 pb-1 sm:h-[5.25rem]">
+        <h3 className="line-clamp-2 text-sm font-semibold text-(--text-primary) underline-offset-4 group-hover:underline sm:text-base">
+          {category.name}
+        </h3>
+      </div>
     </Link>
   )
 }
