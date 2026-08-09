@@ -1,101 +1,210 @@
 @import 'tailwindcss';
 
-/**
- * Theme tokens.
- *
- * Three states, not two: no `data-theme` attribute means "follow the operating
- * system", and an explicit `light` or `dark` means the visitor chose. That is
- * why the dark rules below are split — the media query is scoped with
- * `:not([data-theme])` so a visitor who picks light on a dark-mode phone
- * actually gets light.
- *
- * `@theme` only declares the light values, because that is what generates the
- * Tailwind utilities. The dark values are plain custom-property overrides,
- * which is enough: every utility resolves the variable at use time.
- */
-
 @theme {
-  /* Without this, `font-sans` falls back to the system stack and the
-     self-hosted Inter from next/font is never used. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-  --color-bg: #ffffff;
-  --color-surface: #f6f6f8;
-  --color-fg: #101014;
-  --color-muted: #6b6b78;
-  --color-border: #e5e5ea;
-
-  /* Indigo rather than near-black: it carries the brand through buttons,
-     focus rings and selected states without shouting. */
-  --color-accent: #4f46e5;
-  --color-accent-fg: #ffffff;
-  --color-accent-soft: #eef2ff;
-
-  --color-danger: #dc2626;
-  --color-success: #059669;
 }
 
-/**
- * `color-scheme` drives native UI — scrollbars, form controls, the address bar
- * tint on mobile. Without it here, a visitor on a dark-mode device who picks
- * light gets a light page with dark scrollbars.
- */
-:root[data-theme='light'],
-:root:not([data-theme]) {
+:root {
   color-scheme: light;
+
+  --background-canvas: #f7f8fc;
+  --background-subtle: #f0f2f8;
+  --background-scrim: rgb(7 9 14 / 58%);
+  --surface-primary: #ffffff;
+  --surface-secondary: #f7f8fc;
+  --surface-elevated: #ffffff;
+  --surface-selected: #eef2ff;
+  --surface-disabled: #f0f2f8;
+  --text-primary: #111421;
+  --text-secondary: #4d5568;
+  --text-muted: #697186;
+  --text-inverse: #ffffff;
+  --border-subtle: #e2e6f0;
+  --border-strong: #cbd1de;
+  --border-interactive: #4f46e5;
+  --action-primary: #4f46e5;
+  --action-primary-hover: #4338ca;
+  --action-primary-active: #3730a3;
+  --action-primary-text: #ffffff;
+  --focus-ring: #4f46e5;
+
+  --feedback-danger-text: #b91c1c;
+  --feedback-danger-surface: #fef2f2;
+  --feedback-danger-border: #fecaca;
+  --feedback-success-text: #047857;
+  --feedback-success-surface: #ecfdf5;
+  --feedback-success-border: #a7f3d0;
+
+  --gradient-brand: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #0e7490 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgb(99 102 241 / 16%), rgb(6 182 212 / 8%));
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-pill: 999px;
+
+  --shadow-0: none;
+  --shadow-1: 0 1px 2px rgb(17 20 33 / 5%), 0 8px 24px rgb(17 20 33 / 5%);
+  --shadow-2: 0 12px 36px rgb(17 20 33 / 10%);
+  --shadow-3: 0 24px 64px rgb(7 9 14 / 18%);
+
+  --container-reading: 45rem;
+  --container-content: 72rem;
+  --container-wide: 80rem;
+  --drawer-width: min(88vw, 24rem);
+
+  --tracking-tight: -0.025em;
+  --tracking-heading: -0.015em;
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-moderate: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --button-height-sm: 2.5rem;
+  --button-height-md: 2.75rem;
+  --button-height-lg: 3.25rem;
+  --button-height-hero: 3.5rem;
+  --input-radius: var(--radius-md);
+
+  --z-sticky: 20;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  /* Compatibility aliases for untouched V1 components. */
+  --color-bg: var(--background-canvas);
+  --color-surface: var(--surface-secondary);
+  --color-fg: var(--text-primary);
+  --color-muted: var(--text-muted);
+  --color-border: var(--border-subtle);
+  --color-accent: var(--action-primary);
+  --color-accent-fg: var(--action-primary-text);
+  --color-accent-soft: var(--surface-selected);
+  --color-danger: var(--feedback-danger-text);
+  --color-success: var(--feedback-success-text);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-
-    /* Not pure black. A slightly lifted near-black reduces the harsh contrast
-       of white text on #000 and lets elevated surfaces read as elevated. */
-    --color-bg: #0b0b0f;
-    --color-surface: #16161d;
-    --color-fg: #f2f2f5;
-    --color-muted: #9797a6;
-    --color-border: #272730;
-
-    /* Lifted so it keeps contrast against a dark background. */
-    --color-accent: #8b83f5;
-    --color-accent-fg: #0b0b0f;
-    --color-accent-soft: #1c1a33;
-
-    --color-danger: #f87171;
-    --color-success: #34d399;
+    --background-canvas: #0b0e15;
+    --background-subtle: #121620;
+    --surface-primary: #121620;
+    --surface-secondary: #1a1e2b;
+    --surface-elevated: #202534;
+    --surface-selected: #25264a;
+    --surface-disabled: #1a1e2b;
+    --text-primary: #f7f8fc;
+    --text-secondary: #cbd1de;
+    --text-muted: #aab1c0;
+    --text-inverse: #0b0e15;
+    --border-subtle: #303646;
+    --border-strong: #454c5f;
+    --border-interactive: #a5b4fc;
+    --action-primary: #a5b4fc;
+    --action-primary-hover: #c7d2fe;
+    --action-primary-active: #e0e7ff;
+    --action-primary-text: #0b0e15;
+    --focus-ring: #a5b4fc;
+    --feedback-danger-text: #fca5a5;
+    --feedback-danger-surface: #321416;
+    --feedback-danger-border: #7f1d1d;
+    --feedback-success-text: #6ee7b7;
+    --feedback-success-surface: #0b2a22;
+    --feedback-success-border: #166b55;
+    --gradient-brand-soft: linear-gradient(135deg, rgb(129 140 248 / 20%), rgb(6 182 212 / 10%));
+    --shadow-1: 0 1px 0 rgb(255 255 255 / 4%), 0 12px 28px rgb(0 0 0 / 20%);
+    --shadow-2: 0 16px 40px rgb(0 0 0 / 28%);
+    --shadow-3: 0 28px 72px rgb(0 0 0 / 42%);
   }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --background-canvas: #0b0e15;
+  --background-subtle: #121620;
+  --surface-primary: #121620;
+  --surface-secondary: #1a1e2b;
+  --surface-elevated: #202534;
+  --surface-selected: #25264a;
+  --surface-disabled: #1a1e2b;
+  --text-primary: #f7f8fc;
+  --text-secondary: #cbd1de;
+  --text-muted: #aab1c0;
+  --text-inverse: #0b0e15;
+  --border-subtle: #303646;
+  --border-strong: #454c5f;
+  --border-interactive: #a5b4fc;
+  --action-primary: #a5b4fc;
+  --action-primary-hover: #c7d2fe;
+  --action-primary-active: #e0e7ff;
+  --action-primary-text: #0b0e15;
+  --focus-ring: #a5b4fc;
+  --feedback-danger-text: #fca5a5;
+  --feedback-danger-surface: #321416;
+  --feedback-danger-border: #7f1d1d;
+  --feedback-success-text: #6ee7b7;
+  --feedback-success-surface: #0b2a22;
+  --feedback-success-border: #166b55;
+  --gradient-brand-soft: linear-gradient(135deg, rgb(129 140 248 / 20%), rgb(6 182 212 / 10%));
+  --shadow-1: 0 1px 0 rgb(255 255 255 / 4%), 0 12px 28px rgb(0 0 0 / 20%);
+  --shadow-2: 0 16px 40px rgb(0 0 0 / 28%);
+  --shadow-3: 0 28px 72px rgb(0 0 0 / 42%);
+}
 
-  --color-bg: #0b0b0f;
-  --color-surface: #16161d;
-  --color-fg: #f2f2f5;
-  --color-muted: #9797a6;
-  --color-border: #272730;
+* {
+  border-color: var(--border-subtle);
+}
 
-  --color-accent: #8b83f5;
-  --color-accent-fg: #0b0b0f;
-  --color-accent-soft: #1c1a33;
-
-  --color-danger: #f87171;
-  --color-success: #34d399;
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-fg);
+  background: var(--background-canvas);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Theme changes should feel deliberate, not jarring — but never animate for
-   people who have asked the system to reduce motion. */
+dialog::backdrop {
+  background: var(--background-scrim);
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    transition:
-      background-color 200ms ease,
-      color 200ms ease;
+    transition: background-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

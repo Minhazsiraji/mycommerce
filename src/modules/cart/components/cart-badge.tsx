@@ -13,7 +13,7 @@ export async function CartBadge() {
   return (
     <Link
       href="/cart"
-      className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-md text-(--color-muted) transition-colors hover:bg-(--color-surface) hover:text-(--color-fg) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-accent)"
+      className="relative inline-flex size-11 shrink-0 items-center justify-center rounded-(--radius-md) text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
       aria-label={
         cart.itemCount === 0
           ? 'Cart, empty'
@@ -29,7 +29,7 @@ export async function CartBadge() {
         recognise from every other store.
       */}
       {cart.itemCount > 0 ? (
-        <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-(--color-accent) px-1 text-[10px] leading-none font-semibold text-(--color-accent-fg) tabular-nums">
+        <span className="absolute top-0 right-0 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-(--action-primary) px-1 text-[10px] leading-none font-semibold text-(--action-primary-text) tabular-nums">
           {cart.itemCount > 99 ? '99+' : cart.itemCount}
         </span>
       ) : null}
@@ -41,7 +41,7 @@ export async function CartBadge() {
 export function CartBadgeFallback() {
   return (
     <span
-      className="inline-flex size-9 shrink-0 items-center justify-center text-(--color-muted)"
+      className="inline-flex size-11 shrink-0 items-center justify-center text-(--text-secondary)"
       aria-hidden="true"
     >
       <CartIcon />

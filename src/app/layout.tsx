@@ -15,10 +15,9 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'MyCommerce',
-    template: '%s · MyCommerce',
+    default: 'SirajiBD',
+    template: '%s · SirajiBD',
   },
-  description: 'A fast, secure online store.',
   robots: { index: false, follow: false }, // opened up at launch
 }
 

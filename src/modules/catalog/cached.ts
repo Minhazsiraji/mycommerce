@@ -23,7 +23,7 @@ import type { ProductFilters } from './validators'
 
 export async function getCachedActiveProducts(
   filters: ProductFilters,
-  options?: { categoryIds?: string[] },
+  options?: { categoryIds?: string[]; limit?: number },
 ) {
   'use cache'
   cacheTag(CATALOG_TAGS.products)
