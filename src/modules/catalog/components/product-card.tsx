@@ -30,16 +30,16 @@ export function ProductCard({
   return (
     <Link
       href={`/p/${product.slug}`}
-      className="group flex min-w-0 flex-col gap-3 rounded-(--radius-lg) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
+      className="group flex min-w-0 flex-col gap-3 rounded-(--radius-xl) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
     >
-      <div className="relative aspect-square overflow-hidden rounded-(--radius-lg) border border-(--border-subtle) bg-(--surface-secondary) shadow-(--shadow-1) transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-2) motion-reduce:transform-none">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-secondary) shadow-(--shadow-1) transition-[transform,box-shadow] duration-(--duration-base) ease-(--ease-standard) group-hover:-translate-y-0.5 group-hover:shadow-(--shadow-2) motion-reduce:transform-none">
         {product.imageKey ? (
           <Image
-            src={storage.url(product.imageKey, { width: 600, height: 600, fit: 'cover' })}
+            src={storage.url(product.imageKey, { width: 560, height: 700, fit: 'cover' })}
             alt={product.title}
             fill
             // Phones never download the desktop asset. See docs/05-performance.md.
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes="(max-width: 359px) 100vw, (max-width: 639px) 50vw, (max-width: 1023px) 33vw, 264px"
             priority={priority}
             className="object-cover"
           />
