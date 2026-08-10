@@ -60,7 +60,11 @@ export function VariantPicker({
                   type="button"
                   onClick={() => setSelectedId(variant.id)}
                   aria-pressed={isSelected}
-                  className={`rounded-md border px-3 py-2 text-sm transition-colors ${isSelected ? 'border-(--color-accent) bg-(--color-accent) text-(--color-accent-fg)' : 'border-(--color-border) hover:bg-(--color-surface)'} ${soldOut ? 'line-through opacity-50' : ''}`}
+                  className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                    isSelected
+                      ? 'border-(--color-accent) bg-(--color-accent) text-(--color-accent-fg)'
+                      : 'border-(--color-border) hover:bg-(--color-surface)'
+                  } ${soldOut ? 'line-through opacity-50' : ''}`}
                 >
                   {variant.title || 'Standard'}
                 </button>
