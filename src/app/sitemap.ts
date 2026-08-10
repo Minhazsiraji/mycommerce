@@ -1,14 +1,14 @@
 import type { MetadataRoute } from 'next'
 
 import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
-import { listActiveProductSlugs, listCategories } from '@/modules/catalog'
+import { listActiveProductSlugs, listIndexableCategories } from '@/modules/catalog'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!isIndexableEnvironment()) return []
 
   const siteUrl = getSiteUrl()
   const [categories, productSlugs] = await Promise.all([
-    listCategories(),
+    listIndexableCategories(),
     listActiveProductSlugs(),
   ])
 
@@ -26,4 +26,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ]
 }
-

@@ -7,7 +7,7 @@ export function AnnouncementBar({ facts }: { facts: AnnouncementFact[] }) {
   if (facts.length === 0) return null
 
   return (
-    <aside aria-label="Store information" className="border-b border-(--border-subtle) bg-(--background-subtle)">
+    <aside aria-label="Store information" className="border-t border-white/60 bg-white/20 dark:border-white/15 dark:bg-white/5">
       <ul className="mx-auto flex min-h-11 w-full max-w-(--container-content) items-center gap-x-5 overflow-x-auto px-4 py-2 text-xs font-medium whitespace-nowrap text-(--text-secondary) sm:justify-center sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {facts.map((fact, index) => (
           <li key={fact.key} className="flex items-center gap-2">

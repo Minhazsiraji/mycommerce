@@ -25,7 +25,7 @@ export function OrderNotes({ orderId, notes }: { orderId: string; notes: string 
   const dirty = value !== (notes ?? '')
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border border-(--color-border) p-5 text-sm">
+    <section className="storefront-card flex flex-col gap-3 p-5 text-sm">
       <h2 className="text-sm font-semibold">Notes</h2>
 
       <Textarea

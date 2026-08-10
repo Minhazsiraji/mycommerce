@@ -39,7 +39,7 @@ export function PayNowButton({ orderNumber, amount }: { orderNumber: string; amo
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+    <div className="storefront-card flex flex-col gap-3 p-5">
       <h2 className="text-sm font-semibold">Pay {formatBdt(amount)}</h2>
       <p className="text-sm text-(--color-muted)">
         You will be taken to SSLCommerz to pay by card, bKash, Nagad, Rocket or internet banking.

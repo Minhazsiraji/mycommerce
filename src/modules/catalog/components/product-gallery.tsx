@@ -65,7 +65,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
 
   if (!active) {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-lg bg-(--color-surface) text-sm text-(--color-muted)">
+      <div className="storefront-card-soft flex aspect-square items-center justify-center text-sm text-(--color-muted)">
         No image
       </div>
     )
@@ -78,7 +78,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
         onMouseEnter={() => setZooming(true)}
         onMouseLeave={() => setZooming(false)}
         onMouseMove={onMove}
-        className="group relative aspect-square cursor-zoom-in overflow-hidden rounded-lg bg-(--color-surface)"
+        className="storefront-card-soft group relative aspect-square cursor-zoom-in overflow-hidden"
       >
         <button
           type="button"

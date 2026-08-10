@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: 'Security', robots: { index: false } 
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-(--color-border) p-5">
+    <section className="storefront-card flex flex-col gap-4 p-5">
       <div>
         <h2 className="font-semibold">{title}</h2>
         {hint ? <p className="text-sm text-(--color-muted)">{hint}</p> : null}
@@ -60,7 +60,7 @@ async function SecurityPanels({ searchParams }: { searchParams: Promise<{ requir
 
 function Skeleton() {
   return (
-    <div className="h-64 animate-pulse rounded-lg border border-(--color-border) bg-(--color-surface)" />
+    <div className="storefront-card h-64 animate-pulse" />
   )
 }
 

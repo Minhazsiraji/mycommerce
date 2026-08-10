@@ -11,7 +11,7 @@ export default async function AccountPage() {
   const { user } = await requireSession()
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-6 py-16">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col justify-center gap-8 px-4 py-16 sm:px-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
         <div className="flex flex-wrap gap-4 text-sm">
@@ -24,7 +24,7 @@ export default async function AccountPage() {
         </div>
       </div>
 
-      <dl className="flex flex-col gap-3 rounded-lg border border-(--color-border) bg-(--color-surface) p-5 text-sm">
+      <dl className="storefront-card flex flex-col gap-3 p-5 text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-(--color-muted)">Name</dt>
           <dd>{user.name}</dd>

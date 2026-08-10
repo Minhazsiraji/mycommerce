@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 import { formatBdt } from '@/lib/money'
 import { AddToCartButton } from '@/modules/cart/components/add-to-cart-button'
@@ -15,7 +15,6 @@ export type PickableVariant = {
 
 export function VariantPicker({
   variants,
-  title,
 }: {
   variants: PickableVariant[]
   title: string
@@ -24,31 +23,6 @@ export function VariantPicker({
     // Default to the first variant that can actually be bought.
     (variants.find((v) => v.stock > 0) ?? variants[0])?.id,
   )
-
-  /**
-   * On a phone the buy button scrolls out of sight while reading the
-   * description, and the customer has to scroll back up to act. A bar pinned to
-   * the bottom keeps price and action reachable — one of the few mobile
-   * commerce patterns with a consistently measurable effect on conversion.
-   *
-   * It appears only once the inline button has actually left the viewport, so
-   * it never covers content unnecessarily.
-   */
-  const inlineButtonRef = useRef<HTMLDivElement>(null)
-  const [showStickyBar, setShowStickyBar] = useState(false)
-
-  useEffect(() => {
-    const target = inlineButtonRef.current
-    if (!target) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowStickyBar(!entry?.isIntersecting),
-      { rootMargin: '0px 0px -8px 0px' },
-    )
-
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [])
 
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0]
   if (!selected) return null
@@ -110,7 +84,7 @@ export function VariantPicker({
         )}
       </p>
 
-      <div ref={inlineButtonRef}>
+      <div>
         <AddToCartButton
           variantId={selected.id}
           disabled={selected.stock === 0}
@@ -118,34 +92,6 @@ export function VariantPicker({
         >
           {selected.stock === 0 ? 'Sold out' : 'Add to cart'}
         </AddToCartButton>
-      </div>
-
-      {/* Mobile only — on a wide screen the buy button stays visible beside the
-          gallery, so a pinned bar would be noise. */}
-      <div
-        aria-hidden={!showStickyBar}
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-(--color-border) bg-(--color-bg)/95 backdrop-blur transition-transform duration-200 lg:hidden ${
-          showStickyBar ? 'translate-y-0' : 'pointer-events-none translate-y-full'
-        }`}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-6 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-(--color-muted)">{title}</p>
-            <p className="text-sm font-semibold tabular-nums">
-              {formatBdt(selected.price)}
-              {selected.stock === 0 ? (
-                <span className="ml-2 text-xs font-normal text-(--color-danger)">Sold out</span>
-              ) : null}
-            </p>
-          </div>
-
-          <div className="shrink-0">
-            <AddToCartButton variantId={selected.id} disabled={selected.stock === 0}>
-              {selected.stock === 0 ? 'Sold out' : 'Add to cart'}
-            </AddToCartButton>
-          </div>
-        </div>
       </div>
     </div>
   )

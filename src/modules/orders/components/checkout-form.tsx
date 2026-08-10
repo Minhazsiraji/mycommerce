@@ -221,7 +221,7 @@ export function CheckoutForm({
               {available.map((rate) => (
                 <label
                   key={rate.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 text-sm ${
+                  className={`storefront-card-soft flex cursor-pointer items-center gap-3 p-4 text-sm ${
                     rate.id === selectedRate?.id
                       ? 'border-(--color-accent) bg-(--color-accent)/5'
                       : 'border-(--color-border)'
@@ -256,7 +256,7 @@ export function CheckoutForm({
           <h2 className="text-sm font-semibold text-(--color-muted)">Payment</h2>
 
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-sm ${
+            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
               paymentMethod === 'bank_transfer'
                 ? 'border-(--color-accent) bg-(--color-accent)/5'
                 : 'border-(--color-border)'
@@ -278,7 +278,7 @@ export function CheckoutForm({
           </label>
 
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-sm ${
+            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
               paymentMethod === 'sslcommerz'
                 ? 'border-(--color-accent) bg-(--color-accent)/5'
                 : 'border-(--color-border)'
@@ -309,7 +309,7 @@ export function CheckoutForm({
         />
       </div>
 
-      <aside className="flex h-fit flex-col gap-4 rounded-lg border border-(--color-border) bg-(--color-surface) p-5 lg:sticky lg:top-6">
+      <aside className="storefront-card flex h-fit flex-col gap-4 p-5 lg:sticky lg:top-6">
         <h2 className="text-sm font-semibold">Order total</h2>
 
         <div className="flex justify-between text-sm">

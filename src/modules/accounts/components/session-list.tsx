@@ -59,7 +59,7 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
         {sessions.map((s) => (
           <li
             key={s.id}
-            className="flex items-start justify-between gap-4 rounded-lg border border-(--color-border) p-4 text-sm"
+            className="storefront-card-soft flex items-start justify-between gap-4 p-4 text-sm"
           >
             <div className="min-w-0">
               <p className="font-medium">

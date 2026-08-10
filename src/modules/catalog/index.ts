@@ -29,6 +29,7 @@ export {
   listActiveProducts,
   listActiveProductSlugs,
   listCategories,
+  listIndexableCategories,
   listProductsForAdmin,
   PAGE_SIZE,
 } from './repository'
@@ -38,21 +39,25 @@ export {
   getCachedActiveProducts,
   getCachedCategories,
   getCachedCategoryBySlug,
+  getCachedCategoryFacetData,
   getCachedProductBySlug,
   getCachedRelatedProducts,
 } from './cached'
 
 export { CATALOG_TAGS } from './tags'
+export { categoryHref, categoryQuery, hasCategoryFilters } from './category-url'
 
 export type { Category, Product, ProductImage, ProductStatus, ProductVariant } from './schema'
 
 export {
   categoryInputSchema,
+  categoryFiltersSchema,
   productFiltersSchema,
   productInputSchema,
   slugify,
   variantInputSchema,
   type CategoryInput,
+  type CategoryFilters,
   type ProductFilters,
   type ProductInput,
   type VariantInput,

@@ -48,7 +48,7 @@ export function BankTransferInstructions({
 
   if (done) {
     return (
-      <div className="rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+      <div className="storefront-card p-5">
         <p className="text-sm font-medium">Reference received</p>
         <p className="mt-1 text-sm text-(--color-muted)">
           We will check it against our bank statement and email you once it clears — usually
@@ -59,7 +59,7 @@ export function BankTransferInstructions({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+    <div className="storefront-card flex flex-col gap-5 p-5">
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Send {formatBdt(amount)}</h2>
 

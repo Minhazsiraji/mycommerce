@@ -124,7 +124,7 @@ function DeleteSection({ isAdmin }: { isAdmin: boolean }) {
           Delete my account
         </Button>
       ) : (
-        <div className="flex flex-col gap-3 rounded-lg border border-(--color-danger)/40 p-4">
+        <div className="storefront-card-soft flex flex-col gap-3 border-(--color-danger)/40 p-4">
           <Input
             label="Confirm your password"
             type="password"

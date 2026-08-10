@@ -26,7 +26,7 @@ export default async function CheckoutPage() {
 
   if (rates.length === 0) {
     return (
-      <div className="mx-auto flex max-w-lg flex-col gap-4 py-20 text-center">
+      <div className="storefront-card mx-auto flex max-w-lg flex-col gap-4 px-6 py-16 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Checkout is unavailable</h1>
         <p className="text-(--color-muted)">
           No delivery options are configured yet, so orders cannot be taken. Please try again

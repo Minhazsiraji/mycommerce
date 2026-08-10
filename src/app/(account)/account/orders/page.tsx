@@ -33,7 +33,7 @@ export default async function AccountOrdersPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-(--color-border) px-6 py-16 text-center">
+        <div className="storefront-card px-6 py-16 text-center">
           <p className="font-medium">No orders yet</p>
           <Link href="/" className="mt-2 inline-block text-sm underline underline-offset-4">
             Browse the store

@@ -68,7 +68,7 @@ export function CartContents({
         ))}
       </ul>
 
-      <aside className="flex h-fit flex-col gap-4 rounded-lg border border-(--color-border) bg-(--color-surface) p-5 lg:sticky lg:top-6">
+      <aside className="storefront-card flex h-fit flex-col gap-4 p-5 lg:sticky lg:top-6">
         <h2 className="text-sm font-semibold">Summary</h2>
 
         <div className="flex justify-between text-sm">
@@ -178,7 +178,7 @@ function CartLineRow({
     <li className="flex gap-4 py-5">
       <Link
         href={`/p/${line.productSlug}`}
-        className="relative size-20 shrink-0 overflow-hidden rounded-md bg-(--color-surface)"
+        className="storefront-card-soft relative size-20 shrink-0 overflow-hidden"
       >
         {line.imageUrl ? (
           <Image src={line.imageUrl} alt="" fill sizes="80px" className="object-cover" />

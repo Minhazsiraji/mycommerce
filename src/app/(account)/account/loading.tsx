@@ -10,7 +10,7 @@ export default function AccountLoading() {
         <div className="h-8 w-48 rounded bg-(--color-surface)" />
         <div className="h-4 w-64 rounded bg-(--color-surface)" />
       </div>
-      <div className="flex flex-col gap-3 rounded-lg border border-(--color-border) p-5">
+      <div className="storefront-card flex flex-col gap-3 p-5">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-4 w-full rounded bg-(--color-surface)" />
         ))}
