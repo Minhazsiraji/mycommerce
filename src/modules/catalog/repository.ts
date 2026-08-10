@@ -213,7 +213,7 @@ export async function listActiveProducts(
    * A parent category page shows everything beneath it, so callers pass the
    * category plus its children rather than a single id.
    */
-  options?: { categoryIds?: string[] },
+  options?: { categoryIds?: string[]; limit?: number },
 ) {
   const tsQuery = filters.q ? sql`websearch_to_tsquery('english', ${filters.q})` : null
 
@@ -222,6 +222,8 @@ export async function listActiveProducts(
     : filters.categoryId
       ? eq(products.categoryId, filters.categoryId)
       : undefined
+
+  const limit = Math.min(Math.max(options?.limit ?? PAGE_SIZE, 1), PAGE_SIZE)
 
   /**
    * A query matches the product's own text, its category, or its parent
@@ -285,8 +287,8 @@ export async function listActiveProducts(
         .where(predicate)
         .groupBy(products.id)
         .orderBy(...order)
-        .limit(PAGE_SIZE)
-        .offset((filters.page - 1) * PAGE_SIZE),
+        .limit(limit)
+        .offset((filters.page - 1) * limit),
       // Same joins: the predicate references `categories`, so a count without
       // them would fail rather than merely disagree.
       db
@@ -329,7 +331,7 @@ export async function listActiveProducts(
   return {
     rows: rows.map((r) => ({ ...r, imageKey: images.get(r.id) ?? null })),
     total: totals?.n ?? 0,
-    pageSize: PAGE_SIZE,
+    pageSize: limit,
   }
 }
 

@@ -3,7 +3,11 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-import { getCachedActiveProducts, productFiltersSchema } from '@/modules/catalog'
+import {
+  getCachedActiveProducts,
+  getCachedCategories,
+  productFiltersSchema,
+} from '@/modules/catalog'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 
 export const metadata: Metadata = { title: 'Search' }
@@ -72,8 +76,27 @@ export default async function SearchPage({
     )
   }
 
-  const { rows, total, pageSize } = await getCachedActiveProducts(filters)
+  const categories = await getCachedCategories()
+  const categoryIds = filters.categoryId
+    ? [
+        filters.categoryId,
+        ...categories
+          .filter((category) => category.parentId === filters.categoryId)
+          .map((category) => category.id),
+      ]
+    : undefined
+  const { rows, total, pageSize } = await getCachedActiveProducts(filters, { categoryIds })
   const lastPage = Math.max(1, Math.ceil(total / pageSize))
+
+  const hrefFor = (page: number) => ({
+    pathname: '/search' as const,
+    query: {
+      q: filters.q,
+      ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+      ...(filters.sort !== 'relevance' ? { sort: filters.sort } : {}),
+      ...(page > 1 ? { page: String(page) } : {}),
+    },
+  })
 
   return (
     <div className="flex flex-col gap-8">
@@ -85,6 +108,50 @@ export default async function SearchPage({
           {total} {total === 1 ? 'match' : 'matches'}
         </p>
       </div>
+
+      <form
+        action="/search"
+        className="grid gap-3 rounded-lg border border-(--color-border) p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+      >
+        <input type="hidden" name="q" value={filters.q} />
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Category</span>
+          <select
+            name="categoryId"
+            defaultValue={filters.categoryId ?? ''}
+            className="h-10 rounded-md border border-(--color-border) bg-(--color-bg) px-3"
+          >
+            <option value="">All categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.parentId ? `— ${category.name}` : category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Sort by</span>
+          <select
+            name="sort"
+            defaultValue={filters.sort}
+            className="h-10 rounded-md border border-(--color-border) bg-(--color-bg) px-3"
+          >
+            <option value="relevance">Relevance</option>
+            <option value="newest">Newest</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+          </select>
+        </label>
+
+        <button
+          type="submit"
+          className="h-10 rounded-md bg-(--color-accent) px-4 text-sm font-medium text-(--color-accent-fg) hover:opacity-90"
+        >
+          Apply
+        </button>
+      </form>
 
       {rows.length === 0 ? (
         /**
@@ -117,7 +184,7 @@ export default async function SearchPage({
           <div className="flex gap-2">
             {filters.page > 1 ? (
               <Link
-                href={{ pathname: '/search', query: { q: filters.q, page: String(filters.page - 1) } }}
+                href={hrefFor(filters.page - 1)}
                 className="rounded-md border border-(--color-border) px-3 py-1.5 hover:bg-(--color-surface)"
               >
                 Previous
@@ -125,7 +192,7 @@ export default async function SearchPage({
             ) : null}
             {filters.page < lastPage ? (
               <Link
-                href={{ pathname: '/search', query: { q: filters.q, page: String(filters.page + 1) } }}
+                href={hrefFor(filters.page + 1)}
                 className="rounded-md border border-(--color-border) px-3 py-1.5 hover:bg-(--color-surface)"
               >
                 Next

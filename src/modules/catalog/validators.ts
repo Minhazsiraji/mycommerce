@@ -82,10 +82,15 @@ export const categoryInputSchema = z.object({
   position: z.coerce.number().int().min(0).default(0),
 })
 
+const emptyFilter = (value: unknown) => (value === '' ? undefined : value)
+
 export const productFiltersSchema = z.object({
   q: z.string().trim().max(120).optional(),
-  categoryId: z.uuid().optional(),
-  status: productStatusSchema.optional(),
+  // Native GET forms submit unselected <select> controls as an empty string.
+  // Treat that as no filter rather than turning a valid "All" selection into
+  // a validation error.
+  categoryId: z.preprocess(emptyFilter, z.uuid().optional()),
+  status: z.preprocess(emptyFilter, productStatusSchema.optional()),
   sort: z.enum(['newest', 'price-asc', 'price-desc', 'relevance']).default('newest'),
   page: z.coerce.number().int().min(1).default(1),
 })

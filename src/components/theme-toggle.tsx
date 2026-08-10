@@ -68,7 +68,7 @@ export function ThemeToggle() {
       aria-label={label}
       title={label}
       // Fixed size so nothing shifts when the icon resolves after hydration.
-      className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-(--color-border) text-(--color-muted) transition-colors hover:bg-(--color-surface) hover:text-(--color-fg) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-accent)"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-(--radius-md) border border-(--border-subtle) text-(--text-secondary) transition-colors hover:border-(--border-strong) hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
     >
       {theme === 'dark' ? <SunIcon /> : theme === 'light' ? <MoonIcon /> : null}
     </button>

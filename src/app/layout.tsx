@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
 import { ThemeScript } from '@/components/theme-script'
+import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
 
 import './globals.css'
 
@@ -14,12 +15,32 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: getSiteUrl(),
   title: {
-    default: 'MyCommerce',
-    template: '%s · MyCommerce',
+    default: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
+    template: '%s | SirajiBD',
   },
-  description: 'A fast, secure online store.',
-  robots: { index: false, follow: false }, // opened up at launch
+  description:
+    'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+  alternates: { canonical: '/' },
+  robots: {
+    index: isIndexableEnvironment(),
+    follow: isIndexableEnvironment(),
+  },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'SirajiBD',
+    title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
+    description:
+      'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
+    description:
+      'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

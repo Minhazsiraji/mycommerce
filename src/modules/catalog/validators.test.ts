@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { productInputSchema, slugify, variantInputSchema } from './validators'
+import {
+  productFiltersSchema,
+  productInputSchema,
+  slugify,
+  variantInputSchema,
+} from './validators'
 
 const validVariant = {
   sku: 'SKU-1',
@@ -85,5 +90,16 @@ describe('productInputSchema', () => {
 
   it('defaults status to draft so nothing publishes by accident', () => {
     expect(productInputSchema.safeParse(base).data?.status).toBe('draft')
+  })
+})
+
+describe('productFiltersSchema', () => {
+  it('treats empty native-form select values as absent filters', () => {
+    expect(productFiltersSchema.parse({ categoryId: '', status: '' })).toMatchObject({
+      categoryId: undefined,
+      status: undefined,
+      sort: 'newest',
+      page: 1,
+    })
   })
 })
