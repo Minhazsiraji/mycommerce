@@ -27,7 +27,7 @@ export function StorefrontHeader({
         Skip to content
       </a>
 
-      <header className="border-b border-(--border-subtle) bg-(--surface-primary)">
+      <header>
         <div className="mx-auto w-full max-w-(--container-content) px-4 sm:px-6 lg:px-8">
           <div className="flex min-h-16 items-center gap-2 md:min-h-18 lg:gap-6">
             <MobileNavigation categories={categories} />

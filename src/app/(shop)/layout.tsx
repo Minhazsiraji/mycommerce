@@ -39,15 +39,19 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <StorefrontHeader
-        categories={topCategories}
-        cart={
-          <Suspense fallback={<CartBadgeFallback />}>
-            <CartBadge />
-          </Suspense>
-        }
-      />
-      <AnnouncementBar facts={announcementFacts} />
+      <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+        <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
+          <StorefrontHeader
+            categories={topCategories}
+            cart={
+              <Suspense fallback={<CartBadgeFallback />}>
+                <CartBadge />
+              </Suspense>
+            }
+          />
+          <AnnouncementBar facts={announcementFacts} />
+        </div>
+      </div>
 
       <main
         id="main-content"

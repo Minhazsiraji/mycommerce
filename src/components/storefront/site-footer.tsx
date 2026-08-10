@@ -51,7 +51,7 @@ export function SiteFooter({ categories }: { categories: NavigationItem[] }) {
             <FooterLink href="/account">Your account</FooterLink>
             <FooterLink href="/account/security">Security</FooterLink>
             {email ? <FooterLink href={`mailto:${email}`}>{email}</FooterLink> : null}
-            {phone ? <FooterLink href={`tel:${phone.replace(/\\s+/g, '')}`}>{phone}</FooterLink> : null}
+            {phone ? <FooterLink href={`tel:${phone.replace(/\s+/g, '')}`}>{phone}</FooterLink> : null}
           </FooterColumn>
         </div>
 
