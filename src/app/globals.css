@@ -176,6 +176,36 @@ body {
   background-attachment: fixed;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  isolation: isolate;
+}
+
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 48% 52% 55% 45%;
+  filter: blur(1px);
+}
+
+body::before {
+  width: 28.75rem;
+  height: 28.75rem;
+  left: -13.125rem;
+  top: 12vh;
+  background: rgb(100 157 239 / 15%);
+  transform: rotate(25deg);
+}
+
+body::after {
+  width: 32.5rem;
+  height: 32.5rem;
+  right: -16.25rem;
+  bottom: 5vh;
+  background: rgb(255 255 255 / 32%);
+  transform: rotate(-18deg);
 }
 
 :root[data-theme='dark'] body {
@@ -183,10 +213,20 @@ body {
   background-attachment: scroll;
 }
 
+:root[data-theme='dark'] body::before,
+:root[data-theme='dark'] body::after {
+  display: none;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) body {
     background: var(--background-canvas);
     background-attachment: scroll;
+  }
+
+  :root:not([data-theme]) body::before,
+  :root:not([data-theme]) body::after {
+    display: none;
   }
 }
 
