@@ -56,14 +56,14 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex h-[4.75rem] flex-col gap-0.5 px-1 pb-1 sm:h-[5.25rem]">
+      <div className="flex h-[6rem] flex-col gap-0.5 px-1 pb-1 sm:h-[6.5rem]">
         {product.brand ? (
           <span className="text-xs text-(--text-muted)">{product.brand}</span>
         ) : null}
-        <h3 className="line-clamp-2 text-sm font-medium text-(--text-primary) underline-offset-4 group-hover:underline sm:text-base">
+        <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-(--text-primary) underline-offset-4 group-hover:underline sm:min-h-12 sm:text-base">
           {product.title}
         </h3>
-        <span className="text-sm font-semibold text-(--text-primary) tabular-nums sm:text-base">
+        <span className="mt-auto text-sm font-semibold text-(--text-primary) tabular-nums sm:text-base">
           {product.fromPrice == null ? '—' : formatBdt(Number(product.fromPrice))}
         </span>
       </div>

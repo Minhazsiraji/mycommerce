@@ -7,7 +7,7 @@ import { ProductGrid } from '@/modules/catalog/components/product-card'
 export default async function HomePage() {
   const [categoryResult, productResult] = await Promise.allSettled([
     getCachedCategories(),
-    getCachedActiveProducts({ sort: 'newest', page: 1 }, { limit: 4 }),
+    getCachedActiveProducts({ sort: 'newest', page: 1 }),
   ])
 
   if (categoryResult.status === 'rejected') {
