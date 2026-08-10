@@ -25,7 +25,7 @@ export default async function CartPage() {
 
   if (cart.lines.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 py-24 text-center">
+      <div className="storefront-card flex flex-col items-center gap-4 px-6 py-20 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
         <p className="text-(--color-muted)">Nothing added yet.</p>
         <Link

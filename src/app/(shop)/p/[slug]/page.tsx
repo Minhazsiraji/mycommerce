@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: Params) {
         ) : null}
       </nav>
 
-      <div className="grid gap-10 lg:grid-cols-2">
+      <div className="storefront-card grid gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
         <ProductGallery images={images} title={product.title} />
 
         <div className="flex flex-col gap-6">

@@ -19,7 +19,7 @@ export default function CartLoading() {
           ))}
         </ul>
 
-        <div className="flex h-fit flex-col gap-4 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+        <div className="storefront-card flex h-fit flex-col gap-4 p-5">
           <div className="h-4 w-24 rounded bg-(--color-bg)" />
           <div className="h-4 w-full rounded bg-(--color-bg)" />
           <div className="h-11 w-full rounded-md bg-(--color-bg)" />

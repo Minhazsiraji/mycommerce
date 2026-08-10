@@ -7,8 +7,8 @@ export default function OrderLoading() {
         <div className="h-4 w-full rounded bg-(--color-surface)" />
         <div className="h-4 w-40 rounded bg-(--color-surface)" />
       </div>
-      <div className="h-40 rounded-lg bg-(--color-surface)" />
-      <div className="h-48 rounded-lg bg-(--color-surface)" />
+      <div className="storefront-card h-40" />
+      <div className="storefront-card h-48" />
     </div>
   )
 }

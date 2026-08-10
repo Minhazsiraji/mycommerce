@@ -111,7 +111,7 @@ export default async function SearchPage({
 
       <form
         action="/search"
-        className="grid gap-3 rounded-lg border border-(--color-border) p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+        className="storefront-card grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
       >
         <input type="hidden" name="q" value={filters.q} />
 
@@ -161,7 +161,7 @@ export default async function SearchPage({
          * page recommendations.
          */
         <div className="flex flex-col gap-8">
-          <div className="rounded-lg border border-dashed border-(--color-border) px-6 py-10 text-center">
+          <div className="storefront-card px-6 py-10 text-center">
             <p className="font-medium">Nothing matched “{filters.q}”</p>
             <p className="mx-auto mt-1 max-w-sm text-sm text-(--color-muted)">
               Try fewer words, or a brand or category name. You can also browse everything below.

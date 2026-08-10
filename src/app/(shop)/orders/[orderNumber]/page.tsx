@@ -87,7 +87,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
         <PayNowButton orderNumber={order.orderNumber} amount={order.total} />
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-lg border border-(--color-border) p-5">
+      <section className="storefront-card flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold">Items</h2>
 
         <ul className="flex flex-col gap-2 text-sm">
@@ -121,7 +121,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
         </dl>
       </section>
 
-      <section className="flex flex-col gap-2 rounded-lg border border-(--color-border) p-5 text-sm">
+      <section className="storefront-card flex flex-col gap-2 p-5 text-sm">
         <h2 className="text-sm font-semibold">Delivering to</h2>
         <address className="text-(--color-muted) not-italic">
           {address.recipient}
