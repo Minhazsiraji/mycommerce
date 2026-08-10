@@ -6,7 +6,7 @@ import { withDbRetry } from '@/lib/db/retry'
 
 import * as repo from './repository'
 import { CATALOG_TAGS } from './tags'
-import type { ProductFilters } from './validators'
+import type { CategoryFilters, ProductFilters } from './validators'
 
 /**
  * Cached storefront reads. Admin screens deliberately do NOT use these — an
@@ -23,7 +23,7 @@ import type { ProductFilters } from './validators'
 
 export async function getCachedActiveProducts(
   filters: ProductFilters,
-  options?: { categoryIds?: string[]; limit?: number },
+  options?: { categoryIds?: string[]; limit?: number; categoryFilters?: CategoryFilters },
 ) {
   'use cache'
   cacheTag(CATALOG_TAGS.products)
@@ -65,4 +65,12 @@ export async function getCachedCategoryBySlug(slug: string) {
   cacheLife('max')
 
   return withDbRetry(() => repo.getCategoryBySlug(slug), 'getCategoryBySlug')
+}
+
+export async function getCachedCategoryFacetData(categoryIds: string[]) {
+  'use cache'
+  cacheTag(CATALOG_TAGS.products, CATALOG_TAGS.categories)
+  cacheLife('max')
+
+  return withDbRetry(() => repo.getCategoryFacetData(categoryIds), 'getCategoryFacetData')
 }

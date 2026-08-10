@@ -4,7 +4,6 @@ import {
   and,
   asc,
   count,
-  countDistinct,
   desc,
   eq,
   inArray,
@@ -27,7 +26,7 @@ import { categories, productImages, products, productVariants } from './schema'
  * hence the alias.
  */
 const parentCategory = alias(categories, 'parent_category')
-import type { CategoryInput, ProductFilters, ProductInput } from './validators'
+import type { CategoryFilters, CategoryInput, ProductFilters, ProductInput } from './validators'
 
 /**
  * The only place Drizzle is called for catalog data. Services and actions go
@@ -80,6 +79,16 @@ export function listCategories() {
   })
 }
 
+export async function listIndexableCategories() {
+  const [all, assigned] = await Promise.all([
+    listCategories(),
+    db.selectDistinct({ categoryId: products.categoryId }).from(products).where(eq(products.status, 'active')),
+  ])
+  const used = new Set(assigned.map((row) => row.categoryId).filter(Boolean))
+  const parentsWithUsedChildren = new Set(all.filter((item) => item.parentId && used.has(item.id)).map((item) => item.parentId))
+  return all.filter((item) => used.has(item.id) || parentsWithUsedChildren.has(item.id))
+}
+
 export function getCategoryById(id: string) {
   return db.query.categories.findFirst({ where: eq(categories.id, id) })
 }
@@ -91,6 +100,39 @@ export function getCategoryBySlug(slug: string) {
 export async function countProductsInCategory(id: string): Promise<number> {
   const [row] = await db.select({ n: count() }).from(products).where(eq(products.categoryId, id))
   return row?.n ?? 0
+}
+
+/** One bounded read for evidence-gated Category V2 controls. */
+export async function getCategoryFacetData(categoryIds: string[]) {
+  if (!categoryIds.length) return { brands: [], brandComplete: false, priceMin: null, priceMax: null }
+
+  const rows = await db
+    .select({
+      id: products.id,
+      brand: products.brand,
+      fromPrice,
+    })
+    .from(products)
+    .leftJoin(
+      productVariants,
+      and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+    )
+    .where(and(eq(products.status, 'active'), inArray(products.categoryId, categoryIds)))
+    .groupBy(products.id)
+
+  const brandComplete = rows.length > 0 && rows.every((row) => Boolean(row.brand?.trim()))
+  const brandCounts = new Map<string, number>()
+  if (brandComplete) {
+    for (const row of rows) brandCounts.set(row.brand!, (brandCounts.get(row.brand!) ?? 0) + 1)
+  }
+  const prices = rows.map((row) => row.fromPrice).filter((value): value is number => value != null)
+
+  return {
+    brands: [...brandCounts].sort(([a], [b]) => a.localeCompare(b)).map(([label, count]) => ({ label, count })),
+    brandComplete,
+    priceMin: prices.length ? Math.min(...prices.map(Number)) : null,
+    priceMax: prices.length ? Math.max(...prices.map(Number)) : null,
+  }
 }
 
 export async function insertCategory(input: CategoryInput) {
@@ -213,7 +255,7 @@ export async function listActiveProducts(
    * A parent category page shows everything beneath it, so callers pass the
    * category plus its children rather than a single id.
    */
-  options?: { categoryIds?: string[]; limit?: number },
+  options?: { categoryIds?: string[]; limit?: number; categoryFilters?: CategoryFilters },
 ) {
   const tsQuery = filters.q ? sql`websearch_to_tsquery('english', ${filters.q})` : null
 
@@ -224,6 +266,7 @@ export async function listActiveProducts(
       : undefined
 
   const limit = Math.min(Math.max(options?.limit ?? PAGE_SIZE, 1), PAGE_SIZE)
+  const categoryFilters = options?.categoryFilters
 
   /**
    * A query matches the product's own text, its category, or its parent
@@ -252,20 +295,47 @@ export async function listActiveProducts(
   const orderBy = (() => {
     switch (filters.sort) {
       case 'price-asc':
-        return [asc(fromPrice)]
+        return [asc(fromPrice), asc(products.id)]
       case 'price-desc':
-        return [desc(fromPrice)]
+        return [desc(fromPrice), asc(products.id)]
       case 'relevance':
         return tsQuery
-          ? [desc(sql`ts_rank(${products.searchVector}, ${tsQuery})`), desc(products.createdAt)]
-          : [desc(products.createdAt)]
+          ? [desc(sql`ts_rank(${products.searchVector}, ${tsQuery})`), desc(products.createdAt), asc(products.id)]
+          : [desc(products.createdAt), asc(products.id)]
       default:
-        return [desc(products.createdAt)]
+        return [desc(products.createdAt), asc(products.id)]
     }
   })()
 
   const run = async (clause: SQL | undefined, order: SQL[]) => {
-    const predicate = and(eq(products.status, 'active'), categoryFilter, clause)
+    const predicate = and(
+      eq(products.status, 'active'),
+      categoryFilter,
+      clause,
+      categoryFilters?.brand.length
+        ? inArray(products.brand, categoryFilters.brand)
+        : undefined,
+    )
+
+    const having = and(
+      categoryFilters?.minPrice != null ? sql`${fromPrice} >= ${categoryFilters.minPrice}` : undefined,
+      categoryFilters?.maxPrice != null ? sql`${fromPrice} <= ${categoryFilters.maxPrice}` : undefined,
+      categoryFilters?.inStock ? sql`${totalStock} > 0` : undefined,
+    )
+
+    const matchingProducts = db
+      .select({ id: products.id })
+      .from(products)
+      .leftJoin(
+        productVariants,
+        and(eq(productVariants.productId, products.id), isNull(productVariants.archivedAt)),
+      )
+      .leftJoin(categories, eq(categories.id, products.categoryId))
+      .leftJoin(parentCategory, eq(parentCategory.id, categories.parentId))
+      .where(predicate)
+      .groupBy(products.id)
+      .having(having)
+      .as('matching_products')
 
     return Promise.all([
       db
@@ -286,17 +356,11 @@ export async function listActiveProducts(
         .leftJoin(parentCategory, eq(parentCategory.id, categories.parentId))
         .where(predicate)
         .groupBy(products.id)
+        .having(having)
         .orderBy(...order)
         .limit(limit)
         .offset((filters.page - 1) * limit),
-      // Same joins: the predicate references `categories`, so a count without
-      // them would fail rather than merely disagree.
-      db
-        .select({ n: countDistinct(products.id) })
-        .from(products)
-        .leftJoin(categories, eq(categories.id, products.categoryId))
-        .leftJoin(parentCategory, eq(parentCategory.id, categories.parentId))
-        .where(predicate),
+      db.select({ n: count() }).from(matchingProducts),
     ])
   }
 

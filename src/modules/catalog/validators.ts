@@ -95,6 +95,30 @@ export const productFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
 })
 
+const optionalNonNegativeInt = z.preprocess(
+  emptyFilter,
+  z.coerce.number().int().min(0).optional(),
+)
+
+/** Public Category V2 query contract. Unknown keys are stripped by Zod. */
+export const categoryFiltersSchema = z
+  .object({
+    subcategory: z.preprocess(emptyFilter, slugSchema.optional()),
+    brand: z.preprocess(
+      (value) => (value == null || value === '' ? [] : Array.isArray(value) ? value : [value]),
+      z.array(z.string().trim().min(1).max(120)).max(12).default([]),
+    ),
+    minPrice: optionalNonNegativeInt,
+    maxPrice: optionalNonNegativeInt,
+    inStock: z.preprocess((value) => (value === '1' ? true : undefined), z.boolean().optional()),
+    sort: z.enum(['newest', 'price-asc', 'price-desc']).default('newest'),
+    page: z.coerce.number().int().min(1).default(1),
+  })
+  .refine((value) => value.maxPrice == null || value.minPrice == null || value.maxPrice >= value.minPrice, {
+    message: 'Maximum price must be at least the minimum price.',
+    path: ['maxPrice'],
+  })
+
 export const attachImageSchema = z.object({
   productId: z.uuid(),
   /**
@@ -140,3 +164,4 @@ export type ProductInput = z.infer<typeof productInputSchema>
 export type VariantInput = z.infer<typeof variantInputSchema>
 export type CategoryInput = z.infer<typeof categoryInputSchema>
 export type ProductFilters = z.infer<typeof productFiltersSchema>
+export type CategoryFilters = z.infer<typeof categoryFiltersSchema>
