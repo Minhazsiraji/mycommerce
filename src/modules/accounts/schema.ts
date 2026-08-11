@@ -140,6 +140,8 @@ export const addresses = pgTable(
     line2: text('line2'),
     city: text('city').notNull(),
     district: text('district').notNull(),
+    upazila: text('upazila').notNull().default(''),
+    union: text('union'),
     postalCode: text('postal_code'),
     country: text('country').notNull().default('BD'),
     isDefault: boolean('is_default').notNull().default(false),

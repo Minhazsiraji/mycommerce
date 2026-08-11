@@ -31,6 +31,8 @@ export type CheckoutDefaults = {
   line2: string
   city: string
   district: string
+  upazila: string
+  union: string
   postalCode: string
 }
 
@@ -92,6 +94,8 @@ export function CheckoutForm({
           line2: String(formData.get('line2') ?? ''),
           city: String(formData.get('city') ?? ''),
           district,
+          upazila: String(formData.get('upazila') ?? ''),
+          union: String(formData.get('union') ?? ''),
           postalCode: String(formData.get('postalCode') ?? ''),
           country: 'BD',
         },
@@ -173,7 +177,7 @@ export function CheckoutForm({
             error={field('line2')}
           />
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
               label="City / Town"
               name="city"
@@ -196,6 +200,20 @@ export function CheckoutForm({
                 </option>
               ))}
             </Select>
+            <Input
+              label="Thana / Upazila"
+              name="upazila"
+              autoComplete="address-level3"
+              defaultValue={defaults.upazila}
+              required
+              error={field('upazila')}
+            />
+            <Input
+              label="Union / Area (optional)"
+              name="union"
+              defaultValue={defaults.union}
+              error={field('union')}
+            />
             <Input
               label="Postcode (optional)"
               name="postalCode"

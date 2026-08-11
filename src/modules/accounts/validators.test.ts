@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { loginSchema, passwordSchema, registerSchema } from './validators'
+import {
+  addressInputSchema,
+  bdPhoneSchema,
+  loginSchema,
+  passwordSchema,
+  registerSchema,
+} from './validators'
 
 describe('passwordSchema', () => {
   it('rejects passwords under 10 characters', () => {
@@ -12,8 +18,6 @@ describe('passwordSchema', () => {
   })
 
   it('rejects passwords over 128 characters', () => {
-    // Long inputs are an Argon2 denial-of-service vector, so the cap is enforced
-    // before hashing rather than left to the hasher.
     expect(passwordSchema.safeParse('a'.repeat(129)).success).toBe(false)
   })
 })
@@ -50,8 +54,41 @@ describe('registerSchema', () => {
 
 describe('loginSchema', () => {
   it('does not apply the length rule to an existing password', () => {
-    // Sign-in must accept whatever was previously valid; raising the minimum
-    // should never lock people out of their own accounts.
     expect(loginSchema.safeParse({ email: 'a@b.com', password: 'old' }).success).toBe(true)
+  })
+})
+
+const validAddress = {
+  recipient: 'Minhaz Siraji',
+  phone: '01712-345678',
+  line1: 'House 1, Road 2',
+  city: 'Savar',
+  district: 'Dhaka',
+  upazila: 'Savar',
+  union: 'Tetuljhora',
+  country: 'BD',
+}
+
+describe('Bangladesh checkout validation', () => {
+  it('normalises a local mobile number', () => {
+    expect(bdPhoneSchema.parse('01712 345678')).toBe('+8801712345678')
+  })
+
+  it('accepts a complete Bangladesh delivery address', () => {
+    expect(addressInputSchema.parse(validAddress)).toMatchObject({
+      phone: '+8801712345678',
+      district: 'Dhaka',
+      upazila: 'Savar',
+    })
+  })
+
+  it('rejects an invented district even if a request bypasses the form', () => {
+    const result = addressInputSchema.safeParse({ ...validAddress, district: 'Fake District' })
+    expect(result.success).toBe(false)
+  })
+
+  it('requires a Thana or Upazila', () => {
+    const result = addressInputSchema.safeParse({ ...validAddress, upazila: '' })
+    expect(result.success).toBe(false)
   })
 })

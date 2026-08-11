@@ -37,6 +37,8 @@ export async function saveAddress(userId: string, input: AddressInput) {
       line2: input.line2 ?? null,
       city: input.city,
       district: input.district,
+      upazila: input.upazila,
+      union: input.union ?? null,
       postalCode: input.postalCode ?? null,
       country: input.country,
       // The first address saved becomes the default; there is nothing to choose

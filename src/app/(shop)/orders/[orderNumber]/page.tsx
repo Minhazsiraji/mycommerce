@@ -129,7 +129,10 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
           {address.line1}
           {address.line2 ? `, ${address.line2}` : ''}
           <br />
-          {address.city}, {address.district}
+          {address.union ? `${address.union}, ` : ''}
+          {address.upazila ? `${address.upazila}, ` : ''}{address.district}
+          <br />
+          {address.city}
           {address.postalCode ? ` ${address.postalCode}` : ''}
           <br />
           {address.phone}

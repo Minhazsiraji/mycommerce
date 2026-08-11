@@ -5,8 +5,9 @@
  * shipping module — the checkout form is a client component and must be able to
  * import it without pulling a server-only module barrel into the browser.
  *
- * Used to populate a dropdown, never to constrain what may be stored: a store
- * that thinks in metro areas or upazilas should not be blocked by this list.
+ * Used both by the checkout dropdown and server validation. Shipping rates are
+ * keyed by these canonical spellings, so accepting an arbitrary district would
+ * let a tampered request bypass the destination the customer saw quoted.
  */
 export const BD_DISTRICTS = [
   'Bagerhat', 'Bandarban', 'Barguna', 'Barishal', 'Bhola', 'Bogura', 'Brahmanbaria',
@@ -20,3 +21,5 @@ export const BD_DISTRICTS = [
   'Rangpur', 'Satkhira', 'Shariatpur', 'Sherpur', 'Sirajganj', 'Sunamganj', 'Sylhet',
   'Tangail', 'Thakurgaon',
 ] as const
+
+export const BD_DISTRICT_SET: ReadonlySet<string> = new Set(BD_DISTRICTS)

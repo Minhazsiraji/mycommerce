@@ -22,6 +22,8 @@ export type AddressSnapshot = {
   line2?: string | null
   city: string
   district: string
+  upazila: string
+  union?: string | null
   postalCode?: string | null
   country: string
 }
@@ -59,6 +61,7 @@ export const orders = pgTable(
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     email: text('email').notNull(),
     phone: text('phone'),
+    checkoutIp: text('checkout_ip'),
 
     status: text('status').notNull().default('pending'),
     paymentStatus: text('payment_status').notNull().default('unpaid'),

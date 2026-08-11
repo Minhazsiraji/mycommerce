@@ -80,6 +80,7 @@ Commerce-specific risks, each with the control that addresses it.
 | 21 | **Attacker-controlled input in a redirect** | The SSLCommerz return handler builds a URL from `tran_id`. The order number is matched against `^[A-Z0-9-]{4,32}$` and encoded, and the status is narrowed to a known set — a fixed origin prefix stops an off-site redirect, but not path traversal or a CRLF payload in a `Location` header. |
 | 22 | **Attaching an arbitrary Cloudinary asset** | The browser uploads directly and reports back the key it got. The signature restricts where an upload *lands*; `attachImageSchema` restricts what we accept as having landed there, via a `mycommerce/<folder>/…` pattern. |
 | 23 | **Cron endpoint secret recovery** | `CRON_SECRET` compared with `timingSafeEqual`, length-checked first so the throw is not itself a signal. No secret configured means no caller can authenticate — closed, not open. |
+| 27 | **Fake-order and stock-hold abuse** | Checkout validates canonical Bangladesh phone and district data, requires Thana/Upazila, rate limits by IP, phone and email, rejects repeated recent failed/cancelled identities, and checks an audited owner-managed phone/email/IP blocklist. |
 
 SQL injection is covered by Drizzle's parameterisation — the only way to reintroduce it
 is `sql.raw()` with interpolated input, which is banned. CSRF is covered by Server
@@ -140,6 +141,8 @@ Redis, we need a Postgres table and a cron route.
 | Password re-auth (export, delete) | 5 per 15 min **per user** | `reauth` bucket |
 | Guest order lookup | 10 per hour | `order-lookup` bucket |
 | `placeOrder` | 10 per hour | `place-order` bucket |
+| `placeOrder` per phone | 3 per hour | `place-order-phone` bucket |
+| `placeOrder` per email | 5 per hour | `place-order-email` bucket |
 | Gateway session | 15 per hour | `gateway-session` bucket |
 | Transfer reference | 20 per hour | `transfer-reference` bucket |
 | Review submission | 5 per day | not built (P4) |

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { BD_DISTRICT_SET } from '@/lib/bd-districts'
+
 /**
  * Client-safe validators, shared by forms and server code.
  *
@@ -10,7 +12,11 @@ import { z } from 'zod'
  * The client copy gives immediate feedback; the server copy is the one that decides.
  */
 
-export const emailSchema = z.email('Enter a valid email address')
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email('Enter a valid email address'))
 
 // Length only. Composition rules (a digit, a symbol, a capital) push people
 // toward predictable substitutions without adding real entropy; length and a
@@ -61,8 +67,13 @@ export const addressInputSchema = z.object({
   phone: bdPhoneSchema,
   line1: z.string().trim().min(1, 'Required').max(160),
   line2: z.string().trim().max(160).optional(),
-  city: z.string().trim().min(1, 'Required').max(80),
-  district: z.string().trim().min(1, 'Required').max(80),
+  city: z.string().trim().min(2, 'Enter a valid city or town').max(80),
+  district: z
+    .string()
+    .trim()
+    .refine((value) => BD_DISTRICT_SET.has(value), 'Choose a valid Bangladesh district'),
+  upazila: z.string().trim().min(2, 'Enter a valid Thana or Upazila').max(80),
+  union: z.string().trim().max(80).optional(),
   postalCode: z.string().trim().max(12).optional(),
   country: z.string().trim().length(2).default('BD'),
 })

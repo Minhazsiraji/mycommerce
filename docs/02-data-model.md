@@ -111,6 +111,8 @@ erDiagram
         text order_number UK
         uuid user_id FK "nullable — guest"
         text email
+        text phone
+        text checkout_ip "fraud review only"
         text status
         text payment_status
         text fulfillment_status
@@ -165,7 +167,7 @@ erDiagram
 |---|---|
 | `users` | `role` is `customer` or `admin`. Two roles is enough; add more only when a real third job exists. |
 | `sessions`, `accounts`, `verifications` | Managed by Better Auth. Do not hand-modify. |
-| `addresses` | Belongs to a user. `is_default` per user. Soft-delete via `archived_at` so historical references stay intact. |
+| `addresses` | Belongs to a user. Bangladesh delivery fields include canonical district plus required Thana/Upazila and optional Union/Area. `is_default` per user. Soft-delete via `archived_at` so historical references stay intact. |
 
 ### Catalog — `catalog`
 
@@ -208,6 +210,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 | `webhook_events` | Unique on `(provider, event_id)`. The insert *is* the idempotency check — if it conflicts, the event was already handled, return 200 and stop. |
 | `outbox` | Side effects written inside business transactions, drained by cron. At-least-once delivery without a broker. |
 | `audit_logs` | Every admin mutation: actor, action, entity, JSONB diff, IP. Append-only. |
+| `fraud_blocks` | Active and revoked phone/email/IP checkout blocks. Every add/remove action is admin-only and audit logged. |
 
 ## Indexing
 

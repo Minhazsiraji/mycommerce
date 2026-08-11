@@ -50,6 +50,7 @@ export type PlaceOrderArgs = {
   notes: string | null
   /** 30 minutes for a gateway checkout, 72 hours for a bank transfer. */
   holdMinutes: number
+  checkoutIp: string
 }
 
 /**
@@ -127,6 +128,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
         userId: args.userId,
         email: args.email,
         phone: args.phone,
+        checkoutIp: args.checkoutIp,
         status: 'pending',
         paymentStatus: args.paymentMethod === 'bank_transfer' ? 'awaiting_transfer' : 'unpaid',
         fulfillmentStatus: 'unfulfilled',
@@ -390,7 +392,7 @@ export const REDACTED = '[deleted]'
  * The rows themselves have to survive: they are the store's accounting record,
  * and deleting them would put a hole in the books for every month a customer
  * ever leaves. What does not have to survive is who the customer was. Email,
- * phone, recipient name and street address go; totals, line items, dates and
+ * phone, IP, recipient name and street address go; totals, line items, dates and
  * the destination district stay, because that is what sales reporting and tax
  * actually need and a district alone identifies nobody.
  *
@@ -405,6 +407,7 @@ export async function anonymiseOrdersForUser(userId: string): Promise<number> {
       userId: null,
       email: `${REDACTED}@invalid`,
       phone: null,
+      checkoutIp: null,
       notes: null,
       shippingAddress: sql`
         jsonb_build_object(
@@ -414,6 +417,8 @@ export async function anonymiseOrdersForUser(userId: string): Promise<number> {
           'line2', null,
           'city', ${orders.shippingAddress}->>'city',
           'district', ${orders.shippingAddress}->>'district',
+          'upazila', ${REDACTED}::text,
+          'union', null,
           'postalCode', null,
           'country', ${orders.shippingAddress}->>'country'
         )

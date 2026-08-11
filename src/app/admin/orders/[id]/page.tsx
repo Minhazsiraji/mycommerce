@@ -98,7 +98,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               {address.line1}
               {address.line2 ? `, ${address.line2}` : ''}
               <br />
-              {address.city}, {address.district}
+              {address.union ? `${address.union}, ` : ''}
+              {address.upazila ? `${address.upazila}, ` : ''}{address.district}
+              <br />
+              {address.city}
               {address.postalCode ? ` ${address.postalCode}` : ''}
               <br />
               <a href={`tel:${address.phone}`} className="underline underline-offset-4">
@@ -106,6 +109,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               </a>
             </address>
             <p className="text-xs text-(--color-muted)">{order.email}</p>
+            {order.checkoutIp ? (
+              <p className="text-xs text-(--color-muted)">Checkout IP: {order.checkoutIp}</p>
+            ) : null}
           </section>
 
           <OrderParcels orderId={order.id} parcels={parcels} />

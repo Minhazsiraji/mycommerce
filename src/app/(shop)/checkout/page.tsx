@@ -64,6 +64,8 @@ export default async function CheckoutPage() {
           line2: preferred?.line2 ?? '',
           city: preferred?.city ?? '',
           district: preferred?.district ?? '',
+          upazila: preferred?.upazila ?? '',
+          union: preferred?.union ?? '',
           postalCode: preferred?.postalCode ?? '',
         }}
       />
