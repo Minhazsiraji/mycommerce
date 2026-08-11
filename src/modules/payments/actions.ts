@@ -1,11 +1,13 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { parseBdt } from '@/lib/money'
 import { rateLimit, tooManyRequests } from '@/lib/rate-limit'
+import { paymentCallbackOrigin } from '@/lib/request-origin'
 import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
@@ -47,7 +49,8 @@ export async function startGatewayPayment(
   if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
 
   try {
-    return ok(await service.startGatewayPayment(parsed.data))
+    const requestOrigin = (await headers()).get('origin')
+    return ok(await service.startGatewayPayment(parsed.data, paymentCallbackOrigin(requestOrigin)))
   } catch (error) {
     if (error instanceof PaymentError) return toResult(error)
     // Configuration or provider trouble; the message would leak internals.
