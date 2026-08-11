@@ -1,7 +1,4 @@
-import type { Route } from 'next'
 import { redirect } from 'next/navigation'
-
-import { env } from '@/lib/env'
 
 /**
  * Where the customer's browser lands after the gateway.
@@ -41,7 +38,10 @@ async function handle(request: Request) {
   const outcome = status === 'failed' || status === 'cancelled' ? status : 'cancelled'
   const query = status === 'success' ? '' : `?payment=${outcome}`
 
-  redirect(`${env.BETTER_AUTH_URL}/orders/${encodeURIComponent(orderNumber)}${query}` as Route)
+  // Stay on the deployment SSLCommerz returned to. Preview orders live in an
+  // isolated database, so sending this browser to the configured Production
+  // origin would make a valid Preview order appear to be missing.
+  redirect(`/orders/${encodeURIComponent(orderNumber)}${query}`)
 }
 
 export async function GET(request: Request) {
