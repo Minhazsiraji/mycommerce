@@ -42,6 +42,9 @@ describe('SSLCommerz session', () => {
     const body = fetchMock.mock.calls[0]?.[1]?.body as URLSearchParams
     expect(body.get('cus_postcode')).toBe('1340')
     expect(body.get('ship_postcode')).toBe('1340')
+    expect(body.get('success_url')).toBe(
+      'https://preview.example.com/api/webhooks/sslcommerz/return?status=success&order=MC-TEST-1',
+    )
   })
 
   it('uses a gateway-only fallback when the optional postcode is blank', async () => {

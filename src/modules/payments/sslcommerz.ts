@@ -48,6 +48,7 @@ export type SessionInput = {
 export async function createSession(input: SessionInput): Promise<{ redirectUrl: string }> {
   const { storeId, storePassword, host } = config()
   const suppliedPostcode = input.address.postalCode?.trim()
+  const returnOrder = `&order=${encodeURIComponent(input.orderNumber)}`
 
   if (suppliedPostcode && !/^\d{4}$/.test(suppliedPostcode)) {
     throw new Error('Postcode must be four digits when provided')
@@ -67,9 +68,9 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     currency: 'BDT',
     tran_id: input.orderNumber,
 
-    success_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=success`,
-    fail_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=fail`,
-    cancel_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=cancel`,
+    success_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=success${returnOrder}`,
+    fail_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=fail${returnOrder}`,
+    cancel_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=cancel${returnOrder}`,
     // The only one that decides anything. The three above are just where the
     // browser lands and are never trusted.
     ipn_url: `${input.baseUrl}/api/webhooks/sslcommerz`,

@@ -24,6 +24,12 @@ async function handle(request: Request) {
 
   if (!orderNumber) orderNumber = url.searchParams.get('tran_id') ?? ''
 
+  // Some gateway/browser combinations return without reposting tran_id. The
+  // callback created for this session carries the order number as a
+  // redirect-only fallback. It cannot change payment state; only the verified
+  // IPN handler can mark the order paid.
+  if (!orderNumber) orderNumber = url.searchParams.get('order') ?? ''
+
   /**
    * Both values come from the request, so neither is trusted into a URL.
    *
