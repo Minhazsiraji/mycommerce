@@ -258,8 +258,9 @@ tables do not exist and 500ing every page. Drizzle records applied migrations in
 The same script runs locally via `pnpm db:migrate`, so the thing tested is the thing
 that deploys.
 
-**Preview deployments do not migrate.** They currently share the production database,
-so migrating from an unmerged branch would apply unreviewed schema to live data.
-Previews therefore run against whatever schema production already has — fine for
-additive changes, misleading for anything else. The proper fix is a Neon branch per
-preview, scheduled for P5.
+**Preview deployments use an isolated Neon branch.** The Neon/Vercel integration
+creates a branch per Preview deployment and injects its branch-specific `DATABASE_URL`.
+Vercel Preview must also define `PREVIEW_DATABASE_ISOLATED=true`; both the application
+and migrator refuse to start without that safety marker. The Preview branch is migrated
+before compilation, so checkout is tested against the exact schema in its code without
+writing test orders or unreviewed migrations into Production.

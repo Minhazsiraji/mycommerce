@@ -87,6 +87,21 @@ const clientSchema = z.object({
 
 const skip = process.env.SKIP_ENV_VALIDATION === 'true'
 
+// Preview code may contain unapplied migrations and must never write test
+// orders into Production. Neon injects a branch-specific DATABASE_URL for each
+// Vercel deployment; the explicit marker prevents an unconfigured Preview from
+// silently inheriting the Production URL.
+if (
+  !skip &&
+  process.env.VERCEL_ENV === 'preview' &&
+  process.env.PREVIEW_DATABASE_ISOLATED !== 'true'
+) {
+  throw new Error(
+    'Invalid server environment variables:\n' +
+      '  PREVIEW_DATABASE_ISOLATED: enable Neon branch-per-Preview before deploying',
+  )
+}
+
 function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string): z.infer<T> {
   if (skip) return {} as z.infer<T>
 
@@ -100,7 +115,11 @@ function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string)
   return parsed.data
 }
 
-export const env = load(serverSchema, process.env, 'server')
+export const env = load(
+  serverSchema,
+  process.env,
+  'server',
+)
 
 /**
  * Referenced explicitly rather than through process.env so Next can inline the

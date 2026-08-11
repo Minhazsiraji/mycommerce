@@ -235,6 +235,14 @@ export async function placeOrder(
     refresh()
     return ok({ orderNumber: order.orderNumber, paymentMethod: order.paymentMethod })
   } catch (error) {
-    return toResult(error)
+    try {
+      return toResult(error)
+    } catch (unexpected) {
+      // A database or provider fault must stay on the checkout form. Server
+      // detail is logged, while the customer gets a safe retry message rather
+      // than Next.js replacing the entire page with a generic error screen.
+      console.error('[orders] place order failed', unexpected)
+      return fail('unexpected', 'We could not place your order. Please try again.')
+    }
   }
 }

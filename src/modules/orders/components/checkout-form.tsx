@@ -8,7 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
-import { BD_DISTRICTS } from '@/lib/bd-districts'
+import {
+  BD_DISTRICTS,
+  bdAreasFor,
+  bdCitiesFor,
+  canonicalBdArea,
+  canonicalBdCity,
+} from '@/lib/bd-locations'
 import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
@@ -57,7 +63,15 @@ export function CheckoutForm({
   const [formError, setFormError] = useState<string>()
 
   const [district, setDistrict] = useState(defaults.district)
+  const initialCity = canonicalBdCity(defaults.district, defaults.city)
+  const [city, setCity] = useState(initialCity)
+  const [upazila, setUpazila] = useState(
+    canonicalBdArea(defaults.district, initialCity, defaults.upazila),
+  )
   const [paymentMethod, setPaymentMethod] = useState<'sslcommerz' | 'bank_transfer'>('bank_transfer')
+
+  const cities = useMemo(() => bdCitiesFor(district), [district])
+  const areas = useMemo(() => bdAreasFor(district, city), [district, city])
 
   /**
    * Filtered client-side from rates already sent, rather than re-fetching on
@@ -96,9 +110,9 @@ export function CheckoutForm({
           phone: String(formData.get('phone') ?? ''),
           line1: String(formData.get('line1') ?? ''),
           line2: String(formData.get('line2') ?? ''),
-          city: String(formData.get('city') ?? ''),
+          city,
           district,
-          upazila: String(formData.get('upazila') ?? ''),
+          upazila,
           union: String(formData.get('union') ?? ''),
           postalCode: String(formData.get('postalCode') ?? ''),
           country: 'BD',
@@ -183,19 +197,15 @@ export function CheckoutForm({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="City / Town"
-              name="city"
-              autoComplete="address-level2"
-              defaultValue={defaults.city}
-              required
-              error={field('city')}
-            />
             <Select
               label="District"
               name="district"
               value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              onChange={(event) => {
+                setDistrict(event.target.value)
+                setCity('')
+                setUpazila('')
+              }}
               error={field('district')}
             >
               <option value="">Select…</option>
@@ -205,14 +215,43 @@ export function CheckoutForm({
                 </option>
               ))}
             </Select>
-            <Input
+            <Select
+              label="City / Town"
+              name="city"
+              autoComplete="address-level2"
+              value={city}
+              disabled={!district}
+              onChange={(event) => {
+                setCity(event.target.value)
+                setUpazila('')
+              }}
+              required
+              error={field('city')}
+            >
+              <option value="">{district ? 'Select…' : 'Select district first'}</option>
+              {cities.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+            <Select
               label="Thana / Upazila"
               name="upazila"
               autoComplete="address-level3"
-              defaultValue={defaults.upazila}
+              value={upazila}
+              disabled={!city}
+              onChange={(event) => setUpazila(event.target.value)}
               required
               error={field('upazila')}
-            />
+            >
+              <option value="">{city ? 'Select…' : 'Select city or town first'}</option>
+              {areas.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Union / Area (optional)"
               name="union"

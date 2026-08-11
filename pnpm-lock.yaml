@@ -57,6 +57,9 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      bangladesh-geo-data:
+        specifier: 4.0.9
+        version: 4.0.9
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1588,6 +1591,9 @@ packages:
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
+
+  bangladesh-geo-data@4.0.9:
+    resolution: {integrity: sha512-YQFR9SrV7Xu89guE8PsmKroUP/lRhrVBoR6/I81EBzDulWOIC/lswKcj31KdhH8drngsZtPCE/gDDnJz/pmmYg==}
 
   baseline-browser-mapping@2.11.13:
     resolution: {integrity: sha512-k9HNuUVMlqVjQ9UHzfPjIqiDbWw7WqT1AoT7GL8VwvF3r0ZfArtgiSPAlmupyNquNgOJHTuH4CKYf8ttMTWBTQ==}
@@ -4456,6 +4462,8 @@ snapshots:
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
+
+  bangladesh-geo-data@4.0.9: {}
 
   baseline-browser-mapping@2.11.13: {}
 

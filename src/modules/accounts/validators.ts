@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-import { BD_DISTRICT_SET } from '@/lib/bd-districts'
+import {
+  BD_DISTRICT_SET,
+  canonicalBdArea,
+  canonicalBdCity,
+} from '@/lib/bd-locations'
 
 /**
  * Client-safe validators, shared by forms and server code.
@@ -62,21 +66,43 @@ export const bdPhoneSchema = z
   // Stored in one canonical form so support can search for a number and find it.
   .transform((value) => (value.startsWith('0') ? `+88${value}` : `+${value.replace(/^\+/, '')}`))
 
-export const addressInputSchema = z.object({
-  recipient: z.string().trim().min(1, 'Required').max(80),
-  phone: bdPhoneSchema,
-  line1: z.string().trim().min(1, 'Required').max(160),
-  line2: z.string().trim().max(160).optional(),
-  city: z.string().trim().min(2, 'Enter a valid city or town').max(80),
-  district: z
-    .string()
-    .trim()
-    .refine((value) => BD_DISTRICT_SET.has(value), 'Choose a valid Bangladesh district'),
-  upazila: z.string().trim().min(2, 'Enter a valid Thana or Upazila').max(80),
-  union: z.string().trim().max(80).optional(),
-  postalCode: z.string().trim().max(12).optional(),
-  country: z.string().trim().length(2).default('BD'),
-})
+export const addressInputSchema = z
+  .object({
+    recipient: z.string().trim().min(1, 'Required').max(80),
+    phone: bdPhoneSchema,
+    line1: z.string().trim().min(1, 'Required').max(160),
+    line2: z.string().trim().max(160).optional(),
+    city: z.string().trim().min(2, 'Choose a city or town').max(80),
+    district: z
+      .string()
+      .trim()
+      .refine((value) => BD_DISTRICT_SET.has(value), 'Choose a valid Bangladesh district'),
+    upazila: z.string().trim().min(2, 'Choose a Thana or Upazila').max(80),
+    union: z.string().trim().max(80).optional(),
+    postalCode: z.string().trim().max(12).optional(),
+    country: z.string().trim().length(2).default('BD'),
+  })
+  .superRefine((value, context) => {
+    if (!BD_DISTRICT_SET.has(value.district)) return
+
+    const city = canonicalBdCity(value.district, value.city)
+    if (!city) {
+      context.addIssue({
+        code: 'custom',
+        path: ['city'],
+        message: 'Choose a city or town for the selected district',
+      })
+      return
+    }
+
+    if (!canonicalBdArea(value.district, city, value.upazila)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['upazila'],
+        message: 'Choose a Thana or Upazila for the selected city and district',
+      })
+    }
+  })
 
 export type AddressInput = z.infer<typeof addressInputSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
