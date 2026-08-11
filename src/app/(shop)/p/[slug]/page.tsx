@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { formatBdt } from '@/lib/money'
@@ -15,6 +16,8 @@ import { minorToMetaValue } from '@/modules/meta'
 type Params = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  await connection()
+
   const { slug } = await params
   const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active') return {}
@@ -33,6 +36,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Params) {
+  await connection()
+
   const { slug } = await params
   const product = await getCachedProductBySlug(slug)
 

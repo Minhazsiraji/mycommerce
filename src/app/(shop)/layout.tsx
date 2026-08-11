@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 
 import { AnnouncementBar } from '@/components/storefront/announcement-bar'
 import { SiteFooter } from '@/components/storefront/site-footer'
@@ -13,7 +14,17 @@ import {
 } from '@/modules/meta/components/meta-analytics'
 import { getCachedDeliverySummary } from '@/modules/shipping'
 
+// This shared shell intentionally waits for request-time Postgres data. Next
+// 16.3 requires the blocking behavior to be declared when Cache Components is
+// enabled; child pages can still add Suspense boundaries independently.
+export const instant = false
+
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
+  // Categories and delivery facts come from Postgres. Keep them out of build-time
+  // prerendering so CI and Preview builds never need a database credential; the
+  // cached service functions below still share their results between requests.
+  await connection()
+
   const metaEnabled = Boolean(
     clientEnv.NEXT_PUBLIC_META_PIXEL_ID ||
       (env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN),
