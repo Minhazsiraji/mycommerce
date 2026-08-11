@@ -21,6 +21,16 @@ export const placeOrderSchema = z.object({
   notes: z.string().trim().max(500).optional(),
   /** Signed-in customers can keep the address for next time. */
   saveAddress: z.coerce.boolean().default(false),
+}).superRefine((input, ctx) => {
+  const postcode = input.address.postalCode?.trim()
+
+  if (postcode && !/^\d{4}$/.test(postcode)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['address', 'postalCode'],
+      message: 'Enter a valid 4-digit postcode or leave it blank',
+    })
+  }
 })
 
 export const guestLookupSchema = z.object({

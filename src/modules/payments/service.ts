@@ -3,7 +3,6 @@ import 'server-only'
 import { and, desc, eq } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
-import { env } from '@/lib/env'
 import { getVisibleOrder, markPaid } from '@/modules/orders'
 // Tables come from the schema barrel, not another module's folder — see CLAUDE.md.
 import { orders } from '@/lib/db/schema'
@@ -19,7 +18,10 @@ export class PaymentError extends Error {}
  * The amount comes from the order row, never from the caller — the same rule as
  * everywhere else money is involved.
  */
-export async function startGatewayPayment(orderNumber: string): Promise<{ redirectUrl: string }> {
+export async function startGatewayPayment(
+  orderNumber: string,
+  callbackOrigin: string,
+): Promise<{ redirectUrl: string }> {
   const order = await getVisibleOrder(orderNumber)
   if (!order) throw new PaymentError('Order not found.')
 
@@ -35,7 +37,7 @@ export async function startGatewayPayment(orderNumber: string): Promise<{ redire
       phone: order.shippingAddress.phone,
     },
     address: order.shippingAddress,
-    baseUrl: env.BETTER_AUTH_URL,
+    baseUrl: callbackOrigin,
   })
 
   return { redirectUrl }

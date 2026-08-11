@@ -9,7 +9,13 @@ type NavigationItem = {
   name: string
 }
 
-export function SiteFooter({ categories }: { categories: NavigationItem[] }) {
+export function SiteFooter({
+  categories,
+  privacyChoices,
+}: {
+  categories: NavigationItem[]
+  privacyChoices?: React.ReactNode
+}) {
   const email = env.STORE_CONTACT_EMAIL
   const phone = env.STORE_CONTACT_PHONE
 
@@ -56,8 +62,9 @@ export function SiteFooter({ categories }: { categories: NavigationItem[] }) {
         </div>
 
         <div className="border-t border-white/60 dark:border-white/15">
-          <div className="mx-auto flex min-h-16 w-full max-w-(--container-content) items-center px-5 text-xs text-(--text-muted) sm:px-8 lg:px-10">
+          <div className="mx-auto flex min-h-16 w-full max-w-(--container-content) items-center justify-between gap-4 px-5 text-xs text-(--text-muted) sm:px-8 lg:px-10">
             <span>© SirajiBD</span>
+            {privacyChoices}
           </div>
         </div>
       </div>

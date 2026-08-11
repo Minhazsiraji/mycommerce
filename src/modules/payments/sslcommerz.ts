@@ -47,6 +47,17 @@ export type SessionInput = {
  */
 export async function createSession(input: SessionInput): Promise<{ redirectUrl: string }> {
   const { storeId, storePassword, host } = config()
+  const suppliedPostcode = input.address.postalCode?.trim()
+  const returnOrder = `&order=${encodeURIComponent(input.orderNumber)}`
+
+  if (suppliedPostcode && !/^\d{4}$/.test(suppliedPostcode)) {
+    throw new Error('Postcode must be four digits when provided')
+  }
+
+  // SSLCommerz requires both postcode fields even though postcode is optional
+  // in our Bangladesh checkout. Use a valid neutral fallback only at the
+  // provider boundary; the saved customer address remains blank.
+  const gatewayPostcode = suppliedPostcode || '1000'
 
   const body = new URLSearchParams({
     store_id: storeId,
@@ -57,9 +68,9 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     currency: 'BDT',
     tran_id: input.orderNumber,
 
-    success_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=success`,
-    fail_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=fail`,
-    cancel_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=cancel`,
+    success_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=success${returnOrder}`,
+    fail_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=fail${returnOrder}`,
+    cancel_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=cancel${returnOrder}`,
     // The only one that decides anything. The three above are just where the
     // browser lands and are never trusted.
     ipn_url: `${input.baseUrl}/api/webhooks/sslcommerz`,
@@ -70,7 +81,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     cus_add1: input.address.line1,
     cus_city: input.address.city,
     cus_state: input.address.district,
-    cus_postcode: input.address.postalCode ?? '',
+    cus_postcode: gatewayPostcode,
     cus_country: 'Bangladesh',
 
     /**
@@ -85,7 +96,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     ship_add2: input.address.line2 ?? '',
     ship_city: input.address.city,
     ship_state: input.address.district,
-    ship_postcode: input.address.postalCode ?? '1000',
+    ship_postcode: gatewayPostcode,
     ship_country: 'Bangladesh',
 
     num_of_item: '1',

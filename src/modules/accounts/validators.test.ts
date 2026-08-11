@@ -91,4 +91,14 @@ describe('Bangladesh checkout validation', () => {
     const result = addressInputSchema.safeParse({ ...validAddress, upazila: '' })
     expect(result.success).toBe(false)
   })
+
+  it('rejects a Thana or Upazila from a different city or district', () => {
+    const result = addressInputSchema.safeParse({ ...validAddress, upazila: 'Dhanmondi' })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts Ashulia under Savar in Dhaka', () => {
+    const result = addressInputSchema.safeParse({ ...validAddress, upazila: 'Ashulia' })
+    expect(result.success).toBe(true)
+  })
 })

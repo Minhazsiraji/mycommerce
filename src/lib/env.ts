@@ -49,6 +49,19 @@ const serverSchema = z.object({
   STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
 
   /**
+   * Meta Conversions API. Both values are required together; the token never
+   * crosses the server boundary. Preview uses its own dataset and may set a
+   * Test Events code so validation traffic cannot contaminate Production.
+   */
+  META_CAPI_DATASET_ID: z.string().trim().min(1).optional(),
+  META_CAPI_ACCESS_TOKEN: z.string().trim().min(20).optional(),
+  META_CAPI_TEST_EVENT_CODE: z.string().trim().min(1).optional(),
+  META_GRAPH_API_VERSION: z
+    .string()
+    .regex(/^v\d+\.\d+$/)
+    .default('v25.0'),
+
+  /**
    * Bank details shown to customers paying by transfer. Env rather than admin
    * because they are set once and changing them is a deliberate, rare act —
    * and a typo here sends money to the wrong account.
@@ -57,13 +70,37 @@ const serverSchema = z.object({
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
   BANK_BRANCH: z.string().optional(),
+}).superRefine((value, context) => {
+  if (Boolean(value.META_CAPI_DATASET_ID) === Boolean(value.META_CAPI_ACCESS_TOKEN)) return
+
+  context.addIssue({
+    code: 'custom',
+    path: ['META_CAPI_DATASET_ID'],
+    message: 'META_CAPI_DATASET_ID and META_CAPI_ACCESS_TOKEN must be set together',
+  })
 })
 
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_META_PIXEL_ID: z.string().trim().min(1).optional(),
 })
 
 const skip = process.env.SKIP_ENV_VALIDATION === 'true'
+
+// Preview code may contain unapplied migrations and must never write test
+// orders into Production. Neon injects a branch-specific DATABASE_URL for each
+// Vercel deployment; the explicit marker prevents an unconfigured Preview from
+// silently inheriting the Production URL.
+if (
+  !skip &&
+  process.env.VERCEL_ENV === 'preview' &&
+  process.env.PREVIEW_DATABASE_ISOLATED !== 'true'
+) {
+  throw new Error(
+    'Invalid server environment variables:\n' +
+      '  PREVIEW_DATABASE_ISOLATED: enable Neon branch-per-Preview before deploying',
+  )
+}
 
 function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string): z.infer<T> {
   if (skip) return {} as z.infer<T>
@@ -78,7 +115,11 @@ function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string)
   return parsed.data
 }
 
-export const env = load(serverSchema, process.env, 'server')
+export const env = load(
+  serverSchema,
+  process.env,
+  'server',
+)
 
 /**
  * Referenced explicitly rather than through process.env so Next can inline the
@@ -86,6 +127,9 @@ export const env = load(serverSchema, process.env, 'server')
  */
 export const clientEnv = load(
   clientSchema,
-  { NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL },
+  {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID,
+  },
   'client',
 )

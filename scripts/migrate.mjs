@@ -19,26 +19,23 @@ loadEnv({ path: '.env.local' })
 loadEnv({ path: '.env' })
 
 const vercelEnv = process.env.VERCEL_ENV
+const databaseUrl = process.env.DATABASE_URL
 
-/**
- * Preview deployments currently point at the same database as production, so
- * migrating from a preview would apply unreviewed schema to live data. Until
- * each preview gets its own Neon branch (P5), previews run against whatever
- * schema production already has.
- */
-if (vercelEnv && vercelEnv !== 'production') {
-  console.log(`[migrate] VERCEL_ENV=${vercelEnv} — skipping (production only)`)
-  process.exit(0)
+if (vercelEnv === 'preview' && process.env.PREVIEW_DATABASE_ISOLATED !== 'true') {
+  console.error(
+    '[migrate] refusing Preview migration until Neon branch-per-Preview is enabled',
+  )
+  process.exit(1)
 }
 
-if (!process.env.DATABASE_URL) {
+if (!databaseUrl) {
   console.error('[migrate] DATABASE_URL is not set')
   process.exit(1)
 }
 
 if (!globalThis.WebSocket) neonConfig.webSocketConstructor = ws
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = new Pool({ connectionString: databaseUrl })
 
 try {
   const started = Date.now()

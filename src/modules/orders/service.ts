@@ -12,6 +12,7 @@ import {
 } from '@/modules/notifications'
 import { resolveRate } from '@/modules/shipping'
 import { assessCheckout } from '@/modules/fraud'
+import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
 import * as repo from './repository'
 import { OutOfStockError } from './repository'
@@ -93,6 +94,10 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (!session) jar.delete('mycommerce_cart')
 
   await rememberOrder(order.orderNumber)
+
+  await captureOrderAttribution(order.id).catch((error) =>
+    console.error('[meta] order attribution capture failed', error),
+  )
 
   return order
 }
@@ -195,6 +200,10 @@ export async function markPaid(orderId: string, providerRef: string | null) {
 
   const order = await repo.getOrderById(orderId)
   if (!order) return
+
+  await queuePurchase(orderId).catch((error) =>
+    console.error('[meta] Purchase delivery failed', error),
+  )
 
   await notify('order confirmation', () =>
     sendOrderConfirmed({

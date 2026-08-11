@@ -15,6 +15,7 @@ export type PickableVariant = {
 
 export function VariantPicker({
   variants,
+  title,
 }: {
   variants: PickableVariant[]
   title: string
@@ -87,6 +88,8 @@ export function VariantPicker({
       <div>
         <AddToCartButton
           variantId={selected.id}
+          contentName={title}
+          unitPrice={selected.price / 100}
           disabled={selected.stock === 0}
           className="w-full"
         >
