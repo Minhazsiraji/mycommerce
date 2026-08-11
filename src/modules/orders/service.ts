@@ -11,6 +11,8 @@ import {
   sendOrderShipped,
 } from '@/modules/notifications'
 import { resolveRate } from '@/modules/shipping'
+import { assessCheckout } from '@/modules/fraud'
+import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
 import * as repo from './repository'
 import { OutOfStockError } from './repository'
@@ -43,6 +45,9 @@ export async function placeOrder(input: PlaceOrderInput) {
     throw new CheckoutError('Some items changed. Review your cart before continuing.')
   }
 
+  const assessment = await assessCheckout({ email: input.email, phone: input.address.phone })
+  if (!assessment.allowed) throw new CheckoutError(assessment.message)
+
   /**
    * Delivery is re-quoted from the database for this destination and subtotal.
    * The client sent an id; it never sends a cost. Same rule as item prices.
@@ -65,6 +70,8 @@ export async function placeOrder(input: PlaceOrderInput) {
       line2: input.address.line2 ?? null,
       city: input.address.city,
       district: input.address.district,
+      upazila: input.address.upazila,
+      union: input.address.union ?? null,
       postalCode: input.address.postalCode ?? null,
       country: input.address.country,
     },
@@ -72,6 +79,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     paymentMethod: input.paymentMethod,
     notes: input.notes ?? null,
     holdMinutes: HOLD_MINUTES[input.paymentMethod],
+    checkoutIp: assessment.ip,
   })
 
   // Best-effort, and deliberately after the order exists: failing to save an
@@ -86,6 +94,10 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (!session) jar.delete('mycommerce_cart')
 
   await rememberOrder(order.orderNumber)
+
+  await captureOrderAttribution(order.id).catch((error) =>
+    console.error('[meta] order attribution capture failed', error),
+  )
 
   return order
 }
@@ -188,6 +200,10 @@ export async function markPaid(orderId: string, providerRef: string | null) {
 
   const order = await repo.getOrderById(orderId)
   if (!order) return
+
+  await queuePurchase(orderId).catch((error) =>
+    console.error('[meta] Purchase delivery failed', error),
+  )
 
   await notify('order confirmation', () =>
     sendOrderConfirmed({

@@ -1,6 +1,7 @@
 import type { Metadata, Route } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { connection } from 'next/server'
 
 import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
 import {
@@ -26,6 +27,8 @@ function parseQuery(raw: RawQuery) {
 }
 
 export async function generateMetadata({ params, searchParams }: Params): Promise<Metadata> {
+  await connection()
+
   const [{ slug }, raw] = await Promise.all([params, searchParams])
   const category = await getCachedCategoryBySlug(slug)
   if (!category) return {}
@@ -54,6 +57,8 @@ const SORTS = [
 ] as const
 
 export default async function CategoryPage({ params, searchParams }: Params) {
+  await connection()
+
   const [{ slug }, raw] = await Promise.all([params, searchParams])
   const parsed = parseQuery(raw)
   if (!parsed.success) redirect(categoryHref(slug, { brand: [], sort: 'newest', page: 1 }))

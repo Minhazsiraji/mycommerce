@@ -4,6 +4,7 @@ import { env } from '@/lib/env'
 import { pruneRateLimits } from '@/lib/rate-limit'
 import { pruneAuditLogs } from '@/modules/admin'
 import { listExpiredHolds, releaseHold } from '@/modules/orders'
+import { retryPendingPurchases } from '@/modules/meta'
 
 /**
  * Compares without leaking length or position through timing.
@@ -72,5 +73,15 @@ export async function POST(request: Request) {
     console.error('[cron] retention pass failed', error)
   }
 
-  return Response.json({ checked: expired.length, released, pruned })
+  let metaPurchasesAttempted = 0
+  try {
+    metaPurchasesAttempted = await retryPendingPurchases()
+  } catch (error) {
+    console.error('[cron] Meta retry pass failed', error)
+  }
+
+  return Response.json({ checked: expired.length, released, pruned, metaPurchasesAttempted })
 }
+
+// Vercel Cron invokes GET; POST remains for the documented manual/monitoring call.
+export const GET = POST

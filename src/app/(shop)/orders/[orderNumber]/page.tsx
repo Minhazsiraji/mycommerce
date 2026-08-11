@@ -8,6 +8,9 @@ import { formatBdt } from '@/lib/money'
 import { getVisibleOrder } from '@/modules/orders'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowButton } from '@/modules/payments/components/pay-now-button'
+import { PaymentStatusRefresh } from '@/modules/payments/components/payment-status-refresh'
+import { minorToMetaValue, purchaseEventId } from '@/modules/meta'
+import { PurchaseTracker } from '@/modules/meta/components/event-trackers'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
@@ -38,11 +41,18 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
 }
 
-export default async function OrderPage({ params }: { params: Promise<{ orderNumber: string }> }) {
+export default async function OrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orderNumber: string }>
+  searchParams: Promise<{ payment?: string }>
+}) {
   await connection()
 
   const { orderNumber } = await params
   const order = await getVisibleOrder(orderNumber)
+  const { payment: returnStatus } = await searchParams
 
   /**
    * Send anyone who cannot see this to the lookup form, prefilled.
@@ -54,11 +64,35 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
    */
   if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
-  const copy = STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!
+  const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
+  const copy = confirmingPayment
+    ? {
+        title: 'Payment received — confirming',
+        body: 'Your payment was completed. We are confirming it now; you do not need to pay again.',
+      }
+    : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
   const address = order.shippingAddress
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
+      {order.paymentStatus === 'paid' ? (
+        <PurchaseTracker
+          eventId={purchaseEventId(order.id)}
+          data={{
+            content_ids: order.items.map((item) => item.variantId ?? item.sku),
+            content_type: 'product',
+            contents: order.items.map((item) => ({
+              id: item.variantId ?? item.sku,
+              quantity: item.quantity,
+              item_price: minorToMetaValue(item.unitPrice),
+            })),
+            currency: 'BDT',
+            num_items: order.items.reduce((total, item) => total + item.quantity, 0),
+            value: minorToMetaValue(order.total),
+          }}
+        />
+      ) : null}
+      {confirmingPayment ? <PaymentStatusRefresh /> : null}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
         <p className="text-(--color-muted)">{copy.body}</p>
@@ -83,6 +117,7 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
           }}
         />
       ) : order.paymentMethod === 'sslcommerz' &&
+        !confirmingPayment &&
         (order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') ? (
         <PayNowButton orderNumber={order.orderNumber} amount={order.total} />
       ) : null}
@@ -129,7 +164,10 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
           {address.line1}
           {address.line2 ? `, ${address.line2}` : ''}
           <br />
-          {address.city}, {address.district}
+          {address.union ? `${address.union}, ` : ''}
+          {address.upazila ? `${address.upazila}, ` : ''}{address.district}
+          <br />
+          {address.city}
           {address.postalCode ? ` ${address.postalCode}` : ''}
           <br />
           {address.phone}

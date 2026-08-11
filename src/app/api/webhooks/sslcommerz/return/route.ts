@@ -1,7 +1,6 @@
-import type { Route } from 'next'
 import { redirect } from 'next/navigation'
 
-import { env } from '@/lib/env'
+import { handleGatewayNotification } from '@/modules/payments'
 
 /**
  * Where the customer's browser lands after the gateway.
@@ -18,14 +17,22 @@ async function handle(request: Request) {
   const status = url.searchParams.get('status')
 
   let orderNumber = ''
+  let valId = ''
 
   // SSLCommerz posts the transaction back as form data on success and cancel.
   if (request.method === 'POST') {
     const form = await request.formData().catch(() => null)
     orderNumber = String(form?.get('tran_id') ?? '')
+    valId = String(form?.get('val_id') ?? '')
   }
 
   if (!orderNumber) orderNumber = url.searchParams.get('tran_id') ?? ''
+
+  // Some gateway/browser combinations return without reposting tran_id. The
+  // callback created for this session carries the order number as a
+  // redirect-only fallback. It cannot change payment state; only the verified
+  // IPN handler can mark the order paid.
+  if (!orderNumber) orderNumber = url.searchParams.get('order') ?? ''
 
   /**
    * Both values come from the request, so neither is trusted into a URL.
@@ -38,10 +45,23 @@ async function handle(request: Request) {
    */
   if (!/^[A-Z0-9-]{4,32}$/i.test(orderNumber)) redirect('/')
 
-  const outcome = status === 'failed' || status === 'cancelled' ? status : 'cancelled'
-  const query = status === 'success' ? '' : `?payment=${outcome}`
+  // IPN and the browser return are independent requests and can arrive in
+  // either order. Verify the gateway's val_id here as well so the customer
+  // does not land on a stale unpaid page while a successful IPN is in flight.
+  // The service is idempotent, so an IPN that won the race makes this a no-op.
+  if (status === 'success' && valId) {
+    await handleGatewayNotification(valId).catch((error) => {
+      console.error('[sslcommerz] success return verification failed', { error })
+    })
+  }
 
-  redirect(`${env.BETTER_AUTH_URL}/orders/${encodeURIComponent(orderNumber)}${query}` as Route)
+  const outcome = status === 'failed' || status === 'cancelled' ? status : 'cancelled'
+  const query = status === 'success' ? '?payment=success' : `?payment=${outcome}`
+
+  // Stay on the deployment SSLCommerz returned to. Preview orders live in an
+  // isolated database, so sending this browser to the configured Production
+  // origin would make a valid Preview order appear to be missing.
+  redirect(`/orders/${encodeURIComponent(orderNumber)}${query}`)
 }
 
 export async function GET(request: Request) {

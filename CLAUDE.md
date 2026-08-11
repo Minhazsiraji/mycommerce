@@ -54,6 +54,7 @@ src/modules/
   reviews/
   notifications/  transactional email
   admin/
+  meta/           consent, Pixel/CAPI delivery, paid-order outbox
 ```
 
 **The one rule that keeps this from rotting:** a module may only import another module
@@ -151,6 +152,7 @@ Violating any of these is a bug, regardless of what a task asks for.
 | Caching and perf budgets | `docs/05-performance.md` |
 | Build order | `docs/06-roadmap.md` |
 | Cloudflare / WAF runbook | `docs/08-cloudflare.md` |
+| Meta Pixel / CAPI runbook | `docs/10-meta-analytics.md` |
 
 Read the relevant doc before implementing in that area. Update it in the same commit
 when a decision changes.

@@ -111,6 +111,8 @@ erDiagram
         text order_number UK
         uuid user_id FK "nullable — guest"
         text email
+        text phone
+        text checkout_ip "fraud review only"
         text status
         text payment_status
         text fulfillment_status
@@ -165,7 +167,7 @@ erDiagram
 |---|---|
 | `users` | `role` is `customer` or `admin`. Two roles is enough; add more only when a real third job exists. |
 | `sessions`, `accounts`, `verifications` | Managed by Better Auth. Do not hand-modify. |
-| `addresses` | Belongs to a user. `is_default` per user. Soft-delete via `archived_at` so historical references stay intact. |
+| `addresses` | Belongs to a user. Bangladesh delivery fields include canonical district plus required Thana/Upazila and optional Union/Area. `is_default` per user. Soft-delete via `archived_at` so historical references stay intact. |
 
 ### Catalog — `catalog`
 
@@ -208,6 +210,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 | `webhook_events` | Unique on `(provider, event_id)`. The insert *is* the idempotency check — if it conflicts, the event was already handled, return 200 and stop. |
 | `outbox` | Side effects written inside business transactions, drained by cron. At-least-once delivery without a broker. |
 | `audit_logs` | Every admin mutation: actor, action, entity, JSONB diff, IP. Append-only. |
+| `fraud_blocks` | Active and revoked phone/email/IP checkout blocks. Every add/remove action is admin-only and audit logged. |
 
 ## Indexing
 
@@ -224,12 +227,20 @@ CREATE UNIQUE INDEX ON orders (order_number);
 CREATE INDEX ON order_items (order_id);
 CREATE INDEX ON inventory_movements (variant_id, created_at DESC);
 CREATE UNIQUE INDEX ON webhook_events (provider, event_id);
+CREATE UNIQUE INDEX ON meta_event_deliveries (event_id);
+CREATE INDEX ON meta_event_deliveries (status, attempts, created_at);
 CREATE INDEX ON reviews (product_id, status);
 CREATE INDEX ON products USING GIN (search_vector);
 ```
 
 `orders (email, created_at DESC)` matters more than it looks: guest order lookup is a
 support-desk operation that runs constantly and has no user ID to filter on.
+
+`meta_order_attributions` is consent-scoped and separate from the accounting order.
+It stores only the `_fbp`/`_fbc` identifiers, checkout user agent and source URL needed
+to match a later paid order. Account deletion removes it before the retained order is
+anonymised. `meta_event_deliveries` is the Postgres outbox for `Purchase`; its unique
+event id makes retries safe and matches the browser Pixel id for Meta deduplication.
 
 ## Migrations
 
@@ -247,8 +258,9 @@ tables do not exist and 500ing every page. Drizzle records applied migrations in
 The same script runs locally via `pnpm db:migrate`, so the thing tested is the thing
 that deploys.
 
-**Preview deployments do not migrate.** They currently share the production database,
-so migrating from an unmerged branch would apply unreviewed schema to live data.
-Previews therefore run against whatever schema production already has — fine for
-additive changes, misleading for anything else. The proper fix is a Neon branch per
-preview, scheduled for P5.
+**Preview deployments use an isolated Neon branch.** The Neon/Vercel integration
+creates a branch per Preview deployment and injects its branch-specific `DATABASE_URL`.
+Vercel Preview must also define `PREVIEW_DATABASE_ISOLATED=true`; both the application
+and migrator refuse to start without that safety marker. The Preview branch is migrated
+before compilation, so checkout is tested against the exact schema in its code without
+writing test orders or unreviewed migrations into Production.

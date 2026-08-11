@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { addToCart } from '../actions'
+import { newBrowserEventId, trackBrowserEvent } from '@/modules/meta/components/client'
 
 /**
  * Deliberately not optimistic.
@@ -17,11 +18,15 @@ export function AddToCartButton({
   disabled,
   className = '',
   children = 'Add to cart',
+  contentName,
+  unitPrice,
 }: {
   variantId: string
   disabled?: boolean
   className?: string
   children?: React.ReactNode
+  contentName: string
+  unitPrice: number
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -32,7 +37,8 @@ export function AddToCartButton({
     setError(undefined)
 
     startTransition(async () => {
-      const result = await addToCart({ variantId, quantity: 1 })
+      const eventId = newBrowserEventId('addtocart')
+      const result = await addToCart({ variantId, quantity: 1, eventId })
 
       if (!result.ok) {
         setError(result.error.message)
@@ -40,6 +46,18 @@ export function AddToCartButton({
       }
 
       setState('added')
+      trackBrowserEvent(
+        'AddToCart',
+        {
+          content_ids: [variantId],
+          content_name: contentName,
+          content_type: 'product',
+          contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
+          currency: 'BDT',
+          value: unitPrice,
+        },
+        eventId,
+      )
       // Refreshes the header badge, which is a separate server component.
       router.refresh()
       setTimeout(() => setState('idle'), 2000)

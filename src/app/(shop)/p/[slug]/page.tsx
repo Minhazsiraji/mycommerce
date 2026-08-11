@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { formatBdt } from '@/lib/money'
@@ -9,10 +10,14 @@ import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/cata
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
+import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
+import { minorToMetaValue } from '@/modules/meta'
 
 type Params = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  await connection()
+
   const { slug } = await params
   const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active') return {}
@@ -31,6 +36,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Params) {
+  await connection()
+
   const { slug } = await params
   const product = await getCachedProductBySlug(slug)
 
@@ -55,9 +62,17 @@ export default async function ProductPage({ params }: Params) {
     (min, v) => (min == null || v.price < min ? v.price : min),
     null,
   )
+  const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
 
   return (
     <div className="flex flex-col gap-10">
+      {initialVariant ? (
+        <ViewContentTracker
+          variantId={initialVariant.id}
+          contentName={product.title}
+          value={minorToMetaValue(initialVariant.price)}
+        />
+      ) : null}
       <nav className="text-sm text-(--color-muted)">
         <Link href="/" className="hover:text-(--color-fg)">
           Home

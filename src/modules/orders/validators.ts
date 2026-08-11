@@ -13,7 +13,7 @@ import { addressInputSchema } from '@/modules/accounts/validators'
  */
 export const placeOrderSchema = z.object({
   /** Required even when signed in: the confirmation has to reach someone. */
-  email: z.email('Enter a valid email address'),
+  email: z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address')),
   address: addressInputSchema,
   /** Id only — the cost is looked up and re-quoted on the server. */
   shippingRateId: z.uuid(),
@@ -21,12 +21,22 @@ export const placeOrderSchema = z.object({
   notes: z.string().trim().max(500).optional(),
   /** Signed-in customers can keep the address for next time. */
   saveAddress: z.coerce.boolean().default(false),
+}).superRefine((input, ctx) => {
+  const postcode = input.address.postalCode?.trim()
+
+  if (postcode && !/^\d{4}$/.test(postcode)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['address', 'postalCode'],
+      message: 'Enter a valid 4-digit postcode or leave it blank',
+    })
+  }
 })
 
 export const guestLookupSchema = z.object({
   orderNumber: z.string().trim().min(4).max(32),
   // Both required: an order number alone would let anyone enumerate orders.
-  email: z.email(),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
 })
 
 export const submitTransferSchema = z.object({

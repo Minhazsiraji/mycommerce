@@ -38,6 +38,10 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: 'true'
           NEXT_PUBLIC_APP_URL: http://localhost:3000
+          BETTER_AUTH_URL: http://localhost:3000
+          # CI-only placeholder. It is not used by Preview or Production and
+          # prevents Better Auth from falling back to its insecure default.
+          BETTER_AUTH_SECRET: ci-only-build-secret-not-for-runtime-use
         run: pnpm build
 
       - name: Audit dependencies

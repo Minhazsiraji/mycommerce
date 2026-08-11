@@ -1,3 +1,5 @@
+import { connection } from 'next/server'
+
 import { HomepageHero } from '@/components/storefront/homepage-hero'
 import { SectionHeader } from '@/components/storefront/section-header'
 import { getCachedActiveProducts, getCachedCategories } from '@/modules/catalog'
@@ -5,6 +7,8 @@ import { CategoryCard } from '@/modules/catalog/components/category-card'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 
 export default async function HomePage() {
+  await connection()
+
   const [categoryResult, productResult] = await Promise.allSettled([
     getCachedCategories(),
     getCachedActiveProducts({ sort: 'newest', page: 1 }),

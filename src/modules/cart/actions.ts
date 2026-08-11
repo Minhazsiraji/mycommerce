@@ -1,9 +1,11 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { after } from 'next/server'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { requireSession } from '@/modules/accounts'
+import { trackAddToCart } from '@/modules/meta'
 
 import * as service from './service'
 import { CartError, type CartView } from './service'
@@ -32,7 +34,17 @@ export async function addToCart(input: unknown): Promise<ActionResult<CartView>>
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
-    await service.addToCart(parsed.data)
+    const variant = await service.addToCart(parsed.data)
+    const eventId = parsed.data.eventId
+    if (eventId) {
+      after(() =>
+        trackAddToCart({
+          eventId,
+          variant,
+          quantity: parsed.data.quantity,
+        }).catch((error) => console.error('[meta] AddToCart delivery failed', error)),
+      )
+    }
     refreshClient()
     return ok(await service.readCart())
   } catch (error) {

@@ -8,7 +8,15 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
-import { BD_DISTRICTS } from '@/lib/bd-districts'
+import {
+  BD_DISTRICTS,
+  bdAreasFor,
+  bdCitiesFor,
+  canonicalBdArea,
+  canonicalBdCity,
+} from '@/lib/bd-locations'
+import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
+import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
 
@@ -31,16 +39,20 @@ export type CheckoutDefaults = {
   line2: string
   city: string
   district: string
+  upazila: string
+  union: string
   postalCode: string
 }
 
 export function CheckoutForm({
   subtotal,
+  tracking,
   rates,
   defaults,
   signedIn,
 }: {
   subtotal: number
+  tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
@@ -51,7 +63,15 @@ export function CheckoutForm({
   const [formError, setFormError] = useState<string>()
 
   const [district, setDistrict] = useState(defaults.district)
+  const initialCity = canonicalBdCity(defaults.district, defaults.city)
+  const [city, setCity] = useState(initialCity)
+  const [upazila, setUpazila] = useState(
+    canonicalBdArea(defaults.district, initialCity, defaults.upazila),
+  )
   const [paymentMethod, setPaymentMethod] = useState<'sslcommerz' | 'bank_transfer'>('bank_transfer')
+
+  const cities = useMemo(() => bdCitiesFor(district), [district])
+  const areas = useMemo(() => bdAreasFor(district, city), [district, city])
 
   /**
    * Filtered client-side from rates already sent, rather than re-fetching on
@@ -90,8 +110,10 @@ export function CheckoutForm({
           phone: String(formData.get('phone') ?? ''),
           line1: String(formData.get('line1') ?? ''),
           line2: String(formData.get('line2') ?? ''),
-          city: String(formData.get('city') ?? ''),
+          city,
           district,
+          upazila,
+          union: String(formData.get('union') ?? ''),
           postalCode: String(formData.get('postalCode') ?? ''),
           country: 'BD',
         },
@@ -115,6 +137,7 @@ export function CheckoutForm({
 
   return (
     <form action={onSubmit} className="grid gap-10 lg:grid-cols-[1fr_340px]" noValidate>
+      <InitiateCheckoutTracker data={tracking} />
       <div className="flex flex-col gap-8">
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-(--color-muted)">Contact</h2>
@@ -173,20 +196,16 @@ export function CheckoutForm({
             error={field('line2')}
           />
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input
-              label="City / Town"
-              name="city"
-              autoComplete="address-level2"
-              defaultValue={defaults.city}
-              required
-              error={field('city')}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label="District"
               name="district"
               value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              onChange={(event) => {
+                setDistrict(event.target.value)
+                setCity('')
+                setUpazila('')
+              }}
               error={field('district')}
             >
               <option value="">Select…</option>
@@ -196,6 +215,49 @@ export function CheckoutForm({
                 </option>
               ))}
             </Select>
+            <Select
+              label="City / Town"
+              name="city"
+              autoComplete="address-level2"
+              value={city}
+              disabled={!district}
+              onChange={(event) => {
+                setCity(event.target.value)
+                setUpazila('')
+              }}
+              required
+              error={field('city')}
+            >
+              <option value="">{district ? 'Select…' : 'Select district first'}</option>
+              {cities.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Thana / Upazila"
+              name="upazila"
+              autoComplete="address-level3"
+              value={upazila}
+              disabled={!city}
+              onChange={(event) => setUpazila(event.target.value)}
+              required
+              error={field('upazila')}
+            >
+              <option value="">{city ? 'Select…' : 'Select city or town first'}</option>
+              {areas.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              label="Union / Area (optional)"
+              name="union"
+              defaultValue={defaults.union}
+              error={field('union')}
+            />
             <Input
               label="Postcode (optional)"
               name="postalCode"
