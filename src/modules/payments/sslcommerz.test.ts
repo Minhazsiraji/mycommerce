@@ -44,12 +44,26 @@ describe('SSLCommerz session', () => {
     expect(body.get('ship_postcode')).toBe('1340')
   })
 
-  it('does not call SSLCommerz when the postcode is missing', async () => {
+  it('uses a gateway-only fallback when the optional postcode is blank', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ status: 'SUCCESS', GatewayPageURL: 'https://gateway.test' }), {
+        status: 200,
+      }),
+    )
+
+    await createSession({ ...input, address: { ...input.address, postalCode: '' } })
+
+    const body = fetchMock.mock.calls[0]?.[1]?.body as URLSearchParams
+    expect(body.get('cus_postcode')).toBe('1000')
+    expect(body.get('ship_postcode')).toBe('1000')
+  })
+
+  it('does not call SSLCommerz when a supplied postcode is malformed', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
 
     await expect(
-      createSession({ ...input, address: { ...input.address, postalCode: '' } }),
-    ).rejects.toThrow('valid 4-digit postcode')
+      createSession({ ...input, address: { ...input.address, postalCode: '134' } }),
+    ).rejects.toThrow('four digits')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

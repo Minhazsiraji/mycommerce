@@ -22,11 +22,13 @@ export const placeOrderSchema = z.object({
   /** Signed-in customers can keep the address for next time. */
   saveAddress: z.coerce.boolean().default(false),
 }).superRefine((input, ctx) => {
-  if (input.paymentMethod === 'sslcommerz' && !/^\d{4}$/.test(input.address.postalCode ?? '')) {
+  const postcode = input.address.postalCode?.trim()
+
+  if (postcode && !/^\d{4}$/.test(postcode)) {
     ctx.addIssue({
       code: 'custom',
       path: ['address', 'postalCode'],
-      message: 'Enter a valid 4-digit postcode for online payment',
+      message: 'Enter a valid 4-digit postcode or leave it blank',
     })
   }
 })

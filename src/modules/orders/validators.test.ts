@@ -19,10 +19,19 @@ const validOrder = {
 }
 
 describe('placeOrderSchema', () => {
-  it('requires a four-digit postcode for SSLCommerz', () => {
+  it('keeps postcode optional for SSLCommerz', () => {
     const result = placeOrderSchema.safeParse({
       ...validOrder,
       address: { ...validOrder.address, postalCode: '' },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a malformed postcode when one is provided', () => {
+    const result = placeOrderSchema.safeParse({
+      ...validOrder,
+      address: { ...validOrder.address, postalCode: '134' },
     })
 
     expect(result.success).toBe(false)

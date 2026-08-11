@@ -47,11 +47,16 @@ export type SessionInput = {
  */
 export async function createSession(input: SessionInput): Promise<{ redirectUrl: string }> {
   const { storeId, storePassword, host } = config()
-  const postcode = input.address.postalCode?.trim()
+  const suppliedPostcode = input.address.postalCode?.trim()
 
-  if (!postcode || !/^\d{4}$/.test(postcode)) {
-    throw new Error('A valid 4-digit postcode is required for SSLCommerz payment')
+  if (suppliedPostcode && !/^\d{4}$/.test(suppliedPostcode)) {
+    throw new Error('Postcode must be four digits when provided')
   }
+
+  // SSLCommerz requires both postcode fields even though postcode is optional
+  // in our Bangladesh checkout. Use a valid neutral fallback only at the
+  // provider boundary; the saved customer address remains blank.
+  const gatewayPostcode = suppliedPostcode || '1000'
 
   const body = new URLSearchParams({
     store_id: storeId,
@@ -75,7 +80,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     cus_add1: input.address.line1,
     cus_city: input.address.city,
     cus_state: input.address.district,
-    cus_postcode: postcode,
+    cus_postcode: gatewayPostcode,
     cus_country: 'Bangladesh',
 
     /**
@@ -90,7 +95,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     ship_add2: input.address.line2 ?? '',
     ship_city: input.address.city,
     ship_state: input.address.district,
-    ship_postcode: postcode,
+    ship_postcode: gatewayPostcode,
     ship_country: 'Bangladesh',
 
     num_of_item: '1',
