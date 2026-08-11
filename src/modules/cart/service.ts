@@ -122,6 +122,8 @@ export async function addToCart(input: { variantId: string; quantity: number }) 
     unitPrice: variant.price,
     cap: Math.min(MAX_LINE_QUANTITY, variant.stock),
   })
+
+  return variant
 }
 
 /** Confirms the line belongs to the caller's cart before touching it. */

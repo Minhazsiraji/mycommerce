@@ -9,6 +9,8 @@ import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/cata
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
+import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
+import { minorToMetaValue } from '@/modules/meta'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -55,9 +57,17 @@ export default async function ProductPage({ params }: Params) {
     (min, v) => (min == null || v.price < min ? v.price : min),
     null,
   )
+  const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
 
   return (
     <div className="flex flex-col gap-10">
+      {initialVariant ? (
+        <ViewContentTracker
+          variantId={initialVariant.id}
+          contentName={product.title}
+          value={minorToMetaValue(initialVariant.price)}
+        />
+      ) : null}
       <nav className="text-sm text-(--color-muted)">
         <Link href="/" className="hover:text-(--color-fg)">
           Home

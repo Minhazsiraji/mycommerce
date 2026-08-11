@@ -227,12 +227,20 @@ CREATE UNIQUE INDEX ON orders (order_number);
 CREATE INDEX ON order_items (order_id);
 CREATE INDEX ON inventory_movements (variant_id, created_at DESC);
 CREATE UNIQUE INDEX ON webhook_events (provider, event_id);
+CREATE UNIQUE INDEX ON meta_event_deliveries (event_id);
+CREATE INDEX ON meta_event_deliveries (status, attempts, created_at);
 CREATE INDEX ON reviews (product_id, status);
 CREATE INDEX ON products USING GIN (search_vector);
 ```
 
 `orders (email, created_at DESC)` matters more than it looks: guest order lookup is a
 support-desk operation that runs constantly and has no user ID to filter on.
+
+`meta_order_attributions` is consent-scoped and separate from the accounting order.
+It stores only the `_fbp`/`_fbc` identifiers, checkout user agent and source URL needed
+to match a later paid order. Account deletion removes it before the retained order is
+anonymised. `meta_event_deliveries` is the Postgres outbox for `Purchase`; its unique
+event id makes retries safe and matches the browser Pixel id for Meta deduplication.
 
 ## Migrations
 

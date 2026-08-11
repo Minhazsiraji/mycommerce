@@ -15,6 +15,7 @@ export * from '@/modules/inventory/schema'
 export * from '@/modules/shipping/schema'
 export * from '@/modules/admin/schema'
 export * from '@/modules/fraud/schema'
+export * from '@/modules/meta/schema'
 
 // Infrastructure rather than a domain — see the note in lib/rate-limit.ts.
 export { rateLimits } from '@/lib/rate-limit-schema'

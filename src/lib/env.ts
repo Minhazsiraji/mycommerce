@@ -49,6 +49,19 @@ const serverSchema = z.object({
   STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
 
   /**
+   * Meta Conversions API. Both values are required together; the token never
+   * crosses the server boundary. Preview uses its own dataset and may set a
+   * Test Events code so validation traffic cannot contaminate Production.
+   */
+  META_CAPI_DATASET_ID: z.string().trim().min(1).optional(),
+  META_CAPI_ACCESS_TOKEN: z.string().trim().min(20).optional(),
+  META_CAPI_TEST_EVENT_CODE: z.string().trim().min(1).optional(),
+  META_GRAPH_API_VERSION: z
+    .string()
+    .regex(/^v\d+\.\d+$/)
+    .default('v25.0'),
+
+  /**
    * Bank details shown to customers paying by transfer. Env rather than admin
    * because they are set once and changing them is a deliberate, rare act —
    * and a typo here sends money to the wrong account.
@@ -57,10 +70,19 @@ const serverSchema = z.object({
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
   BANK_BRANCH: z.string().optional(),
+}).superRefine((value, context) => {
+  if (Boolean(value.META_CAPI_DATASET_ID) === Boolean(value.META_CAPI_ACCESS_TOKEN)) return
+
+  context.addIssue({
+    code: 'custom',
+    path: ['META_CAPI_DATASET_ID'],
+    message: 'META_CAPI_DATASET_ID and META_CAPI_ACCESS_TOKEN must be set together',
+  })
 })
 
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_META_PIXEL_ID: z.string().trim().min(1).optional(),
 })
 
 const skip = process.env.SKIP_ENV_VALIDATION === 'true'
@@ -86,6 +108,9 @@ export const env = load(serverSchema, process.env, 'server')
  */
 export const clientEnv = load(
   clientSchema,
-  { NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL },
+  {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID,
+  },
   'client',
 )

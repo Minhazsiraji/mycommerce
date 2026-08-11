@@ -9,6 +9,8 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
 import { BD_DISTRICTS } from '@/lib/bd-districts'
+import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
+import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
 
@@ -38,11 +40,13 @@ export type CheckoutDefaults = {
 
 export function CheckoutForm({
   subtotal,
+  tracking,
   rates,
   defaults,
   signedIn,
 }: {
   subtotal: number
+  tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
@@ -119,6 +123,7 @@ export function CheckoutForm({
 
   return (
     <form action={onSubmit} className="grid gap-10 lg:grid-cols-[1fr_340px]" noValidate>
+      <InitiateCheckoutTracker data={tracking} />
       <div className="flex flex-col gap-8">
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-(--color-muted)">Contact</h2>

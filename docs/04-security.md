@@ -81,6 +81,9 @@ Commerce-specific risks, each with the control that addresses it.
 | 22 | **Attaching an arbitrary Cloudinary asset** | The browser uploads directly and reports back the key it got. The signature restricts where an upload *lands*; `attachImageSchema` restricts what we accept as having landed there, via a `mycommerce/<folder>/…` pattern. |
 | 23 | **Cron endpoint secret recovery** | `CRON_SECRET` compared with `timingSafeEqual`, length-checked first so the throw is not itself a signal. No secret configured means no caller can authenticate — closed, not open. |
 | 27 | **Fake-order and stock-hold abuse** | Checkout validates canonical Bangladesh phone and district data, requires Thana/Upazila, rate limits by IP, phone and email, rejects repeated recent failed/cancelled identities, and checks an audited owner-managed phone/email/IP blocklist. |
+| 28 | **Analytics forgery or secret leakage** | No generic CAPI endpoint exists. Public tracking actions accept narrow Zod schemas, are rate limited, and re-read product/cart truth server-side. `META_CAPI_ACCESS_TOKEN` is server-only and never returned to the browser. |
+| 29 | **Duplicate or false Purchase reporting** | `Purchase` is queued only when payment becomes `paid`; a stable order-based event id is unique in Postgres and shared with Pixel for CAPI/browser deduplication. Meta failure never changes payment state. |
+| 30 | **Tracking without permission** | Meta Pixel is not downloaded and CAPI attribution is not stored until the versioned analytics-consent cookie is explicitly granted. The footer keeps a persistent privacy-choice control. Account deletion removes Meta attribution before order anonymisation. |
 
 SQL injection is covered by Drizzle's parameterisation — the only way to reintroduce it
 is `sql.raw()` with interpolated input, which is banned. CSRF is covered by Server
@@ -92,9 +95,11 @@ The CSP is per-request in `src/proxy.ts`; the rest are static in `next.config.ts
 A P5 e2e test asserts them so a regression fails CI.
 
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline';
-  style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://res.cloudinary.com;
-  font-src 'self'; connect-src 'self' https://api.cloudinary.com;
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'
+  https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self'
+  blob: data: https://res.cloudinary.com https://www.facebook.com; font-src 'self';
+  connect-src 'self' https://api.cloudinary.com https://www.facebook.com
+  https://connect.facebook.net;
   form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none';
   upgrade-insecure-requests
 Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
@@ -110,10 +115,10 @@ X-DNS-Prefetch-Control: off
 per-request nonce is the stronger policy and it broke the entire site — Next cannot
 stamp a nonce onto a statically prerendered page, so every chunk was blocked while the
 pages still returned 200 with correct markup. The full account is in the header
-comment of `src/proxy.ts`; read it before trying again. What survives is
-`script-src 'self'`, which still blocks loading code from another origin — the actual
-exfiltration route. What is given up is protection against injected *inline* script,
-which first requires an XSS hole (threats 10 and 18).
+comment of `src/proxy.ts`; read it before trying again. What survives is a narrow
+host allowlist: application code and Meta's documented Pixel host. All other script
+origins remain blocked. What is given up is protection against injected *inline*
+script, which first requires an XSS hole (threats 10 and 18).
 
 `Referrer-Policy` is load-bearing for privacy here, not boilerplate: order numbers
 appear in URL paths, and the default would send them to any third-party origin a page
@@ -143,6 +148,8 @@ Redis, we need a Postgres table and a cron route.
 | `placeOrder` | 10 per hour | `place-order` bucket |
 | `placeOrder` per phone | 3 per hour | `place-order-phone` bucket |
 | `placeOrder` per email | 5 per hour | `place-order-email` bucket |
+| Meta `ViewContent` CAPI | 120 per hour | `meta-view-content` bucket |
+| Meta `InitiateCheckout` CAPI | 30 per hour | `meta-initiate-checkout` bucket |
 | Gateway session | 15 per hour | `gateway-session` bucket |
 | Transfer reference | 20 per hour | `transfer-reference` bucket |
 | Review submission | 5 per day | not built (P4) |

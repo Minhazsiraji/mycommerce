@@ -110,6 +110,7 @@ not land in spam**. If it does, add the DMARC record.
 | Cron secrets | GitHub → repo → Settings → Secrets → Actions: `CRON_SECRET` (match Vercel) and `SITE_URL` (the new domain) |
 | Product photos | `/admin/products` — the flat colour blocks are placeholders |
 | Search keywords | Each product's **Search keywords** field. This is why "shoes" finds boots. |
+| Meta analytics | Follow `docs/10-meta-analytics.md`; Production and Preview must use separate datasets and tokens |
 
 ## 8. Write the policy pages
 

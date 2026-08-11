@@ -6,6 +6,7 @@ import { connection } from 'next/server'
 import { getSession, listAddresses } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
 import { CheckoutForm } from '@/modules/orders/components/checkout-form'
+import { minorToMetaValue } from '@/modules/meta'
 import { listActiveRates } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Checkout' }
@@ -45,6 +46,18 @@ export default async function CheckoutPage() {
 
       <CheckoutForm
         subtotal={cart.subtotal}
+        tracking={{
+          content_ids: cart.lines.map((line) => line.variantId),
+          content_type: 'product',
+          contents: cart.lines.map((line) => ({
+            id: line.variantId,
+            quantity: line.quantity,
+            item_price: minorToMetaValue(line.unitPrice),
+          })),
+          currency: 'BDT',
+          num_items: cart.itemCount,
+          value: minorToMetaValue(cart.subtotal),
+        }}
         signedIn={Boolean(session)}
         rates={rates.map((r) => ({
           id: r.id,

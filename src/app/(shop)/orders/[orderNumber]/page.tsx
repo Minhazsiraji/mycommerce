@@ -8,6 +8,8 @@ import { formatBdt } from '@/lib/money'
 import { getVisibleOrder } from '@/modules/orders'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowButton } from '@/modules/payments/components/pay-now-button'
+import { minorToMetaValue, purchaseEventId } from '@/modules/meta'
+import { PurchaseTracker } from '@/modules/meta/components/event-trackers'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
@@ -59,6 +61,23 @@ export default async function OrderPage({ params }: { params: Promise<{ orderNum
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
+      {order.paymentStatus === 'paid' ? (
+        <PurchaseTracker
+          eventId={purchaseEventId(order.id)}
+          data={{
+            content_ids: order.items.map((item) => item.variantId ?? item.sku),
+            content_type: 'product',
+            contents: order.items.map((item) => ({
+              id: item.variantId ?? item.sku,
+              quantity: item.quantity,
+              item_price: minorToMetaValue(item.unitPrice),
+            })),
+            currency: 'BDT',
+            num_items: order.items.reduce((total, item) => total + item.quantity, 0),
+            value: minorToMetaValue(order.total),
+          }}
+        />
+      ) : null}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
         <p className="text-(--color-muted)">{copy.body}</p>

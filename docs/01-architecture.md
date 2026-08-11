@@ -80,6 +80,7 @@ src/
     reviews/
     notifications/          transactional email
     admin/                  admin-only operations
+    meta/                   analytics consent, Pixel/CAPI, delivery outbox
   lib/                      db client, auth, env, money, errors, utils
   components/ui/            shadcn primitives
 ```

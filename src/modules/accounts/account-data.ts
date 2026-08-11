@@ -4,6 +4,7 @@ import { and, desc, eq, ne } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import { anonymiseOrdersForUser, listOrdersForUser } from '@/modules/orders'
+import { deleteOrderAttributionForUser } from '@/modules/meta'
 
 import { auth } from './auth'
 import { accounts, addresses, sessions, users } from './schema'
@@ -152,6 +153,7 @@ export async function exportAccountData(userId: string): Promise<AccountExport> 
  * is a transaction so a half-erased account is not a state that can exist.
  */
 export async function deleteAccount(userId: string): Promise<{ ordersAnonymised: number }> {
+  await deleteOrderAttributionForUser(userId)
   const ordersAnonymised = await anonymiseOrdersForUser(userId)
 
   await db.transaction(async (tx) => {

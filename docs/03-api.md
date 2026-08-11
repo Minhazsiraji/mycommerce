@@ -86,13 +86,24 @@ goes to the logger, never into the response.
 | `moderateReview` | admin | |
 | `addAddress` / `updateAddress` / `deleteAddress` / `setDefaultAddress` | session | Scoped by user |
 
+### `meta`
+
+| Action | Auth | Notes |
+|---|---|---|
+| `trackViewContent` | public | Strict variant/event-id input, 120/hour, server re-reads the product |
+| `trackInitiateCheckout` | public | 30/hour; server re-reads the caller's cart and all money |
+
+There is deliberately no generic `/api/capi` route. `AddToCart` is emitted only after
+the real cart mutation succeeds, and `Purchase` only after payment becomes
+authoritatively `paid`. All CAPI work is consent-gated and best-effort.
+
 ## Route Handlers
 
 | Route | Method | Purpose |
 |---|---|---|
 | `/api/webhooks/payments/[provider]` | POST | Signature verified, deduped via `webhook_events`. Returns 200 on duplicates. |
 | `/api/webhooks/shipping/[carrier]` | POST | Tracking updates |
-| `/api/cron/release-pending-orders` | POST | Restocks orders `pending` > 30 min |
+| `/api/cron/release-expired-holds` | GET / POST | Restocks expired holds and retries pending Meta Purchase deliveries |
 | `/api/cron/drain-outbox` | POST | Sends queued side effects |
 | `/api/cron/sync-tracking` | POST | Polls carriers lacking webhooks |
 | `/api/uploads/sign` | POST | Admin only; returns a presigned R2 URL |
