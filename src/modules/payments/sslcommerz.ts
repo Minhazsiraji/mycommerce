@@ -47,6 +47,11 @@ export type SessionInput = {
  */
 export async function createSession(input: SessionInput): Promise<{ redirectUrl: string }> {
   const { storeId, storePassword, host } = config()
+  const postcode = input.address.postalCode?.trim()
+
+  if (!postcode || !/^\d{4}$/.test(postcode)) {
+    throw new Error('A valid 4-digit postcode is required for SSLCommerz payment')
+  }
 
   const body = new URLSearchParams({
     store_id: storeId,
@@ -70,7 +75,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     cus_add1: input.address.line1,
     cus_city: input.address.city,
     cus_state: input.address.district,
-    cus_postcode: input.address.postalCode ?? '',
+    cus_postcode: postcode,
     cus_country: 'Bangladesh',
 
     /**
@@ -85,7 +90,7 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
     ship_add2: input.address.line2 ?? '',
     ship_city: input.address.city,
     ship_state: input.address.district,
-    ship_postcode: input.address.postalCode ?? '1000',
+    ship_postcode: postcode,
     ship_country: 'Bangladesh',
 
     num_of_item: '1',
