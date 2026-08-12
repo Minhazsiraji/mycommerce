@@ -20,6 +20,7 @@ export function AddToCartButton({
   children = 'Add to cart',
   contentName,
   unitPrice,
+  quantity = 1,
 }: {
   variantId: string
   disabled?: boolean
@@ -27,6 +28,7 @@ export function AddToCartButton({
   children?: React.ReactNode
   contentName: string
   unitPrice: number
+  quantity?: number
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -38,7 +40,7 @@ export function AddToCartButton({
 
     startTransition(async () => {
       const eventId = newBrowserEventId('addtocart')
-      const result = await addToCart({ variantId, quantity: 1, eventId })
+      const result = await addToCart({ variantId, quantity, eventId })
 
       if (!result.ok) {
         setError(result.error.message)
@@ -52,9 +54,9 @@ export function AddToCartButton({
           content_ids: [variantId],
           content_name: contentName,
           content_type: 'product',
-          contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
+          contents: [{ id: variantId, quantity, item_price: unitPrice }],
           currency: 'BDT',
-          value: unitPrice,
+          value: unitPrice * quantity,
         },
         eventId,
       )
