@@ -87,10 +87,10 @@ export default async function ProductPage({ params }: Params) {
         ) : null}
       </nav>
 
-      <div className="storefront-card grid gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
+      <div className="storefront-card grid items-start gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
         <ProductGallery images={images} title={product.title} />
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 lg:py-2">
           <div className="flex flex-col gap-1">
             {product.brand ? (
               <span className="text-sm text-(--color-muted)">{product.brand}</span>
@@ -123,6 +123,8 @@ export default async function ProductPage({ params }: Params) {
               </p>
             </div>
           ) : null}
+
+          <ProductAssurances />
         </div>
       </div>
 
@@ -132,6 +134,34 @@ export default async function ProductPage({ params }: Params) {
         <RelatedProducts productId={product.id} categoryId={product.categoryId} />
       </Suspense>
     </div>
+  )
+}
+
+function ProductAssurances() {
+  const assurances = [
+    {
+      title: 'Delivery',
+      detail: 'Available delivery options, charges and arrival estimate are shown at checkout.',
+    },
+    {
+      title: 'Payment',
+      detail: 'Pay securely online with SSLCommerz or choose bank transfer.',
+    },
+    {
+      title: 'Order support',
+      detail: 'Use your order number and email to track the order or request return support.',
+    },
+  ]
+
+  return (
+    <section aria-label="Delivery, payment and order support" className="grid gap-3 border-t border-(--color-border) pt-6 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+      {assurances.map((item) => (
+        <div key={item.title} className="rounded-lg border border-(--color-border) bg-white/25 p-4 dark:bg-white/5">
+          <h2 className="text-sm font-semibold">{item.title}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-(--color-muted)">{item.detail}</p>
+        </div>
+      ))}
+    </section>
   )
 }
 
