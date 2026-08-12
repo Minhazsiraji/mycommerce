@@ -5,6 +5,10 @@ import { useState } from 'react'
 import { formatBdt } from '@/lib/money'
 import { AddToCartButton } from '@/modules/cart/components/add-to-cart-button'
 
+// Mirrors the server-enforced cart ceiling. Stock remains the tighter limit for
+// most products; the server validates the submitted value authoritatively.
+const MAX_LINE_QUANTITY = 99
+
 export type PickableVariant = {
   id: string
   title: string | null
@@ -24,12 +28,19 @@ export function VariantPicker({
     // Default to the first variant that can actually be bought.
     (variants.find((v) => v.stock > 0) ?? variants[0])?.id,
   )
+  const [quantity, setQuantity] = useState(1)
 
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0]
   if (!selected) return null
 
   const hasOptions = variants.length > 1
   const discounted = selected.compareAtPrice != null && selected.compareAtPrice > selected.price
+  const maximumQuantity = Math.min(selected.stock, MAX_LINE_QUANTITY)
+
+  function selectVariant(id: string) {
+    setSelectedId(id)
+    setQuantity(1)
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -59,7 +70,7 @@ export function VariantPicker({
                 <button
                   key={variant.id}
                   type="button"
-                  onClick={() => setSelectedId(variant.id)}
+                  onClick={() => selectVariant(variant.id)}
                   aria-pressed={isSelected}
                   className={`rounded-md border px-3 py-2 text-sm transition-colors ${
                     isSelected
@@ -85,11 +96,44 @@ export function VariantPicker({
         )}
       </p>
 
+      {selected.stock > 0 ? (
+        <div className="flex items-center justify-between gap-4 border-t border-(--color-border) pt-5">
+          <span className="text-sm font-medium">Quantity</span>
+          <div
+            className="flex h-11 items-center overflow-hidden rounded-md border border-(--color-border) bg-(--color-surface)"
+            aria-label="Product quantity"
+          >
+            <button
+              type="button"
+              className="size-11 text-lg transition-colors hover:bg-(--color-bg) disabled:opacity-40"
+              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+              disabled={quantity <= 1}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <output className="w-10 text-center text-sm font-medium tabular-nums" aria-live="polite">
+              {quantity}
+            </output>
+            <button
+              type="button"
+              className="size-11 text-lg transition-colors hover:bg-(--color-bg) disabled:opacity-40"
+              onClick={() => setQuantity((current) => Math.min(maximumQuantity, current + 1))}
+              disabled={quantity >= maximumQuantity}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div>
         <AddToCartButton
           variantId={selected.id}
           contentName={title}
           unitPrice={selected.price / 100}
+          quantity={quantity}
           disabled={selected.stock === 0}
           className="w-full"
         >
