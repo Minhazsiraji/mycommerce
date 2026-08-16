@@ -1,9 +1,9 @@
 import 'server-only'
 
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
-import { getVisibleOrder, markPaid } from '@/modules/orders'
+import { getVisibleOrder, notifyOrderPaid } from '@/modules/orders'
 // Tables come from the schema barrel, not another module's folder — see CLAUDE.md.
 import { orders } from '@/lib/db/schema'
 
@@ -11,6 +11,19 @@ import { payments, webhookEvents } from './schema'
 import { createSession, validatePayment } from './sslcommerz'
 
 export class PaymentError extends Error {}
+
+const MAX_VALUE_ID_LENGTH = 200
+
+function assertValueId(value: string) {
+  if (
+    value.length < 1 ||
+    value.length > MAX_VALUE_ID_LENGTH ||
+    // Keep control characters out of provider URLs and logs.
+    !/^[\x21-\x7e]+$/.test(value)
+  ) {
+    throw new PaymentError('Invalid payment reference.')
+  }
+}
 
 /**
  * Starts a hosted checkout for an order the caller is allowed to see.
@@ -27,6 +40,12 @@ export async function startGatewayPayment(
 
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
+  if (order.paymentMethod !== 'sslcommerz') {
+    throw new PaymentError('This order is being paid by bank transfer.')
+  }
+  if (!order.stockHoldExpiresAt || order.stockHoldExpiresAt <= new Date()) {
+    throw new PaymentError('This payment window expired. Please place the order again.')
+  }
 
   const { redirectUrl } = await createSession({
     orderNumber: order.orderNumber,
@@ -47,27 +66,19 @@ export async function startGatewayPayment(
  * Handles a gateway notification. The ONLY path by which a gateway order
  * becomes paid.
  *
- * Order matters: record the event first so a retry is a no-op, then verify with
- * the provider, then check the amount, then mark paid.
+ * Order matters: verify with the provider first, check our own order amount,
+ * then claim the event and settle the exact payment attempt/order atomically.
+ * Claiming before validation would turn a temporary provider failure into a
+ * permanently ignored retry.
  */
-export async function handleGatewayNotification(valId: string): Promise<'ok' | 'duplicate'> {
-  // The insert IS the idempotency check. Providers retry, and a second
-  // delivery must never mark an order paid twice.
-  const inserted = await db
-    .insert(webhookEvents)
-    .values({ provider: 'sslcommerz', eventId: valId })
-    .onConflictDoNothing()
-    .returning()
+export async function handleGatewayNotification(
+  valId: string,
+): Promise<'ok' | 'late-cancelled' | 'duplicate'> {
+  assertValueId(valId)
 
-  if (inserted.length === 0) return 'duplicate'
-
+  // Verify before claiming the event. A provider timeout here must remain
+  // retryable; recording the id first would make every later retry a no-op.
   const result = await validatePayment(valId)
-
-  await db
-    .update(webhookEvents)
-    .set({ payload: result.raw })
-    .where(and(eq(webhookEvents.provider, 'sslcommerz'), eq(webhookEvents.eventId, valId)))
-
   if (!result.valid) throw new PaymentError('Payment did not validate.')
 
   const order = await db.query.orders.findFirst({
@@ -88,10 +99,68 @@ export async function handleGatewayNotification(valId: string): Promise<'ok' | '
     )
   }
 
-  if (order.paymentStatus === 'paid') return 'duplicate'
+  const outcome = await db.transaction(async (tx) => {
+    // The insert is the idempotency claim, now inside the same transaction as
+    // the commercial state change. A rollback removes both or neither.
+    const inserted = await tx
+      .insert(webhookEvents)
+      .values({ provider: 'sslcommerz', eventId: valId, payload: result.raw })
+      .onConflictDoNothing()
+      .returning({ id: webhookEvents.id })
 
-  await markPaid(order.id, result.providerRef)
-  return 'ok'
+    if (inserted.length === 0) return 'duplicate' as const
+
+    /**
+     * This update arbitrates the payment-vs-expiry race on the order row.
+     * If cron cancelled first, payment is still recorded truthfully but the
+     * order stays cancelled and stock is not silently re-reserved/oversold.
+     * If payment won first, cron's unpaid predicate no longer matches.
+     */
+    const [settled] = await tx
+      .update(orders)
+      .set({
+        status: sql`case when ${orders.status} = 'cancelled' then 'cancelled' else 'confirmed' end`,
+        paymentStatus: 'paid',
+        stockHoldExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(orders.id, order.id), ne(orders.paymentStatus, 'paid')))
+      .returning({ status: orders.status })
+
+    if (!settled) return 'duplicate' as const
+
+    const [attempt] = await tx
+      .select({ id: payments.id })
+      .from(payments)
+      .where(and(eq(payments.orderId, order.id), eq(payments.provider, 'sslcommerz')))
+      .orderBy(desc(payments.createdAt))
+      .limit(1)
+
+    if (!attempt) throw new Error(`Missing SSLCommerz payment attempt for ${order.orderNumber}`)
+
+    await tx
+      .update(payments)
+      .set({
+        status: 'succeeded',
+        providerRef: result.providerRef,
+        rawPayload: result.raw,
+        updatedAt: new Date(),
+      })
+      .where(eq(payments.id, attempt.id))
+
+    return settled.status === 'cancelled' ? ('late-cancelled' as const) : ('ok' as const)
+  })
+
+  if (outcome === 'ok') {
+    await notifyOrderPaid(order.id).catch((error) =>
+      console.error('[payments] paid-order side effects failed', order.orderNumber, error),
+    )
+  }
+  if (outcome === 'late-cancelled') {
+    console.error('[payments] paid gateway order arrived after stock release', order.orderNumber)
+  }
+
+  return outcome
 }
 
 /**
@@ -111,9 +180,15 @@ export async function switchToBankTransfer(orderNumber: string) {
 
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
+  if (order.paymentMethod !== 'sslcommerz') {
+    throw new PaymentError('This order is already using bank transfer.')
+  }
+  if (!order.stockHoldExpiresAt || order.stockHoldExpiresAt <= new Date()) {
+    throw new PaymentError('This order expired. Please place it again.')
+  }
 
   await db.transaction(async (tx) => {
-    await tx
+    const [switched] = await tx
       .update(orders)
       .set({
         paymentMethod: 'bank_transfer',
@@ -121,7 +196,18 @@ export async function switchToBankTransfer(orderNumber: string) {
         stockHoldExpiresAt: new Date(Date.now() + 72 * 60 * 60_000),
         updatedAt: new Date(),
       })
-      .where(eq(orders.id, order.id))
+      .where(
+        and(
+          eq(orders.id, order.id),
+          eq(orders.status, 'pending'),
+          eq(orders.paymentMethod, 'sslcommerz'),
+          inArray(orders.paymentStatus, ['unpaid', 'failed']),
+          gt(orders.stockHoldExpiresAt, new Date()),
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!switched) throw new PaymentError('The order changed. Refresh and try again.')
 
     // A fresh attempt row rather than editing the failed one — the card
     // attempt is history worth keeping if anyone disputes it later.
@@ -147,7 +233,7 @@ export async function switchToBankTransfer(orderNumber: string) {
  */
 async function currentTransfer(orderId: string) {
   const [row] = await db
-    .select({ id: payments.id })
+    .select({ id: payments.id, status: payments.status, reference: payments.submittedReference })
     .from(payments)
     .where(and(eq(payments.orderId, orderId), eq(payments.provider, 'bank_transfer')))
     .orderBy(desc(payments.createdAt))
@@ -171,15 +257,28 @@ export async function submitTransferReference(orderNumber: string, reference: st
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
 
   await db.transaction(async (tx) => {
+    // Claim the live order first so cancellation/expiry cannot race this write
+    // and leave a cancelled order back in the verification queue.
+    const [submitted] = await tx
+      .update(orders)
+      .set({ paymentStatus: 'awaiting_verification', updatedAt: new Date() })
+      .where(
+        and(
+          eq(orders.id, order.id),
+          eq(orders.status, 'pending'),
+          eq(orders.paymentMethod, 'bank_transfer'),
+          inArray(orders.paymentStatus, ['awaiting_transfer', 'awaiting_verification']),
+          gt(orders.stockHoldExpiresAt, new Date()),
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!submitted) throw new PaymentError('This transfer window expired or the order changed.')
+
     await tx
       .update(payments)
       .set({ submittedReference: reference, status: 'awaiting_verification', updatedAt: new Date() })
       .where(eq(payments.id, attempt.id))
-
-    await tx
-      .update(orders)
-      .set({ paymentStatus: 'awaiting_verification', updatedAt: new Date() })
-      .where(eq(orders.id, order.id))
   })
 }
 
@@ -197,7 +296,14 @@ export async function listPendingTransfers() {
     })
     .from(payments)
     .innerJoin(orders, eq(payments.orderId, orders.id))
-    .where(and(eq(payments.provider, 'bank_transfer'), eq(payments.status, 'awaiting_verification')))
+    .where(
+      and(
+        eq(payments.provider, 'bank_transfer'),
+        eq(payments.status, 'awaiting_verification'),
+        eq(orders.status, 'pending'),
+        eq(orders.paymentStatus, 'awaiting_verification'),
+      ),
+    )
     .orderBy(desc(payments.updatedAt))
 }
 
@@ -243,19 +349,53 @@ export async function confirmTransfer(input: {
 
   const attempt = await currentTransfer(order.id)
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
+  if (attempt.status !== 'awaiting_verification' || !attempt.reference) {
+    throw new PaymentError('Wait for the customer to submit a transfer reference.')
+  }
 
-  await db
-    .update(payments)
-    .set({
-      status: 'paid',
-      verifiedBy: input.adminUserId,
-      verifiedAt: new Date(),
-      verifiedAmount: input.observedAmount,
-      updatedAt: new Date(),
-    })
-    .where(eq(payments.id, attempt.id))
+  await db.transaction(async (tx) => {
+    // Payment and order state commit together. The predicate prevents a late
+    // admin click from confirming an order whose stock cron already returned.
+    const [settled] = await tx
+      .update(orders)
+      .set({
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        stockHoldExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(orders.id, order.id),
+          eq(orders.status, 'pending'),
+          eq(orders.paymentMethod, 'bank_transfer'),
+          eq(orders.paymentStatus, 'awaiting_verification'),
+          gt(orders.stockHoldExpiresAt, new Date()),
+        ),
+      )
+      .returning({ id: orders.id })
 
-  await markPaid(order.id, null)
+    if (!settled) {
+      throw new PaymentError(
+        'This order expired or changed. Refund the transfer and ask the customer to order again.',
+      )
+    }
+
+    await tx
+      .update(payments)
+      .set({
+        status: 'paid',
+        verifiedBy: input.adminUserId,
+        verifiedAt: new Date(),
+        verifiedAmount: input.observedAmount,
+        updatedAt: new Date(),
+      })
+      .where(eq(payments.id, attempt.id))
+  })
+
+  await notifyOrderPaid(order.id).catch((error) =>
+    console.error('[payments] transfer side effects failed', order.orderNumber, error),
+  )
 }
 
 export async function rejectTransfer(orderId: string, reason: string) {
@@ -271,16 +411,26 @@ export async function rejectTransfer(orderId: string, reason: string) {
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
 
   await db.transaction(async (tx) => {
-    await tx
-      .update(payments)
-      .set({ status: 'failed', rawPayload: { reason }, updatedAt: new Date() })
-      .where(eq(payments.id, attempt.id))
-
-    await tx
+    const [rejected] = await tx
       .update(orders)
       // Back to awaiting_transfer, not failed: the customer can correct the
       // reference and try again rather than losing the order.
       .set({ paymentStatus: 'awaiting_transfer', updatedAt: new Date() })
-      .where(eq(orders.id, orderId))
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.status, 'pending'),
+          eq(orders.paymentMethod, 'bank_transfer'),
+          eq(orders.paymentStatus, 'awaiting_verification'),
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!rejected) throw new PaymentError('The order changed. Refresh and try again.')
+
+    await tx
+      .update(payments)
+      .set({ status: 'failed', rawPayload: { reason }, updatedAt: new Date() })
+      .where(eq(payments.id, attempt.id))
   })
 }

@@ -22,10 +22,14 @@ export const auth = betterAuth({
     // No order can be placed from an unverified account — see docs/04-security.md.
     requireEmailVerification: true,
     minPasswordLength: 10,
+    maxPasswordLength: 128,
     sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail(user.email, url)
     },
     resetPasswordTokenExpiresIn: 60 * 30,
+    // A password reset is a compromise-recovery path. Keeping stolen sessions
+    // alive after the password changes would defeat the reason it exists.
+    revokeSessionsOnPasswordReset: true,
   },
 
   emailVerification: {

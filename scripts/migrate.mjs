@@ -18,15 +18,7 @@ import ws from 'ws'
 loadEnv({ path: '.env.local' })
 loadEnv({ path: '.env' })
 
-const vercelEnv = process.env.VERCEL_ENV
 const databaseUrl = process.env.DATABASE_URL
-
-if (vercelEnv === 'preview' && process.env.PREVIEW_DATABASE_ISOLATED !== 'true') {
-  console.error(
-    '[migrate] refusing Preview migration until Neon branch-per-Preview is enabled',
-  )
-  process.exit(1)
-}
 
 if (!databaseUrl) {
   console.error('[migrate] DATABASE_URL is not set')

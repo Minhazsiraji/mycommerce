@@ -207,7 +207,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 
 | Table | Notes |
 |---|---|
-| `webhook_events` | Unique on `(provider, event_id)`. The insert *is* the idempotency check — if it conflicts, the event was already handled, return 200 and stop. |
+| `webhook_events` | Unique on `(provider, event_id)`. Validate with the provider first, then insert the event and settle the exact payment attempt/order in one transaction. A conflict is a handled replay; a transient validation failure never consumes the id. |
 | `outbox` | Side effects written inside business transactions, drained by cron. At-least-once delivery without a broker. |
 | `audit_logs` | Every admin mutation: actor, action, entity, JSONB diff, IP. Append-only. |
 | `fraud_blocks` | Active and revoked phone/email/IP checkout blocks. Every add/remove action is admin-only and audit logged. |
@@ -260,7 +260,7 @@ that deploys.
 
 **Preview deployments use an isolated Neon branch.** The Neon/Vercel integration
 creates a branch per Preview deployment and injects its branch-specific `DATABASE_URL`.
-Vercel Preview must also define `PREVIEW_DATABASE_ISOLATED=true`; both the application
-and migrator refuse to start without that safety marker. The Preview branch is migrated
-before compilation, so checkout is tested against the exact schema in its code without
-writing test orders or unreviewed migrations into Production.
+The Preview branch is migrated before compilation, so checkout is tested against the
+exact schema in its code without writing test orders or unreviewed migrations into
+Production. The integration must remain connected with Preview branching enabled; do
+not replace its managed Preview `DATABASE_URL` with the Production connection string.

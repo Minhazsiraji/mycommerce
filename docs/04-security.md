@@ -8,7 +8,7 @@ well-understood — the risk is skipping one, not encountering something exotic.
 **Better Auth**, self-hosted, sessions in Postgres.
 
 - Session cookies: `httpOnly`, `Secure`, `SameSite=Lax`, 30-day rolling expiry.
-- Passwords: Argon2id. Minimum 10 characters, checked against a breached-password list.
+- Passwords: Better Auth's memory-hard scrypt. Minimum 10, maximum 128 characters.
 - Email verification required before an order can be placed on an account.
 - Password reset tokens: single-use, 30-minute expiry, invalidate all sessions on use.
 - OAuth (Google) supported; email collision links to the existing account only after
@@ -58,9 +58,9 @@ Commerce-specific risks, each with the control that addresses it.
 | 2 | **Inventory oversell** — concurrent buyers of the last unit | Conditional decrement `WHERE stock >= n` inside the order transaction; check affected row count. |
 | 3 | **Coupon abuse** — one code redeemed past its limit | Atomic `usage_count` increment inside the same transaction; `coupon_redemptions` enforces per-user limits. |
 | 4 | **Payment notification forgery** | SSLCommerz IPN is **not** self-authenticating. Take `val_id` from the notification, call the provider's server-side validation API, and confirm the returned amount, currency, and order reference match our record. Never trust the posted body. Signature-based providers verify the signature on the raw body before parsing. |
-| 5 | **Notification replay** | Unique index on `(provider, event_id)`. The insert is the dedupe. |
+| 5 | **Notification replay or lost retry** | Provider validation happens before the event is claimed. The unique `(provider, event_id)` insert and the payment/order state change then commit in one transaction, so a transient validation failure remains retryable and a replay cannot settle twice. |
 | 6 | **IDOR on orders/addresses** | Ownership in the `WHERE` clause, always. |
-| 7 | **Guest order enumeration** | Lookup requires order number **and** matching email; rate limited; order numbers are not sequentially guessable. |
+| 7 | **Guest order enumeration / forged access cookie** | Lookup requires order number **and** matching email; rate limited; new order numbers carry 48 random bits. The week-long recent-order cookie is HMAC signed — `httpOnly` alone prevents reading, not tampering. |
 | 8 | **Fake reviews** | Login required, one per user per product, `pending` until moderated, verified-purchase flag from `order_id`. |
 | 9 | **Card testing** — bots probing stolen cards via checkout | Cloudflare bot protection, per-IP checkout rate limit, provider-side velocity rules. |
 | 10 | **Stored XSS via product/review content** | React escapes by default; no `dangerouslySetInnerHTML` on user or admin input. Rich text sanitised server-side with an allowlist. |
@@ -73,12 +73,12 @@ Commerce-specific risks, each with the control that addresses it.
 | 14 | **Dependency compromise** | Lockfile committed, Dependabot on, `pnpm audit` in CI, builds fail on high severity. |
 | 15 | **Forged transfer receipt** — customer uploads a fake screenshot to claim payment | The upload is **evidence for a human, never proof**. Confirmation is authorised against the bank statement alone. `confirmTransfer` requires the admin to enter the observed amount, and rejects a mismatch with the order total. |
 | 16 | **Wrong or malicious transfer confirmation** | `confirmTransfer` is admin-only, audit logged with actor and amount, and irreversible only forward — a mistaken confirmation is corrected by a refund record, never by editing the payment row. |
-| 17 | **Stock hostage via unpaid orders** | Bank transfers reserve stock for 72 hours, gateway checkouts for 30 minutes; a cron releases both. Without separate windows, either legitimate transfers get cancelled or a bot can freeze inventory by starting checkouts. **The hold windows alone are not the control** — they bound how long one order squats, not how many an attacker opens. `placeOrder` is rate limited to 10/hour per IP; without that, a loop empties the catalogue for free. |
+| 17 | **Stock hostage or duplicate stock release** | Bank transfers reserve stock for 72 hours, gateway checkouts for 30 minutes; a 15-minute scheduled job releases both. The release first claims the still-expired order with a conditional update, so concurrent jobs or repeated cancellation cannot return the same units twice. `placeOrder` is rate limited by IP, phone and email. |
 | 18 | **HTML injection into transactional email** | The email templates are hand-built strings, so React's escaping does not apply. Every interpolated value goes through `lib/escape-html.ts`. The live case is the shipping recipient: it is typed by the customer and rendered into the confirmation. |
-| 19 | **Payment history tampering by overreach** | Updates to `payments` are scoped to a single row by id, never `WHERE order_id = ...`. An order that failed by card and switched to transfer has two rows, and the earlier code stamped "verified by an admin" onto the card attempt as well — destroying the record `switchToBankTransfer` deliberately keeps for disputes. |
+| 19 | **Payment history tampering by overreach** | Updates to `payments` are scoped to the exact latest attempt row by id, never every row for an order. Gateway event, exact attempt and order state commit atomically. A late gateway payment on cancelled/released stock is recorded as paid-but-cancelled for refund; it never revives the order. |
 | 20 | **Confirming a transfer against returned stock** | `confirmTransfer` guards on status, payment status and method. The dangerous path is a late transfer on an order whose hold expired: cron cancelled it and returned the stock, which was then sold to someone else. Taking that money is an oversell; the admin is told to refund and have the customer reorder. `rejectTransfer` has the same guards, or a rejection would set a cancelled order back to `awaiting_transfer` and quietly revive it. |
 | 21 | **Attacker-controlled input in a redirect** | The SSLCommerz return handler builds a URL from `tran_id`. The order number is matched against `^[A-Z0-9-]{4,32}$` and encoded, and the status is narrowed to a known set — a fixed origin prefix stops an off-site redirect, but not path traversal or a CRLF payload in a `Location` header. |
-| 22 | **Attaching an arbitrary Cloudinary asset** | The browser uploads directly and reports back the key it got. The signature restricts where an upload *lands*; `attachImageSchema` restricts what we accept as having landed there, via a `mycommerce/<folder>/…` pattern. |
+| 22 | **Attaching an arbitrary or disguised Cloudinary asset** | The signed upload restricts formats and the `mycommerce/products/` destination. Before attachment, the server fetches authenticated provider metadata and checks the exact key, delivered format, byte size and dimensions; browser-reported metadata is never trusted. |
 | 23 | **Cron endpoint secret recovery** | `CRON_SECRET` compared with `timingSafeEqual`, length-checked first so the throw is not itself a signal. No secret configured means no caller can authenticate — closed, not open. |
 | 27 | **Fake-order and stock-hold abuse** | Checkout validates canonical Bangladesh phone and district data, requires Thana/Upazila, rate limits by IP, phone and email, rejects repeated recent failed/cancelled identities, and checks an audited owner-managed phone/email/IP blocklist. |
 | 28 | **Analytics forgery or secret leakage** | No generic CAPI endpoint exists. Public tracking actions accept narrow Zod schemas, are rate limited, and re-read product/cart truth server-side. `META_CAPI_ACCESS_TOKEN` is server-only and never returned to the browser. |
@@ -204,10 +204,9 @@ exists in the application. Retained one year. Readable at `/admin/activity`.
 
 Two implementation notes that matter:
 
-- `auditedAdmin()` performs the role check **and** the log write in one call, so an
-  action that forgets to audit is also an action that forgot to check the role — a
-  much louder bug. Where the entity ID only exists after the mutation (creating a
-  product), `recordAudit(session, …)` is used after the fact instead.
+- Admin actions call `requireRole('admin')`, perform the mutation, then call
+  `recordAudit(session, …)`. Logging afterwards is load-bearing: a rejected or
+  stale action must not be recorded in the past tense as though it succeeded.
 - The write is best-effort and swallows its own errors. Losing a log line is bad;
   failing a refund because the log insert timed out is worse.
 
