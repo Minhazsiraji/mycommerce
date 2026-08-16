@@ -232,7 +232,11 @@ export async function queuePurchase(orderId: string) {
 
   const context = await repo.getPurchaseContext(orderId)
   // No attribution row means analytics consent was not granted at checkout.
-  if (!context || context.order.paymentStatus !== 'paid') return
+  if (
+    !context ||
+    context.order.paymentStatus !== 'paid' ||
+    context.order.status !== 'confirmed'
+  ) return
 
   const eventId = purchaseEventId(orderId)
   await repo.enqueuePurchase(orderId, eventId)

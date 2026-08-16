@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  attachImageSchema,
   productFiltersSchema,
   productInputSchema,
   slugify,
   variantInputSchema,
 } from './validators'
+
+describe('attachImageSchema', () => {
+  const productId = '123e4567-e89b-42d3-a456-426614174000'
+
+  it('accepts only keys in the signed product-upload folder', () => {
+    expect(
+      attachImageSchema.safeParse({ productId, key: 'mycommerce/products/sample_123' }).success,
+    ).toBe(true)
+    expect(
+      attachImageSchema.safeParse({ productId, key: 'mycommerce/categories/sample_123' }).success,
+    ).toBe(false)
+    expect(attachImageSchema.safeParse({ productId, key: 'unrelated/sample_123' }).success).toBe(
+      false,
+    )
+  })
+})
 
 const validVariant = {
   sku: 'SKU-1',

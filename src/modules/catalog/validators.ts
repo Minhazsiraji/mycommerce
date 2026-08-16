@@ -135,7 +135,7 @@ export const attachImageSchema = z.object({
     .trim()
     .min(1)
     .max(300)
-    .regex(/^mycommerce\/[a-z]+\/[\w.\-/]+$/, 'Unexpected image key'),
+    .regex(/^mycommerce\/products\/[\w.\-/]+$/, 'Unexpected image key'),
   alt: z.string().trim().max(200).optional(),
 })
 

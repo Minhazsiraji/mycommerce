@@ -3,20 +3,9 @@ import 'server-only'
 import { and, desc, eq, lt } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
-import { requireRole } from '@/modules/accounts'
 
 import { auditLogs } from './schema'
 
-/**
- * Records an admin mutation, then returns the acting session.
- *
- * Deliberately combines the authorisation check with the log entry: an action
- * that forgets to audit is an action that also forgot to check the role, which
- * is a much louder bug. One call, hard to half-do.
- *
- * Failures are swallowed. Losing a log line is bad; failing a refund because
- * the log write timed out is worse.
- */
 type Entry = {
   action: string
   entityType: string
@@ -26,18 +15,14 @@ type Entry = {
 
 type Actor = { user: { id: string; email: string } }
 
-export async function auditedAdmin(input: Entry) {
-  const session = await requireRole('admin')
-  await recordAudit(session, input)
-  return session
-}
-
 /**
  * Logs against an already-authorised session.
  *
- * Used where the entity id only exists after the mutation has run — creating a
- * product, for instance. Auditing before that point would either miss the id or
- * record actions that never happened.
+ * Called after the mutation succeeds. Auditing before that point would record
+ * stale, rejected or failed actions as though they happened.
+ *
+ * Failures are swallowed. Losing a log line is bad; failing a commercial
+ * mutation after it already committed would be worse.
  */
 export async function recordAudit(actor: Actor, input: Entry) {
   try {

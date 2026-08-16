@@ -207,7 +207,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 
 | Table | Notes |
 |---|---|
-| `webhook_events` | Unique on `(provider, event_id)`. The insert *is* the idempotency check — if it conflicts, the event was already handled, return 200 and stop. |
+| `webhook_events` | Unique on `(provider, event_id)`. Validate with the provider first, then insert the event and settle the exact payment attempt/order in one transaction. A conflict is a handled replay; a transient validation failure never consumes the id. |
 | `outbox` | Side effects written inside business transactions, drained by cron. At-least-once delivery without a broker. |
 | `audit_logs` | Every admin mutation: actor, action, entity, JSONB diff, IP. Append-only. |
 | `fraud_blocks` | Active and revoked phone/email/IP checkout blocks. Every add/remove action is admin-only and audit logged. |

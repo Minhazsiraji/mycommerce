@@ -55,6 +55,9 @@ export interface StorageProvider {
   /** Credentials for a direct browser upload. */
   createUploadSignature(input: { folder: string }): UploadSignature
 
+  /** Authenticated metadata lookup used before trusting a direct upload key. */
+  inspect(key: string): Promise<UploadedAsset>
+
   delete(key: string): Promise<void>
 
   /**

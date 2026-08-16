@@ -31,7 +31,7 @@ export {
   lookupGuestOrder,
   listExpiredHolds,
   listMyOrders,
-  markPaid,
+  notifyOrderPaid,
   releaseHold,
 } from './service'
 

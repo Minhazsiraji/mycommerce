@@ -65,17 +65,26 @@ export default async function OrderPage({
   if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
   const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
-  const copy = confirmingPayment
-    ? {
-        title: 'Payment received — confirming',
-        body: 'Your payment was completed. We are confirming it now; you do not need to pay again.',
-      }
-    : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
+  const copy = order.status === 'cancelled'
+    ? order.paymentStatus === 'paid'
+      ? {
+          title: 'Order cancelled — payment received',
+          body: 'The order will not ship. Please contact the store so the refund can be completed.',
+        }
+      : order.paymentStatus === 'refunded'
+        ? { title: 'Order cancelled and refunded', body: 'The payment has been returned.' }
+        : { title: 'Order cancelled', body: 'No successful payment is recorded for this order.' }
+    : confirmingPayment
+      ? {
+          title: 'Payment received — confirming',
+          body: 'Your payment was completed. We are confirming it now; you do not need to pay again.',
+        }
+      : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
   const address = order.shippingAddress
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
-      {order.paymentStatus === 'paid' ? (
+      {order.paymentStatus === 'paid' && order.status === 'confirmed' ? (
         <PurchaseTracker
           eventId={purchaseEventId(order.id)}
           data={{
@@ -103,7 +112,11 @@ export default async function OrderPage({
 
       {order.status === 'cancelled' ? (
         <p className="rounded-lg bg-(--color-danger)/10 px-4 py-3 text-sm text-(--color-danger)">
-          This order was cancelled because payment was not completed in time. Nothing was charged.
+          {order.paymentStatus === 'paid'
+            ? 'Payment arrived after this order was cancelled and its stock was released. Do not reorder from this page; contact the store about the refund.'
+            : order.paymentStatus === 'refunded'
+              ? 'This order was cancelled and the payment was refunded.'
+              : 'This order was cancelled. No successful payment is recorded.'}
         </p>
       ) : order.paymentMethod === 'bank_transfer' && order.paymentStatus === 'awaiting_transfer' ? (
         <BankTransferInstructions

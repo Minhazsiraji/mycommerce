@@ -83,11 +83,12 @@ export const cloudinaryStorage: StorageProvider = {
     const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = requireConfig()
 
     const timestamp = Math.round(Date.now() / 1000)
+    const allowedFormats = 'jpg,png,webp,avif'
 
     // Only these params are signed, so only these can be used. A client that
     // tries to add its own folder or overwrite flag invalidates the signature.
     const signature = cloudinary.utils.api_sign_request(
-      { folder, timestamp },
+      { allowed_formats: allowedFormats, folder, timestamp },
       CLOUDINARY_API_SECRET,
     )
 
@@ -98,8 +99,25 @@ export const cloudinaryStorage: StorageProvider = {
         timestamp: String(timestamp),
         signature,
         folder,
+        allowed_formats: allowedFormats,
       },
       expiresIn: 3600,
+    }
+  },
+
+  async inspect(key: string): Promise<UploadedAsset> {
+    requireConfig()
+    const result = (await cloudinary.api.resource(key, {
+      resource_type: 'image',
+      type: 'upload',
+    })) as Record<string, unknown>
+
+    return {
+      key: String(result.public_id),
+      width: Number(result.width),
+      height: Number(result.height),
+      format: String(result.format).toLowerCase(),
+      bytes: Number(result.bytes),
     }
   },
 

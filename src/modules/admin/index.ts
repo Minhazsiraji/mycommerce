@@ -7,7 +7,6 @@
  */
 
 export {
-  auditedAdmin,
   listAuditLogs,
   listAuditLogsFor,
   pruneAuditLogs,

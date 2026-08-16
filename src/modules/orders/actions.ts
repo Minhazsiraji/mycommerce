@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { rateLimit, tooManyRequests } from '@/lib/rate-limit'
-import { auditedAdmin } from '@/modules/admin'
+import { requireRole } from '@/modules/accounts'
+import { recordAudit } from '@/modules/admin'
 import { ShippingError } from '@/modules/shipping'
 
 import * as service from './service'
@@ -77,17 +78,17 @@ function toResult(error: unknown): ActionResult<never> {
 export async function setFulfillmentStatus(input: unknown): Promise<ActionResult<null>> {
   const parsed = fulfillmentUpdateSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.fulfillment_changed',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    detail: { status: parsed.data.status },
-  })
+  const admin = await requireRole('admin')
 
   try {
     const row = await service.setFulfillmentStatus(parsed.data.orderId, parsed.data.status)
     if (!row) return fail('not_found', 'Order not found.')
+    await recordAudit(admin, {
+      action: 'order.fulfillment_changed',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: { status: parsed.data.status },
+    })
     refresh()
     return ok(null)
   } catch (error) {
@@ -98,17 +99,7 @@ export async function setFulfillmentStatus(input: unknown): Promise<ActionResult
 export async function updateShipment(input: unknown): Promise<ActionResult<null>> {
   const parsed = updateShipmentSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.shipment_updated',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    detail: {
-      shipmentId: parsed.data.shipmentId,
-      carrier: parsed.data.carrier,
-      trackingNumber: parsed.data.trackingNumber ?? null,
-    },
-  })
+  const admin = await requireRole('admin')
 
   try {
     const row = await service.updateShipment({
@@ -118,6 +109,16 @@ export async function updateShipment(input: unknown): Promise<ActionResult<null>
       trackingNumber: parsed.data.trackingNumber || null,
     })
     if (!row) return fail('not_found', 'That parcel is no longer on this order.')
+    await recordAudit(admin, {
+      action: 'order.shipment_updated',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: {
+        shipmentId: parsed.data.shipmentId,
+        carrier: parsed.data.carrier,
+        trackingNumber: parsed.data.trackingNumber ?? null,
+      },
+    })
     refresh()
     return ok(null)
   } catch (error) {
@@ -128,17 +129,17 @@ export async function updateShipment(input: unknown): Promise<ActionResult<null>
 export async function deleteShipment(input: unknown): Promise<ActionResult<null>> {
   const parsed = deleteShipmentSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.shipment_deleted',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    detail: { shipmentId: parsed.data.shipmentId },
-  })
+  const admin = await requireRole('admin')
 
   try {
     const row = await service.deleteShipment(parsed.data.shipmentId, parsed.data.orderId)
     if (!row) return fail('not_found', 'That parcel is no longer on this order.')
+    await recordAudit(admin, {
+      action: 'order.shipment_deleted',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: { shipmentId: parsed.data.shipmentId },
+    })
     refresh()
     return ok(null)
   } catch (error) {
@@ -149,19 +150,19 @@ export async function deleteShipment(input: unknown): Promise<ActionResult<null>
 export async function setOrderNotes(input: unknown): Promise<ActionResult<null>> {
   const parsed = orderNotesSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.notes_edited',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    // The text itself goes in the log: notes are where a cancellation reason
-    // lives, so overwriting one without a record would erase the trail.
-    detail: { notes: parsed.data.notes },
-  })
+  const admin = await requireRole('admin')
 
   try {
     const row = await service.setNotes(parsed.data.orderId, parsed.data.notes)
     if (!row) return fail('not_found', 'Order not found.')
+    await recordAudit(admin, {
+      action: 'order.notes_edited',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      // The text itself goes in the log: notes are where a cancellation reason
+      // lives, so overwriting one without a record would erase the trail.
+      detail: { notes: parsed.data.notes },
+    })
     refresh()
     return ok(null)
   } catch (error) {
@@ -172,19 +173,19 @@ export async function setOrderNotes(input: unknown): Promise<ActionResult<null>>
 export async function addShipment(input: unknown): Promise<ActionResult<null>> {
   const parsed = shipmentSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.shipment_added',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    detail: { carrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber ?? null },
-  })
+  const admin = await requireRole('admin')
 
   try {
     await service.addShipment({
       orderId: parsed.data.orderId,
       carrier: parsed.data.carrier,
       trackingNumber: parsed.data.trackingNumber || null,
+    })
+    await recordAudit(admin, {
+      action: 'order.shipment_added',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: { carrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber ?? null },
     })
     refresh()
     return ok(null)
@@ -196,16 +197,16 @@ export async function addShipment(input: unknown): Promise<ActionResult<null>> {
 export async function cancelOrder(input: unknown): Promise<ActionResult<null>> {
   const parsed = cancelOrderSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-
-  await auditedAdmin({
-    action: 'order.cancelled',
-    entityType: 'order',
-    entityId: parsed.data.orderId,
-    detail: { reason: parsed.data.reason },
-  })
+  const admin = await requireRole('admin')
 
   try {
     await service.cancelOrder(parsed.data.orderId, parsed.data.reason)
+    await recordAudit(admin, {
+      action: 'order.cancelled',
+      entityType: 'order',
+      entityId: parsed.data.orderId,
+      detail: { reason: parsed.data.reason },
+    })
     refresh()
     return ok(null)
   } catch (error) {

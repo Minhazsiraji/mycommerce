@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 
-import { handleGatewayNotification } from '@/modules/payments'
+import { handleGatewayNotification, readCallbackForm } from '@/modules/payments'
+
+const MAX_CALLBACK_BYTES = 64 * 1024
 
 /**
  * Where the customer's browser lands after the gateway.
@@ -21,7 +23,7 @@ async function handle(request: Request) {
 
   // SSLCommerz posts the transaction back as form data on success and cancel.
   if (request.method === 'POST') {
-    const form = await request.formData().catch(() => null)
+    const form = await readCallbackForm(request, MAX_CALLBACK_BYTES).catch(() => null)
     orderNumber = String(form?.get('tran_id') ?? '')
     valId = String(form?.get('val_id') ?? '')
   }

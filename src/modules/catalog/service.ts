@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { storage } from '@/lib/storage'
+import { storage, type UploadedAsset } from '@/lib/storage'
 
 import * as repo from './repository'
 import type { CategoryInput, ProductInput } from './validators'
@@ -133,6 +133,34 @@ export async function deleteCategory(id: string) {
 export async function attachImage(input: { productId: string; key: string; alt?: string }) {
   const product = await repo.getProductById(input.productId)
   if (!product) throw new CatalogError('Product not found.')
+
+  let asset: UploadedAsset
+  try {
+    asset = await storage.inspect(input.key)
+  } catch {
+    throw new CatalogError('The uploaded image could not be verified. Upload it again.')
+  }
+
+  const allowedFormats = new Set(['jpg', 'png', 'webp', 'avif'])
+  const validDimensions =
+    Number.isFinite(asset.width) &&
+    Number.isFinite(asset.height) &&
+    asset.width > 0 &&
+    asset.height > 0 &&
+    asset.width <= 12_000 &&
+    asset.height <= 12_000
+  const valid =
+    asset.key === input.key &&
+    allowedFormats.has(asset.format) &&
+    Number.isFinite(asset.bytes) &&
+    asset.bytes > 0 &&
+    asset.bytes <= 5 * 1024 * 1024 &&
+    validDimensions
+
+  if (!valid) {
+    await storage.delete(input.key).catch(() => {})
+    throw new CatalogError('Use a JPG, PNG, WebP or AVIF image up to 5 MB.')
+  }
 
   const row = await repo.insertImage(input)
   if (!row) throw new CatalogError('Could not attach the image.')

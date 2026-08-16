@@ -47,8 +47,7 @@ export async function POST(request: Request) {
 
   for (const order of expired) {
     try {
-      await releaseHold(order.id, 'expired')
-      released.push(order.orderNumber)
+      if (await releaseHold(order.id, 'expired')) released.push(order.orderNumber)
     } catch (error) {
       // One bad order must not stop the rest being released.
       console.error('[cron] failed to release hold', order.orderNumber, error)

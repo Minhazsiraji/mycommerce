@@ -136,8 +136,8 @@ export function sendOrderCancelled(
   wasPaid: boolean,
 ) {
   const refund = wasPaid
-    ? `<p style="font-size:15px;margin:0">We are refunding ${formatBdt(order.total)}. Depending on your bank this can take a few working days to appear.</p>`
-    : `<p style="font-size:15px;margin:0">Nothing was charged.</p>`
+    ? `<p style="font-size:15px;margin:0">We received ${formatBdt(order.total)}. The order will not ship; please contact the store while the refund is completed through the original payment method.</p>`
+    : `<p style="font-size:15px;margin:0">No successful payment is recorded for this order.</p>`
 
   return sendMail({
     to: order.email,

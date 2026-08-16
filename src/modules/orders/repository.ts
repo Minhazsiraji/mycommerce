@@ -2,14 +2,13 @@ import 'server-only'
 
 import { randomBytes } from 'node:crypto'
 
-import { and, count, desc, eq, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lt, ne, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import {
   cartItems,
   carts,
   inventoryMovements,
-  payments,
   productImages,
   products,
   productVariants,
@@ -35,7 +34,9 @@ export class OutOfStockError extends Error {
  */
 function generateOrderNumber(): string {
   const stamp = Date.now().toString(36).toUpperCase().slice(-6)
-  const random = randomBytes(3).toString('hex').toUpperCase()
+  // 48 random bits keeps the number readable while making collisions and
+  // unauthorised guessing materially harder than the previous 24-bit suffix.
+  const random = randomBytes(6).toString('hex').toUpperCase()
   return `MC-${stamp}-${random}`
 }
 
@@ -236,7 +237,25 @@ export async function setFulfillmentStatus(orderId: string, status: string) {
   const [row] = await db
     .update(orders)
     .set({ fulfillmentStatus: status, updatedAt: new Date() })
-    .where(eq(orders.id, orderId))
+    .where(
+      and(
+        eq(orders.id, orderId),
+        ne(orders.status, 'cancelled'),
+        status === 'shipped' || status === 'delivered'
+          ? eq(orders.paymentStatus, 'paid')
+          : undefined,
+        status === 'delivered' ? eq(orders.fulfillmentStatus, 'shipped') : undefined,
+        status === 'shipped'
+          ? and(
+              ne(orders.fulfillmentStatus, 'delivered'),
+              sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orders.id})`,
+            )
+          : undefined,
+        status === 'unfulfilled' || status === 'processing'
+          ? sql`${orders.fulfillmentStatus} not in ('shipped', 'delivered')`
+          : undefined,
+      ),
+    )
     .returning()
 
   return row
@@ -248,14 +267,24 @@ export async function addShipment(input: {
   trackingNumber: string | null
 }) {
   return db.transaction(async (tx) => {
-    const [shipment] = await tx.insert(shipments).values(input).returning()
-
-    // Recording a parcel IS the act of shipping — leaving the order at
-    // "processing" afterwards would be a second thing to remember.
-    await tx
+    // Claim a paid, live order before inserting the parcel. This closes the
+    // cancellation-vs-shipping race between the service check and this write.
+    const [shippable] = await tx
       .update(orders)
       .set({ fulfillmentStatus: 'shipped', updatedAt: new Date() })
-      .where(eq(orders.id, input.orderId))
+      .where(
+        and(
+          eq(orders.id, input.orderId),
+          ne(orders.status, 'cancelled'),
+          eq(orders.paymentStatus, 'paid'),
+          ne(orders.fulfillmentStatus, 'delivered'),
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!shippable) return null
+
+    const [shipment] = await tx.insert(shipments).values(input).returning()
 
     return shipment
   })
@@ -293,7 +322,17 @@ export async function deleteShipment(id: string, orderId: string) {
   return db.transaction(async (tx) => {
     const [removed] = await tx
       .delete(shipments)
-      .where(and(eq(shipments.id, id), eq(shipments.orderId, orderId)))
+      .where(
+        and(
+          eq(shipments.id, id),
+          eq(shipments.orderId, orderId),
+          sql`exists (
+            select 1 from ${orders}
+            where ${orders.id} = ${orderId}
+              and ${orders.fulfillmentStatus} <> 'delivered'
+          )`,
+        ),
+      )
       .returning()
 
     if (!removed) return null
@@ -334,45 +373,58 @@ export async function setNotes(orderId: string, notes: string) {
  * completes it.
  */
 export async function cancelOrder(orderId: string, reason: string) {
-  await db.transaction(async (tx) => {
-    const order = await tx.query.orders.findFirst({ where: eq(orders.id, orderId) })
-    if (!order) throw new Error('Order not found')
-
-    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))
-
-    // Only return stock that is still reserved. A delivered order's stock left
-    // the building; restocking it would invent inventory.
-    const stillHeld = order.fulfillmentStatus !== 'shipped' && order.fulfillmentStatus !== 'delivered'
-
-    if (stillHeld) {
-      for (const item of items) {
-        if (!item.variantId) continue
-
-        await tx
-          .update(productVariants)
-          .set({ stock: sql`${productVariants.stock} + ${item.quantity}`, updatedAt: new Date() })
-          .where(eq(productVariants.id, item.variantId))
-
-        await tx.insert(inventoryMovements).values({
-          variantId: item.variantId,
-          delta: item.quantity,
-          reason: 'release',
-          referenceId: orderId,
-          note: `cancelled: ${reason}`,
-        })
-      }
-    }
-
-    await tx
+  return db.transaction(async (tx) => {
+    /**
+     * Claim the state transition before touching stock.
+     *
+     * The predicate is the idempotency and concurrency control: two clicks (or
+     * two requests racing) cannot both move the same order out of its active
+     * state, so only one transaction is allowed to return inventory.
+     */
+    const [cancelled] = await tx
       .update(orders)
       .set({
         status: 'cancelled',
-        paymentStatus: order.paymentStatus === 'paid' ? 'refunded' : order.paymentStatus,
         stockHoldExpiresAt: null,
-        notes: order.notes ? `${order.notes}\n\nCancelled: ${reason}` : `Cancelled: ${reason}`,
+        // Cancellation does not move money. A paid order remains paid until a
+        // real refund is completed through the bank or gateway.
+        notes: sql`case
+          when ${orders.notes} is null or ${orders.notes} = '' then ${`Cancelled: ${reason}`}
+          else ${orders.notes} || ${`\n\nCancelled: ${reason}`}
+        end`,
         updatedAt: new Date(),
       })
-      .where(eq(orders.id, orderId))
+      .where(
+        and(
+          eq(orders.id, orderId),
+          ne(orders.status, 'cancelled'),
+          sql`${orders.fulfillmentStatus} not in ('shipped', 'delivered')`,
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!cancelled) return null
+
+    const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))
+
+    for (const item of items) {
+      if (!item.variantId) continue
+
+      await tx
+        .update(productVariants)
+        .set({ stock: sql`${productVariants.stock} + ${item.quantity}`, updatedAt: new Date() })
+        .where(eq(productVariants.id, item.variantId))
+
+      await tx.insert(inventoryMovements).values({
+        variantId: item.variantId,
+        delta: item.quantity,
+        reason: 'release',
+        referenceId: orderId,
+        note: `cancelled: ${reason}`,
+      })
+    }
+
+    return cancelled
   })
 }
 
@@ -455,7 +507,7 @@ export function listExpiredHolds(limit = 50) {
   return db.query.orders.findMany({
     where: and(
       eq(orders.status, 'pending'),
-      sql`${orders.paymentStatus} in ('unpaid', 'awaiting_transfer')`,
+      sql`${orders.paymentStatus} in ('unpaid', 'awaiting_transfer', 'awaiting_verification')`,
       // `lt` on a null column is null, so paid orders — whose hold is cleared
       // to null — are excluded without needing a separate check.
       lt(orders.stockHoldExpiresAt, new Date()),
@@ -467,7 +519,24 @@ export function listExpiredHolds(limit = 50) {
 
 /** Returns reserved stock and cancels, atomically. */
 export async function releaseHold(orderId: string, reason: 'expired' | 'cancelled') {
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    // Claim the expired hold first. A concurrent cron run or payment callback
+    // must not be able to release the same stock a second time.
+    const [released] = await tx
+      .update(orders)
+      .set({ status: 'cancelled', stockHoldExpiresAt: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.status, 'pending'),
+          sql`${orders.paymentStatus} in ('unpaid', 'awaiting_transfer', 'awaiting_verification')`,
+          lt(orders.stockHoldExpiresAt, new Date()),
+        ),
+      )
+      .returning({ id: orders.id })
+
+    if (!released) return false
+
     const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId))
 
     for (const item of items) {
@@ -487,29 +556,6 @@ export async function releaseHold(orderId: string, reason: 'expired' | 'cancelle
       })
     }
 
-    await tx
-      .update(orders)
-      .set({ status: 'cancelled', stockHoldExpiresAt: null, updatedAt: new Date() })
-      .where(eq(orders.id, orderId))
-  })
-}
-
-export async function markPaid(orderId: string, providerRef: string | null) {
-  await db.transaction(async (tx) => {
-    await tx
-      .update(orders)
-      .set({
-        status: 'confirmed',
-        paymentStatus: 'paid',
-        // Stock is now permanently committed, so the release cron must skip it.
-        stockHoldExpiresAt: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(orders.id, orderId))
-
-    await tx
-      .update(payments)
-      .set({ status: 'succeeded', providerRef, updatedAt: new Date() })
-      .where(eq(payments.orderId, orderId))
+    return true
   })
 }

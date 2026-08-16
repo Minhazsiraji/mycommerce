@@ -52,7 +52,13 @@ export function OrderAdminActions({
             <button
               key={stage}
               type="button"
-              disabled={pending || stage === fulfillmentStatus}
+              disabled={
+                pending ||
+                stage === fulfillmentStatus ||
+                (fulfillmentStatus === 'shipped' &&
+                  (stage === 'unfulfilled' || stage === 'processing')) ||
+                fulfillmentStatus === 'delivered'
+              }
               onClick={() => run(() => setFulfillmentStatus({ orderId, status: stage }))}
               className={`rounded-md border px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-default ${
                 stage === fulfillmentStatus
@@ -66,9 +72,9 @@ export function OrderAdminActions({
         </div>
 
         {!paid ? (
-          <p className="text-xs text-(--color-muted)">
-            This order is not paid yet. Marking it shipped is allowed — some sellers dispatch on
-            trust — but nothing here confirms payment.
+          <p className="text-xs text-(--color-danger)">
+            Confirm payment before shipping. Unpaid orders cannot be marked shipped or receive a
+            parcel.
           </p>
         ) : null}
       </section>
@@ -93,7 +99,7 @@ export function OrderAdminActions({
         <Button
           type="button"
           className="self-start"
-          disabled={pending || !carrier}
+          disabled={pending || !carrier || !paid || fulfillmentStatus === 'delivered'}
           onClick={() =>
             run(async () => {
               const result = await addShipment({ orderId, carrier, trackingNumber: tracking })
@@ -109,7 +115,9 @@ export function OrderAdminActions({
         </Button>
 
         <p className="text-xs text-(--color-muted)">
-          Adding a parcel marks the order shipped — one action, not two.
+          {paid
+            ? 'Adding a parcel marks the order shipped — one action, not two.'
+            : 'This unlocks after payment is confirmed.'}
         </p>
       </section>
 
@@ -120,7 +128,7 @@ export function OrderAdminActions({
           type="button"
           variant="ghost"
           className="self-start text-(--color-danger)"
-          disabled={pending}
+          disabled={pending || fulfillmentStatus === 'shipped' || fulfillmentStatus === 'delivered'}
           onClick={() => {
             const reason = prompt('Why is this order being cancelled?')
             if (!reason) return
@@ -131,8 +139,9 @@ export function OrderAdminActions({
         </Button>
 
         <p className="text-xs text-(--color-muted)">
-          Returns reserved stock, unless the order has already shipped. Refunding the customer is a
-          separate step you make through your bank or SSLCommerz.
+          {fulfillmentStatus === 'shipped' || fulfillmentStatus === 'delivered'
+            ? 'A shipped order needs a separate return/refund process and cannot be cancelled here.'
+            : 'Returns reserved stock. A real refund remains a separate step through your bank or SSLCommerz.'}
         </p>
       </section>
 

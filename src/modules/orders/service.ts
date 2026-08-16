@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cookies } from 'next/headers'
 
+import { env } from '@/lib/env'
 import { getSession, saveAddress } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
 import {
@@ -15,6 +16,7 @@ import { assessCheckout } from '@/modules/fraud'
 import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
 import * as repo from './repository'
+import { signOrderAccess, verifyOrderAccess } from './order-access-cookie'
 import { OutOfStockError } from './repository'
 import type { PlaceOrderInput } from './validators'
 
@@ -109,21 +111,29 @@ const RECENT_ORDERS_COOKIE = 'mycommerce_orders'
  *
  * They have no session to prove ownership with, and putting the email in the
  * URL would leak it into history, logs and referrers. Instead the order number
- * goes into an httpOnly cookie the browser already trusts. It grants viewing
- * only, expires in a week, and the guest lookup form — which needs order number
- * AND matching email — remains the route back after that.
+ * goes into an HMAC-signed, httpOnly cookie. The HMAC prevents replacement;
+ * httpOnly prevents scripts from reading it. It grants viewing only, expires
+ * in a week, and the guest lookup form — which needs order number AND matching
+ * email — remains the route back after that.
  */
 async function rememberOrder(orderNumber: string) {
   const jar = await cookies()
-  const existing = jar.get(RECENT_ORDERS_COOKIE)?.value?.split(',').filter(Boolean) ?? []
+  const existing = verifyOrderAccess(
+    jar.get(RECENT_ORDERS_COOKIE)?.value,
+    env.BETTER_AUTH_SECRET,
+  )
 
-  jar.set(RECENT_ORDERS_COOKIE, [orderNumber, ...existing].slice(0, 10).join(','), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  })
+  jar.set(
+    RECENT_ORDERS_COOKIE,
+    signOrderAccess([orderNumber, ...existing], env.BETTER_AUTH_SECRET),
+    {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7,
+      path: '/',
+    },
+  )
 }
 
 /**
@@ -147,7 +157,10 @@ export async function lookupGuestOrder(orderNumber: string, email: string) {
 
 async function wasPlacedHere(orderNumber: string) {
   const jar = await cookies()
-  return (jar.get(RECENT_ORDERS_COOKIE)?.value?.split(',') ?? []).includes(orderNumber)
+  return verifyOrderAccess(
+    jar.get(RECENT_ORDERS_COOKIE)?.value,
+    env.BETTER_AUTH_SECRET,
+  ).includes(orderNumber)
 }
 
 /**
@@ -195,11 +208,10 @@ async function notify(what: string, send: () => Promise<unknown>) {
   }
 }
 
-export async function markPaid(orderId: string, providerRef: string | null) {
-  await repo.markPaid(orderId, providerRef)
-
+/** Payment state is committed by the payments module; this runs side effects only. */
+export async function notifyOrderPaid(orderId: string) {
   const order = await repo.getOrderById(orderId)
-  if (!order) return
+  if (!order || order.status !== 'confirmed' || order.paymentStatus !== 'paid') return
 
   await queuePurchase(orderId).catch((error) =>
     console.error('[meta] Purchase delivery failed', error),
@@ -224,7 +236,34 @@ export async function setFulfillmentStatus(orderId: string, status: string) {
   const before = await repo.getOrderById(orderId)
   if (!before) return null
 
+  if (before.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be fulfilled.')
+
+  if (
+    (before.fulfillmentStatus === 'shipped' && status !== 'shipped' && status !== 'delivered') ||
+    (before.fulfillmentStatus === 'delivered' && status !== 'delivered')
+  ) {
+    throw new CheckoutError(
+      'A shipped order cannot move backward. Remove an incorrect parcel before dispatch instead.',
+    )
+  }
+
+  if ((status === 'shipped' || status === 'delivered') && before.paymentStatus !== 'paid') {
+    throw new CheckoutError('Confirm payment before shipping this order.')
+  }
+
+  if (status === 'shipped') {
+    const parcels = await repo.listShipments(orderId)
+    if (parcels.length === 0) {
+      throw new CheckoutError('Add a parcel to mark this order shipped.')
+    }
+  }
+
+  if (status === 'delivered' && before.fulfillmentStatus !== 'shipped') {
+    throw new CheckoutError('Only a shipped order can be marked delivered.')
+  }
+
   const row = await repo.setFulfillmentStatus(orderId, status)
+  if (!row) throw new CheckoutError('The order changed. Refresh and try again.')
 
   if (status === 'delivered' && before.fulfillmentStatus !== 'delivered') {
     await notify('delivered email', () =>
@@ -244,7 +283,18 @@ export async function addShipment(input: {
   carrier: string
   trackingNumber: string | null
 }) {
+  const before = await repo.getOrderById(input.orderId)
+  if (!before) throw new CheckoutError('Order not found.')
+  if (before.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be shipped.')
+  if (before.paymentStatus !== 'paid') {
+    throw new CheckoutError('Confirm payment before adding a parcel.')
+  }
+  if (before.fulfillmentStatus === 'delivered') {
+    throw new CheckoutError('A delivered order cannot receive another parcel.')
+  }
+
   const shipment = await repo.addShipment(input)
+  if (!shipment) throw new CheckoutError('The order changed. Refresh and try again.')
 
   const order = await repo.getOrderById(input.orderId)
   if (!order) return shipment
@@ -266,11 +316,15 @@ export async function addShipment(input: {
 export async function cancelOrder(orderId: string, reason: string) {
   // Read before cancelling: the status is about to change.
   const before = await repo.getOrderById(orderId)
-  const wasPaid = before?.paymentStatus === 'paid'
+  if (!before) throw new CheckoutError('Order not found.')
+  if (before.status === 'cancelled') throw new CheckoutError('This order is already cancelled.')
+  if (before.fulfillmentStatus === 'shipped' || before.fulfillmentStatus === 'delivered') {
+    throw new CheckoutError('A shipped order needs a return/refund workflow, not cancellation.')
+  }
+  const wasPaid = before.paymentStatus === 'paid'
 
-  await repo.cancelOrder(orderId, reason)
-
-  if (!before) return
+  const cancelled = await repo.cancelOrder(orderId, reason)
+  if (!cancelled) throw new CheckoutError('The order changed. Refresh and try again.')
 
   await notify('cancellation email', () =>
     sendOrderCancelled(
