@@ -39,6 +39,7 @@ export type AddressSnapshot = {
 export const ORDER_STATUS = ['pending', 'confirmed', 'cancelled'] as const
 export const PAYMENT_STATUS = [
   'unpaid',
+  'cod_pending',
   'awaiting_transfer',
   'awaiting_verification',
   'paid',
@@ -88,7 +89,8 @@ export const orders = pgTable(
     /**
      * Stock is reserved the moment the order is created. If payment never
      * completes, a cron releases it after this passes — 30 minutes for a
-     * gateway checkout, 72 hours for a bank transfer.
+     * gateway checkout, 72 hours for a bank transfer. COD is accepted at
+     * placement and has no unpaid-checkout expiry.
      */
     stockHoldExpiresAt: timestamp('stock_hold_expires_at'),
 

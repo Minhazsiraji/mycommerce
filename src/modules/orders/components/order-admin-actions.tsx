@@ -14,11 +14,13 @@ export function OrderAdminActions({
   fulfillmentStatus,
   cancelled,
   paid,
+  collectOnDelivery,
 }: {
   orderId: string
   fulfillmentStatus: string
   cancelled: boolean
   paid: boolean
+  collectOnDelivery: boolean
 }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
@@ -72,9 +74,12 @@ export function OrderAdminActions({
         </div>
 
         {!paid ? (
-          <p className="text-xs text-(--color-danger)">
-            Confirm payment before shipping. Unpaid orders cannot be marked shipped or receive a
-            parcel.
+          <p
+            className={`text-xs ${collectOnDelivery ? 'text-(--color-muted)' : 'text-(--color-danger)'}`}
+          >
+            {collectOnDelivery
+              ? 'Cash will be recorded as collected when this order is marked delivered.'
+              : 'Confirm payment before shipping. Unpaid orders cannot be marked shipped or receive a parcel.'}
           </p>
         ) : null}
       </section>
@@ -99,7 +104,12 @@ export function OrderAdminActions({
         <Button
           type="button"
           className="self-start"
-          disabled={pending || !carrier || !paid || fulfillmentStatus === 'delivered'}
+          disabled={
+            pending ||
+            !carrier ||
+            (!paid && !collectOnDelivery) ||
+            fulfillmentStatus === 'delivered'
+          }
           onClick={() =>
             run(async () => {
               const result = await addShipment({ orderId, carrier, trackingNumber: tracking })
@@ -115,7 +125,7 @@ export function OrderAdminActions({
         </Button>
 
         <p className="text-xs text-(--color-muted)">
-          {paid
+          {paid || collectOnDelivery
             ? 'Adding a parcel marks the order shipped — one action, not two.'
             : 'This unlocks after payment is confirmed.'}
         </p>

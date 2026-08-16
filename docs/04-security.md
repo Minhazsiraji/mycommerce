@@ -83,6 +83,7 @@ Commerce-specific risks, each with the control that addresses it.
 | 27 | **Fake-order and stock-hold abuse** | Checkout validates canonical Bangladesh phone and district data, requires Thana/Upazila, rate limits by IP, phone and email, rejects repeated recent failed/cancelled identities, and checks an audited owner-managed phone/email/IP blocklist. |
 | 28 | **Analytics forgery or secret leakage** | No generic CAPI endpoint exists. Public tracking actions accept narrow Zod schemas, are rate limited, and re-read product/cart truth server-side. `META_CAPI_ACCESS_TOKEN` is server-only and never returned to the browser. |
 | 29 | **Duplicate or false Purchase reporting** | `Purchase` is queued only when payment becomes `paid`; a stable order-based event id is unique in Postgres and shared with Pixel for CAPI/browser deduplication. Meta failure never changes payment state. |
+| 30 | **COD counted before collection** | COD orders use `cod_pending`, may be fulfilled, and become `paid` only in the atomic delivered transition. Sales analytics and Meta Purchase therefore exclude cash the courier has not collected. |
 | 30 | **Tracking without permission** | Meta Pixel is not downloaded and CAPI attribution is not stored until the versioned analytics-consent cookie is explicitly granted. The footer keeps a persistent privacy-choice control. Account deletion removes Meta attribution before order anonymisation. |
 
 SQL injection is covered by Drizzle's parameterisation — the only way to reintroduce it

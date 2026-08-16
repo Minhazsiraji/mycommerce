@@ -85,6 +85,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               fulfillmentStatus={order.fulfillmentStatus}
               cancelled={order.status === 'cancelled'}
               paid={order.paymentStatus === 'paid'}
+              collectOnDelivery={
+                order.paymentMethod === 'cod' && order.paymentStatus === 'cod_pending'
+              }
             />
           </section>
         </div>

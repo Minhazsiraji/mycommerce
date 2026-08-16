@@ -66,7 +66,7 @@ goes to the logger, never into the response.
 | `applyCoupon` | public | Validates window, limits, minimum subtotal |
 | `placeOrder` | public | The transaction in [architecture](01-architecture.md#checkout). Returns `clientSecret` |
 
-`placeOrder` accepts **`{ cartId, addressId | addressInput, shippingMethodId, couponCode?, email }`** — no amounts. Every figure is recomputed server-side. This is invariant 2 in `CLAUDE.md` and it is the most security-relevant line in the codebase.
+`placeOrder` accepts **`{ cartId, addressId | addressInput, shippingMethodId, paymentMethod, couponCode?, email }`** — no amounts. Every figure is recomputed server-side. Payment methods are `sslcommerz`, `bank_transfer`, and `cod`. COD creates a confirmed order with `cod_pending`; marking it delivered atomically records collection as paid. This is invariant 2 in `CLAUDE.md` and it is the most security-relevant line in the codebase.
 
 ### `orders`
 | Action | Auth | Notes |

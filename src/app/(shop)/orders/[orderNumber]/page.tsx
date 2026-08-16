@@ -15,6 +15,10 @@ import { PurchaseTracker } from '@/modules/meta/components/event-trackers'
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
+  cod_pending: {
+    title: 'Order confirmed — cash on delivery',
+    body: 'Pay the total to the courier when your order arrives. We will email you when it ships.',
+  },
   awaiting_transfer: {
     title: 'Order placed — awaiting your transfer',
     body: 'Send the amount below, then submit your transaction reference. We confirm within one working day.',

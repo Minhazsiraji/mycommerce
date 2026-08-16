@@ -2,7 +2,7 @@ import 'server-only'
 
 import { randomBytes } from 'node:crypto'
 
-import { and, count, desc, eq, lt, ne, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lt, ne, or, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema'
 
 import { orderItems, orders, type AddressSnapshot } from './schema'
+import { initialPaymentState, type CheckoutPaymentMethod } from './payment-methods'
 import type { OrderFilters } from './validators'
 
 export class OutOfStockError extends Error {
@@ -49,10 +50,10 @@ export type PlaceOrderArgs = {
   phone: string
   address: AddressSnapshot
   shipping: { cost: number; name: string }
-  paymentMethod: 'sslcommerz' | 'bank_transfer'
+  paymentMethod: CheckoutPaymentMethod
   notes: string | null
-  /** 30 minutes for a gateway checkout, 72 hours for a bank transfer. */
-  holdMinutes: number
+  /** Null for accepted COD; otherwise the unpaid checkout expiry window. */
+  holdMinutes: number | null
   checkoutIp: string
 }
 
@@ -66,6 +67,7 @@ export type PlaceOrderArgs = {
  */
 export async function placeOrder(args: PlaceOrderArgs) {
   return db.transaction(async (tx) => {
+    const initialPayment = initialPaymentState(args.paymentMethod)
     // Live product data, read inside the transaction.
     const lines = await tx
       .select({
@@ -136,8 +138,8 @@ export async function placeOrder(args: PlaceOrderArgs) {
         email: args.email,
         phone: args.phone,
         checkoutIp: args.checkoutIp,
-        status: 'pending',
-        paymentStatus: args.paymentMethod === 'bank_transfer' ? 'awaiting_transfer' : 'unpaid',
+        status: initialPayment.orderStatus,
+        paymentStatus: initialPayment.paymentStatus,
         fulfillmentStatus: 'unfulfilled',
         subtotal,
         shippingCost: args.shipping.cost,
@@ -145,7 +147,8 @@ export async function placeOrder(args: PlaceOrderArgs) {
         shippingAddress: args.address,
         paymentMethod: args.paymentMethod,
         notes: args.notes,
-        stockHoldExpiresAt: new Date(Date.now() + args.holdMinutes * 60_000),
+        stockHoldExpiresAt:
+          args.holdMinutes === null ? null : new Date(Date.now() + args.holdMinutes * 60_000),
       })
       .returning()
 
@@ -185,7 +188,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
       orderId: order.id,
       provider: args.paymentMethod,
       amount: total,
-      status: args.paymentMethod === 'bank_transfer' ? 'awaiting_verification' : 'pending',
+      status: initialPayment.paymentAttemptStatus,
     })
 
     // The cart is spent. Emptying it inside the transaction means a failure
@@ -243,31 +246,74 @@ export function getOrderById(id: string) {
 }
 
 export async function setFulfillmentStatus(orderId: string, status: string) {
-  const [row] = await db
-    .update(orders)
-    .set({ fulfillmentStatus: status, updatedAt: new Date() })
-    .where(
-      and(
-        eq(orders.id, orderId),
-        ne(orders.status, 'cancelled'),
-        status === 'shipped' || status === 'delivered'
-          ? eq(orders.paymentStatus, 'paid')
-          : undefined,
-        status === 'delivered' ? eq(orders.fulfillmentStatus, 'shipped') : undefined,
-        status === 'shipped'
-          ? and(
-              ne(orders.fulfillmentStatus, 'delivered'),
-              sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orders.id})`,
-            )
-          : undefined,
-        status === 'unfulfilled' || status === 'processing'
-          ? sql`${orders.fulfillmentStatus} not in ('shipped', 'delivered')`
-          : undefined,
-      ),
+  return db.transaction(async (tx) => {
+    const now = new Date()
+    const payableOnDelivery = and(
+      eq(orders.paymentMethod, 'cod'),
+      eq(orders.paymentStatus, 'cod_pending'),
     )
-    .returning()
 
-  return row
+    const [row] = await tx
+      .update(orders)
+      .set({ fulfillmentStatus: status, updatedAt: now })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          ne(orders.status, 'cancelled'),
+          status === 'shipped' || status === 'delivered'
+            ? or(eq(orders.paymentStatus, 'paid'), payableOnDelivery)
+            : undefined,
+          status === 'delivered' ? eq(orders.fulfillmentStatus, 'shipped') : undefined,
+          status === 'shipped'
+            ? and(
+                ne(orders.fulfillmentStatus, 'delivered'),
+                sql`exists (select 1 from ${shipments} where ${shipments.orderId} = ${orders.id})`,
+              )
+            : undefined,
+          status === 'unfulfilled' || status === 'processing'
+            ? sql`${orders.fulfillmentStatus} not in ('shipped', 'delivered')`
+            : undefined,
+        ),
+      )
+      .returning()
+
+    if (
+      !row ||
+      status !== 'delivered' ||
+      row.paymentMethod !== 'cod' ||
+      row.paymentStatus !== 'cod_pending'
+    ) {
+      return row
+    }
+
+    const [settled] = await tx
+      .update(orders)
+      .set({ paymentStatus: 'paid', stockHoldExpiresAt: null, updatedAt: now })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.paymentMethod, 'cod'),
+          eq(orders.paymentStatus, 'cod_pending'),
+          eq(orders.fulfillmentStatus, 'delivered'),
+        ),
+      )
+      .returning()
+
+    if (!settled) throw new Error('COD settlement did not update the delivered order')
+
+    await tx
+      .update(payments)
+      .set({ status: 'paid', verifiedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(payments.orderId, orderId),
+          eq(payments.provider, 'cod'),
+          eq(payments.status, 'awaiting_collection'),
+        ),
+      )
+
+    return settled
+  })
 }
 
 export async function addShipment(input: {
@@ -276,8 +322,9 @@ export async function addShipment(input: {
   trackingNumber: string | null
 }) {
   return db.transaction(async (tx) => {
-    // Claim a paid, live order before inserting the parcel. This closes the
-    // cancellation-vs-shipping race between the service check and this write.
+    // Claim a paid or collect-on-delivery live order before inserting the
+    // parcel. This closes the cancellation-vs-shipping race between the
+    // service check and this write.
     const [shippable] = await tx
       .update(orders)
       .set({ fulfillmentStatus: 'shipped', updatedAt: new Date() })
@@ -285,7 +332,10 @@ export async function addShipment(input: {
         and(
           eq(orders.id, input.orderId),
           ne(orders.status, 'cancelled'),
-          eq(orders.paymentStatus, 'paid'),
+          or(
+            eq(orders.paymentStatus, 'paid'),
+            and(eq(orders.paymentMethod, 'cod'), eq(orders.paymentStatus, 'cod_pending')),
+          ),
           ne(orders.fulfillmentStatus, 'delivered'),
         ),
       )

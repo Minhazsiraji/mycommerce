@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
+import { ratesForDistrict } from '@/lib/shipping-rate-selection'
 import {
   BD_DISTRICTS,
   bdAreasFor,
@@ -19,6 +20,7 @@ import { InitiateCheckoutTracker } from '@/modules/meta/components/event-tracker
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
+import type { CheckoutPaymentMethod } from '../payment-methods'
 
 export type CheckoutRate = {
   id: string
@@ -68,7 +70,7 @@ export function CheckoutForm({
   const [upazila, setUpazila] = useState(
     canonicalBdArea(defaults.district, initialCity, defaults.upazila),
   )
-  const [paymentMethod, setPaymentMethod] = useState<'sslcommerz' | 'bank_transfer'>('bank_transfer')
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod')
 
   const cities = useMemo(() => bdCitiesFor(district), [district])
   const areas = useMemo(() => bdAreasFor(district, city), [district, city])
@@ -80,18 +82,10 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    const matches = rates.filter(
-      (rate) =>
-        rate.districts.length === 0 ||
-        rate.districts.some((d) => d.toLowerCase() === district.trim().toLowerCase()),
-    )
-
-    return matches
-      .sort((a, b) => (a.districts.length ? 0 : 1) - (b.districts.length ? 0 : 1))
-      .map((rate) => ({
-        ...rate,
-        isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
-      }))
+    return ratesForDistrict(rates, district).map((rate) => ({
+      ...rate,
+      isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
+    }))
   }, [rates, district, subtotal])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
@@ -316,6 +310,28 @@ export function CheckoutForm({
 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-(--color-muted)">Payment</h2>
+
+          <label
+            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
+              paymentMethod === 'cod'
+                ? 'border-(--color-accent) bg-(--color-accent)/5'
+                : 'border-(--color-border)'
+            }`}
+          >
+            <input
+              type="radio"
+              name="payment"
+              checked={paymentMethod === 'cod'}
+              onChange={() => setPaymentMethod('cod')}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium">Cash on delivery</span>
+              <span className="block text-xs text-(--color-muted)">
+                Pay the courier when your order arrives.
+              </span>
+            </span>
+          </label>
 
           <label
             className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${

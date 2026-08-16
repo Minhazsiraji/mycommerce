@@ -6,6 +6,7 @@ export { sendMail, sendVerificationEmail, sendPasswordResetEmail } from './maile
 export {
   sendOrderCancelled,
   sendOrderConfirmed,
+  sendOrderPlacedCod,
   sendOrderDelivered,
   sendOrderShipped,
 } from './order-emails'

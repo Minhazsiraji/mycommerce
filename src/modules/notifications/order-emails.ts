@@ -95,6 +95,19 @@ export function sendOrderConfirmed(order: OrderSummary) {
   })
 }
 
+export function sendOrderPlacedCod(order: OrderSummary) {
+  return sendMail({
+    to: order.email,
+    subject: `Order ${order.orderNumber} confirmed`,
+    html: shell(
+      'Thanks — your order is confirmed',
+      `Your cash-on-delivery order is confirmed, ${order.recipient}. Please pay ${formatBdt(order.total)} to the courier when it arrives.`,
+      itemsTable(order),
+      { label: 'View your order', url: `${BASE}/orders/${order.orderNumber}` },
+    ),
+  })
+}
+
 export function sendOrderShipped(
   order: Pick<OrderSummary, 'orderNumber' | 'email' | 'recipient'>,
   parcel: { carrier: string; trackingNumber: string | null },

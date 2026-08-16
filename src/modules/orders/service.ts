@@ -8,6 +8,7 @@ import { readCart } from '@/modules/cart'
 import {
   sendOrderCancelled,
   sendOrderConfirmed,
+  sendOrderPlacedCod,
   sendOrderDelivered,
   sendOrderShipped,
 } from '@/modules/notifications'
@@ -16,24 +17,13 @@ import { assessCheckout } from '@/modules/fraud'
 import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
 import * as repo from './repository'
+import { canFulfilBeforeCollection, initialPaymentState } from './payment-methods'
 import { signOrderAccess, verifyOrderAccess } from './order-access-cookie'
 import { OutOfStockError } from './repository'
 import type { PlaceOrderInput } from './validators'
 
 export class CheckoutError extends Error {}
 export { OutOfStockError }
-
-/**
- * How long stock stays reserved without payment.
- *
- * Two windows on purpose. A single constant would either cancel legitimate bank
- * transfers — which take a day or more — or let a dropped gateway checkout
- * freeze stock for days that nobody can buy.
- */
-const HOLD_MINUTES = {
-  sslcommerz: 30,
-  bank_transfer: 72 * 60,
-} as const
 
 export async function placeOrder(input: PlaceOrderInput) {
   const session = await getSession()
@@ -80,7 +70,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     shipping: { cost: shipping.cost, name: shipping.name },
     paymentMethod: input.paymentMethod,
     notes: input.notes ?? null,
-    holdMinutes: HOLD_MINUTES[input.paymentMethod],
+    holdMinutes: initialPaymentState(input.paymentMethod).holdMinutes,
     checkoutIp: assessment.ip,
   })
 
@@ -100,6 +90,23 @@ export async function placeOrder(input: PlaceOrderInput) {
   await captureOrderAttribution(order.id).catch((error) =>
     console.error('[meta] order attribution capture failed', error),
   )
+
+  if (order.paymentMethod === 'cod') {
+    const placed = await repo.getOrderById(order.id)
+    if (placed) {
+      await notify('COD order confirmation', () =>
+        sendOrderPlacedCod({
+          orderNumber: placed.orderNumber,
+          email: placed.email,
+          recipient: placed.shippingAddress.recipient,
+          total: placed.total,
+          subtotal: placed.subtotal,
+          shippingCost: placed.shippingCost,
+          items: placed.items,
+        }),
+      )
+    }
+  }
 
   return order
 }
@@ -247,7 +254,11 @@ export async function setFulfillmentStatus(orderId: string, status: string) {
     )
   }
 
-  if ((status === 'shipped' || status === 'delivered') && before.paymentStatus !== 'paid') {
+  if (
+    (status === 'shipped' || status === 'delivered') &&
+    before.paymentStatus !== 'paid' &&
+    !canFulfilBeforeCollection(before.paymentMethod, before.paymentStatus)
+  ) {
     throw new CheckoutError('Confirm payment before shipping this order.')
   }
 
@@ -266,6 +277,12 @@ export async function setFulfillmentStatus(orderId: string, status: string) {
   if (!row) throw new CheckoutError('The order changed. Refresh and try again.')
 
   if (status === 'delivered' && before.fulfillmentStatus !== 'delivered') {
+    if (before.paymentMethod === 'cod' && before.paymentStatus === 'cod_pending') {
+      await queuePurchase(orderId).catch((error) =>
+        console.error('[meta] COD Purchase delivery failed', error),
+      )
+    }
+
     await notify('delivered email', () =>
       sendOrderDelivered({
         orderNumber: before.orderNumber,
@@ -286,7 +303,10 @@ export async function addShipment(input: {
   const before = await repo.getOrderById(input.orderId)
   if (!before) throw new CheckoutError('Order not found.')
   if (before.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be shipped.')
-  if (before.paymentStatus !== 'paid') {
+  if (
+    before.paymentStatus !== 'paid' &&
+    !canFulfilBeforeCollection(before.paymentMethod, before.paymentStatus)
+  ) {
     throw new CheckoutError('Confirm payment before adding a parcel.')
   }
   if (before.fulfillmentStatus === 'delivered') {

@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: 'Your orders' }
 const label = (s: string) => s.replace(/_/g, ' ')
 
 const STATUS_COPY: Record<string, string> = {
+  cod_pending: 'Cash due on delivery',
   awaiting_transfer: 'Awaiting your transfer',
   awaiting_verification: 'Checking your transfer',
   unpaid: 'Payment pending',
