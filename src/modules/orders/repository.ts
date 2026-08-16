@@ -10,6 +10,7 @@ import {
   carts,
   inventoryMovements,
   payments,
+  categories,
   productImages,
   products,
   productVariants,
@@ -74,9 +75,12 @@ export async function placeOrder(args: PlaceOrderArgs) {
         sku: productVariants.sku,
         variantTitle: productVariants.title,
         variantArchivedAt: productVariants.archivedAt,
+        productId: products.id,
         productTitle: products.title,
         productSlug: products.slug,
         productStatus: products.status,
+        categoryId: products.categoryId,
+        categoryName: categories.name,
         imageKey: sql<string | null>`(
           select ${productImages.r2Key}
           from ${productImages}
@@ -88,6 +92,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
       .from(cartItems)
       .innerJoin(productVariants, eq(cartItems.variantId, productVariants.id))
       .innerJoin(products, eq(productVariants.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(cartItems.cartId, args.cartId))
 
     if (lines.length === 0) throw new Error('Cart is empty')
@@ -151,6 +156,9 @@ export async function placeOrder(args: PlaceOrderArgs) {
       lines.map((line) => ({
         orderId: order.id,
         variantId: line.variantId,
+        productId: line.productId,
+        categoryId: line.categoryId,
+        categoryName: line.categoryName,
         productTitle: line.productTitle,
         variantTitle: line.variantTitle,
         sku: line.sku,
