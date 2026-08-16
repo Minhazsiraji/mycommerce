@@ -4,7 +4,8 @@ import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
+  // Same-origin by design. The server validates the exact Production or Vercel
+  // Preview host before issuing a host-only session cookie.
   plugins: [
     /**
      * No `onTwoFactorRedirect` on purpose.
