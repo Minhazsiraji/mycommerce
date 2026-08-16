@@ -5,7 +5,7 @@ import { and, asc, count, desc, eq, gte, lt, ne, sql, sum } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { categories, orderItems, orders, products } from '@/lib/db/schema'
 
-import { resolveAnalyticsRange, STORE_TIME_ZONE } from './date-range'
+import { resolveAnalyticsRange } from './date-range'
 import type { AnalyticsFilters } from './validators'
 
 type Range = { start: Date | null; end: Date | null }
@@ -86,9 +86,15 @@ async function summary(filters: AnalyticsFilters, range: Range) {
 }
 
 function bucketExpression(group: 'day' | 'month' | 'year') {
-  if (group === 'day') return sql<string>`to_char(date_trunc('day', timezone(${STORE_TIME_ZONE}, ${orders.createdAt})), 'YYYY-MM-DD')`
-  if (group === 'month') return sql<string>`to_char(date_trunc('month', timezone(${STORE_TIME_ZONE}, ${orders.createdAt})), 'YYYY-MM')`
-  return sql<string>`to_char(date_trunc('year', timezone(${STORE_TIME_ZONE}, ${orders.createdAt})), 'YYYY')`
+  /**
+   * These are server-owned constants, deliberately written as SQL literals.
+   * Interpolating the timezone makes Drizzle allocate different bind parameters
+   * when the expression is repeated in SELECT and GROUP BY. PostgreSQL then
+   * sees two non-identical expressions and rejects the aggregate query.
+   */
+  if (group === 'day') return sql<string>`to_char(date_trunc('day', timezone('Asia/Dhaka', ${orders.createdAt})), 'YYYY-MM-DD')`
+  if (group === 'month') return sql<string>`to_char(date_trunc('month', timezone('Asia/Dhaka', ${orders.createdAt})), 'YYYY-MM')`
+  return sql<string>`to_char(date_trunc('year', timezone('Asia/Dhaka', ${orders.createdAt})), 'YYYY')`
 }
 
 export async function getAnalytics(filters: AnalyticsFilters) {
