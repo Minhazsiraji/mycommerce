@@ -260,7 +260,7 @@ that deploys.
 
 **Preview deployments use an isolated Neon branch.** The Neon/Vercel integration
 creates a branch per Preview deployment and injects its branch-specific `DATABASE_URL`.
-Vercel Preview must also define `PREVIEW_DATABASE_ISOLATED=true`; both the application
-and migrator refuse to start without that safety marker. The Preview branch is migrated
-before compilation, so checkout is tested against the exact schema in its code without
-writing test orders or unreviewed migrations into Production.
+The Preview branch is migrated before compilation, so checkout is tested against the
+exact schema in its code without writing test orders or unreviewed migrations into
+Production. The integration must remain connected with Preview branching enabled; do
+not replace its managed Preview `DATABASE_URL` with the Production connection string.
