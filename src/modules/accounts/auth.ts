@@ -7,9 +7,28 @@ import { db, schema } from '@/lib/db'
 import { env } from '@/lib/env'
 import { sendPasswordResetEmail, sendVerificationEmail } from '@/modules/notifications'
 
+import { authAllowedHosts } from './auth-hosts'
+
+const allowedHosts = authAllowedHosts({
+  canonicalUrl: env.BETTER_AUTH_URL,
+  publicUrl: process.env.NEXT_PUBLIC_APP_URL,
+  vercelUrl: process.env.VERCEL_URL,
+  vercelBranchUrl: process.env.VERCEL_BRANCH_URL,
+  vercelProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+})
+
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.BETTER_AUTH_URL,
+  /**
+   * Resolve auth against the exact hostname handling this request. A fixed
+   * Production URL makes Preview clients call across origins, which the CSP and
+   * Better Auth correctly reject. The fallback preserves canonical email links.
+   */
+  baseURL: {
+    allowedHosts,
+    protocol: env.NODE_ENV === 'development' ? 'auto' : 'https',
+    fallback: env.BETTER_AUTH_URL,
+  },
 
   database: drizzleAdapter(db, {
     provider: 'pg',

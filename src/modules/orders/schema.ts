@@ -12,7 +12,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { users } from '@/modules/accounts/schema'
-import { productVariants } from '@/modules/catalog/schema'
+import { categories, products, productVariants } from '@/modules/catalog/schema'
 
 /** Frozen copy of the delivery address. Never a foreign key — see below. */
 export type AddressSnapshot = {
@@ -101,6 +101,8 @@ export const orders = pgTable(
     // Guest order lookup has no user id to filter on, and support runs it
     // constantly — see docs/02-data-model.md indexing.
     index('orders_email_idx').on(t.email, t.createdAt),
+    // Range scans for the admin analytics dashboard.
+    index('orders_created_idx').on(t.createdAt),
     // Drives the release-expired-holds cron.
     index('orders_hold_idx').on(t.paymentStatus, t.stockHoldExpiresAt),
   ],
@@ -123,6 +125,12 @@ export const orderItems = pgTable(
       .references(() => orders.id, { onDelete: 'cascade' }),
     variantId: uuid('variant_id').references(() => productVariants.id, { onDelete: 'set null' }),
 
+    /** Stable grouping keys for historical product/category analytics. */
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    /** Frozen because a category can be renamed after the sale. */
+    categoryName: text('category_name'),
+
     productTitle: text('product_title').notNull(),
     variantTitle: text('variant_title'),
     sku: text('sku').notNull(),
@@ -134,7 +142,11 @@ export const orderItems = pgTable(
     quantity: integer('quantity').notNull(),
     lineTotal: integer('line_total').notNull(),
   },
-  (t) => [index('order_items_order_idx').on(t.orderId)],
+  (t) => [
+    index('order_items_order_idx').on(t.orderId),
+    index('order_items_product_idx').on(t.productId),
+    index('order_items_category_idx').on(t.categoryId),
+  ],
 )
 
 export const ordersRelations = relations(orders, ({ many }) => ({
