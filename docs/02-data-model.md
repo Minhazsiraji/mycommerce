@@ -191,7 +191,7 @@ Phase 6 semantic search — leave the space, don't build it yet.
 | `cart_items` | Stores `unit_price` at add time for display only. Checkout always recomputes from `product_variants`. |
 | `orders` | `order_number` is human-readable and sequential-ish for support conversations; `id` stays a UUID. Three independent status fields — an order can be paid but unfulfilled, or fulfilled but refunded. Collapsing them into one enum is a mistake. |
 | `order_items` | Snapshots. See decision 3. |
-| `payments` | One row per attempt, not per order — failed and retried payments must both be visible. `raw_payload` retains the provider response for disputes. Manual transfers add `submitted_reference`, `proof_r2_key`, `verified_by`, `verified_at` — null for gateway payments. `provider` is `sslcommerz` or `bank_transfer`. |
+| `payments` | One row per attempt, not per order — failed and retried payments must both be visible. `raw_payload` retains the provider response for disputes. Manual transfers add `submitted_reference`, `proof_r2_key`, `verified_by`, `verified_at` — null for gateway payments. `provider` is `sslcommerz`, `bank_transfer`, or `cod`. COD remains `awaiting_collection`/`cod_pending` until delivery, so it is never reported as collected revenue early. |
 | `shipments` | Carrier, tracking number, status. An order may ship in multiple parcels. |
 | `inventory_movements` | Append-only. Never update or delete a row here. |
 

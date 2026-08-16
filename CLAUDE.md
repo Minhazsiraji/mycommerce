@@ -22,7 +22,7 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 | Auth | Better Auth |
 | Storage | Cloudinary (R2 blocked on payment — see below) |
 | Email | Resend |
-| Payments | SSLCommerz (cards, bKash, Nagad, Rocket, net banking) + manual bank transfer |
+| Payments | Cash on delivery + SSLCommerz (cards, bKash, Nagad, Rocket, net banking) + manual bank transfer |
 | Currency | BDT only, stored as integer poisha |
 | Hosting | Vercel, Cloudflare in front for CDN/WAF |
 | Tests | Vitest (unit), Playwright (e2e) |

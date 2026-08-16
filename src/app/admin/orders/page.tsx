@@ -12,6 +12,7 @@ const PAYMENT_STYLES: Record<string, string> = {
   awaiting_verification: 'bg-amber-500/15 text-amber-600',
   awaiting_transfer: 'bg-amber-500/15 text-amber-600',
   unpaid: 'bg-neutral-500/15 text-(--color-muted)',
+  cod_pending: 'bg-blue-500/15 text-blue-600',
   failed: 'bg-red-500/15 text-red-500',
   refunded: 'bg-neutral-500/15 text-(--color-muted)',
 }
@@ -63,7 +64,7 @@ export default async function AdminOrdersPage({
           className="h-10 rounded-md border border-(--color-border) bg-(--color-bg) px-3 text-sm"
         >
           <option value="">Any payment</option>
-          {['unpaid', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'].map(
+          {['unpaid', 'cod_pending', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'].map(
             (s) => (
               <option key={s} value={s}>
                 {label(s)}

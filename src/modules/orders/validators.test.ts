@@ -53,4 +53,14 @@ describe('placeOrderSchema', () => {
       }).success,
     ).toBe(true)
   })
+
+  it('accepts cash on delivery', () => {
+    expect(
+      placeOrderSchema.safeParse({
+        ...validOrder,
+        paymentMethod: 'cod',
+        address: { ...validOrder.address, postalCode: '' },
+      }).success,
+    ).toBe(true)
+  })
 })

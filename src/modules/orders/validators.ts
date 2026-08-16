@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import { addressInputSchema } from '@/modules/accounts/validators'
 
+import { CHECKOUT_PAYMENT_METHODS } from './payment-methods'
+
 /**
  * Checkout input.
  *
@@ -17,7 +19,7 @@ export const placeOrderSchema = z.object({
   address: addressInputSchema,
   /** Id only — the cost is looked up and re-quoted on the server. */
   shippingRateId: z.uuid(),
-  paymentMethod: z.enum(['sslcommerz', 'bank_transfer']),
+  paymentMethod: z.enum(CHECKOUT_PAYMENT_METHODS),
   notes: z.string().trim().max(500).optional(),
   /** Signed-in customers can keep the address for next time. */
   saveAddress: z.coerce.boolean().default(false),
@@ -48,7 +50,7 @@ export const orderFiltersSchema = z.object({
   q: z.string().trim().max(120).optional(),
   status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
   paymentStatus: z
-    .enum(['unpaid', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'])
+    .enum(['unpaid', 'cod_pending', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'])
     .optional(),
   fulfillmentStatus: z.enum(['unfulfilled', 'processing', 'shipped', 'delivered']).optional(),
   page: z.coerce.number().int().min(1).default(1),

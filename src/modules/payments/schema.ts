@@ -14,7 +14,7 @@ import {
 import { users } from '@/modules/accounts/schema'
 import { orders } from '@/modules/orders/schema'
 
-export const PAYMENT_PROVIDERS = ['sslcommerz', 'bank_transfer'] as const
+export const PAYMENT_PROVIDERS = ['sslcommerz', 'bank_transfer', 'cod'] as const
 
 /**
  * One row per payment *attempt*, not per order.

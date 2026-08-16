@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+
 import * as repo from './repository'
 import type { ShippingRate } from './schema'
 import type { ShippingRateInput } from './validators'
@@ -17,14 +19,6 @@ export type QuotedRate = {
   isFree: boolean
   estimatedDaysMin: number
   estimatedDaysMax: number
-}
-
-function appliesTo(rate: ShippingRate, district: string | null): boolean {
-  // An empty district list is the catch-all for anywhere not named elsewhere.
-  if (rate.districts.length === 0) return true
-  if (!district) return false
-
-  return rate.districts.some((d) => d.toLowerCase() === district.trim().toLowerCase())
 }
 
 function quote(rate: ShippingRate, subtotal: number): QuotedRate {
@@ -45,9 +39,8 @@ function quote(rate: ShippingRate, subtotal: number): QuotedRate {
 /**
  * Options for a destination.
  *
- * District-specific rates come first, catch-alls after, so "Inside Dhaka"
- * outranks "Rest of Bangladesh" for a Dhaka address while both remain
- * selectable. Returning an empty list means the store has configured nothing —
+ * A district-specific rate wins; the catch-all is used only where no specific
+ * rate exists. Returning an empty list means the store has configured nothing —
  * checkout must treat that as a configuration error rather than free delivery.
  */
 export async function quoteRates(input: {
@@ -56,14 +49,7 @@ export async function quoteRates(input: {
 }): Promise<QuotedRate[]> {
   const rates = await repo.listActiveRates()
 
-  return rates
-    .filter((rate) => appliesTo(rate, input.district))
-    .sort((a, b) => {
-      const aSpecific = a.districts.length > 0 ? 0 : 1
-      const bSpecific = b.districts.length > 0 ? 0 : 1
-      return aSpecific - bSpecific || a.position - b.position
-    })
-    .map((rate) => quote(rate, input.subtotal))
+  return ratesForDistrict(rates, input.district).map((rate) => quote(rate, input.subtotal))
 }
 
 /**
@@ -78,10 +64,11 @@ export async function resolveRate(input: {
   district: string | null
   subtotal: number
 }): Promise<QuotedRate> {
-  const rate = await repo.getRate(input.rateId)
+  const activeRates = await repo.listActiveRates()
+  const rate = activeRates.find((candidate) => candidate.id === input.rateId)
 
-  if (!rate || !rate.active) throw new ShippingError('That delivery option is no longer available.')
-  if (!appliesTo(rate, input.district)) {
+  if (!rate) throw new ShippingError('That delivery option is no longer available.')
+  if (!ratesForDistrict(activeRates, input.district).some((candidate) => candidate.id === rate.id)) {
     throw new ShippingError('That delivery option does not cover this address.')
   }
 
