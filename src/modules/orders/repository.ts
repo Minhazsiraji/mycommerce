@@ -9,6 +9,7 @@ import {
   cartItems,
   carts,
   inventoryMovements,
+  payments,
   productImages,
   products,
   productVariants,
