@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation'
 
-import { handleGatewayNotification, readCallbackForm } from '@/modules/payments'
-import { reconcileGatewayOrder } from '@/modules/payments/reconciliation'
+import {
+  handleGatewayNotification,
+  readCallbackForm,
+  reconcileGatewayOrder,
+} from '@/modules/payments'
 
 const MAX_CALLBACK_BYTES = 64 * 1024
 
