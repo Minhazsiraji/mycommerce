@@ -104,6 +104,12 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
       <SiteFooter
         categories={topCategories}
+        footer={{
+          brandText: settings.footerBrandText,
+          brandAccent: settings.footerBrandAccent,
+          description: settings.footerDescription,
+          copyright: settings.footerCopyright,
+        }}
         privacyChoices={<PrivacyChoicesButton enabled={metaEnabled} />}
       />
     </div>

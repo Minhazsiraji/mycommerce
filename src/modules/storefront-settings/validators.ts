@@ -46,6 +46,22 @@ export const storefrontSettingsInputSchema = z.object({
     .min(1, 'Enter the main brand text.')
     .max(40, 'Use 40 characters or fewer.'),
   heroBrandAccent: z.string().trim().max(20, 'Use 20 characters or fewer.'),
+  footerBrandText: z
+    .string()
+    .trim()
+    .min(1, 'Enter the main footer brand text.')
+    .max(40, 'Use 40 characters or fewer.'),
+  footerBrandAccent: z.string().trim().max(20, 'Use 20 characters or fewer.'),
+  footerDescription: z
+    .string()
+    .trim()
+    .min(1, 'Enter a footer description.')
+    .max(240, 'Use 240 characters or fewer.'),
+  footerCopyright: z
+    .string()
+    .trim()
+    .min(1, 'Enter copyright text.')
+    .max(100, 'Use 100 characters or fewer.'),
 })
 
 export type StorefrontSettingsInput = z.output<typeof storefrontSettingsInputSchema>
