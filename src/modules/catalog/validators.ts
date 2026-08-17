@@ -53,6 +53,8 @@ export const variantInputSchema = z
     compareAtPrice: optionalBdtAmount,
     stock: z.coerce.number().int().min(0, 'Cannot be negative').max(1_000_000),
     weightGrams: z.coerce.number().int().min(0).max(1_000_000).default(0),
+    barcode: z.string().trim().max(32).optional(),
+    gtinType: z.enum(['gtin8', 'gtin12', 'gtin13', 'gtin14', 'isbn']).nullable().default(null),
     options: z.record(z.string(), z.string()).default({}),
   })
   .refine((v) => v.compareAtPrice === null || v.compareAtPrice > v.price, {
@@ -69,6 +71,12 @@ export const productInputSchema = z.object({
   brand: z.string().trim().max(120).optional(),
   /** Search synonyms — words a customer would type that the title does not use. */
   keywords: z.string().trim().max(300).optional(),
+  discoveryEligible: z.boolean().default(false),
+  condition: z.enum(['new', 'refurbished', 'used']).default('new'),
+  feedDescription: z.string().trim().max(5000).optional(),
+  productCategory: z.string().trim().max(300).optional(),
+  mpn: z.string().trim().max(120).optional(),
+  identifierExists: z.boolean().default(false),
   categoryId: z.uuid().nullable().default(null),
   status: productStatusSchema.default('draft'),
   variants: z.array(variantInputSchema).min(1, 'A product needs at least one variant'),

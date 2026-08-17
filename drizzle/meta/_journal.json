@@ -120,6 +120,13 @@
       "when": 1786962314368,
       "tag": "0016_footer_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786969070046,
+      "tag": "0017_regular_manta",
+      "breakpoints": true
     }
   ]
 }

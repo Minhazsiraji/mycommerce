@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { Route } from 'next'
 import Link from 'next/link'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
@@ -19,6 +20,7 @@ const NAV = [
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/products', label: 'Products' },
   { href: '/admin/categories', label: 'Categories' },
+  { href: '/admin/shopping-readiness', label: 'AI readiness' },
   { href: '/admin/shipping', label: 'Delivery' },
   { href: '/admin/transfers', label: 'Transfers' },
   { href: '/admin/fraud', label: 'Fraud' },
@@ -57,7 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <nav className="flex gap-4 overflow-x-auto text-sm text-(--color-muted)">
             {NAV.map((item) => (
-              <Link key={item.href} href={item.href} className="hover:text-(--color-fg)">
+              <Link key={item.href} href={item.href as Route} className="hover:text-(--color-fg)">
                 {item.label}
               </Link>
             ))}

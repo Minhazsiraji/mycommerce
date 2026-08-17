@@ -128,6 +128,13 @@ describe('productInputSchema', () => {
   it('defaults status to draft so nothing publishes by accident', () => {
     expect(productInputSchema.safeParse(base).data?.status).toBe('draft')
   })
+
+  it('keeps existing products excluded from discovery by default', () => {
+    const parsed = productInputSchema.parse(base)
+    expect(parsed.discoveryEligible).toBe(false)
+    expect(parsed.condition).toBe('new')
+    expect(parsed.identifierExists).toBe(false)
+  })
 })
 
 describe('productFiltersSchema', () => {
