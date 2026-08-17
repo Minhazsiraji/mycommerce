@@ -18,6 +18,8 @@ export {
   updateProduct,
 } from './actions'
 
+export { includeAllActiveProductsInDiscovery } from './discovery-actions'
+
 /**
  * Uncached reads. Admin screens use these — an operator editing a product must
  * see the database, not a cached copy.
