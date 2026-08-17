@@ -14,14 +14,16 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
+const siteDescription =
+  'Shop footwear, apparel, electronics and everyday accessories at SirajiBD with clear prices, convenient ordering and delivery options across Bangladesh.'
+
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
     default: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
     template: '%s | SirajiBD',
   },
-  description:
-    'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+  description: siteDescription,
   alternates: { canonical: '/' },
   robots: {
     index: isIndexableEnvironment(),
@@ -32,14 +34,12 @@ export const metadata: Metadata = {
     url: '/',
     siteName: 'SirajiBD',
     title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
-    description:
-      'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+    description: siteDescription,
   },
   twitter: {
     card: 'summary',
     title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
-    description:
-      'Browse practical everyday products through a clear, modern shopping experience built for customers across Bangladesh.',
+    description: siteDescription,
   },
 }
 

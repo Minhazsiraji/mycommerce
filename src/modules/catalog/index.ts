@@ -18,6 +18,8 @@ export {
   updateProduct,
 } from './actions'
 
+export { includeAllActiveProductsInDiscovery } from './discovery-actions'
+
 /**
  * Uncached reads. Admin screens use these — an operator editing a product must
  * see the database, not a cached copy.
@@ -46,6 +48,7 @@ export {
 
 export { CATALOG_TAGS } from './tags'
 export { categoryHref, categoryQuery, hasCategoryFilters } from './category-url'
+export { buildDiscoveryCsv, getDiscoveryReadiness } from './discovery'
 
 export type { Category, Product, ProductImage, ProductStatus, ProductVariant } from './schema'
 

@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-import { formatBdt } from '@/lib/money'
+import { formatBdt, toDecimalString } from '@/lib/money'
+import { getSiteUrl } from '@/lib/site-metadata'
 import { storage } from '@/lib/storage'
 import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/catalog'
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
@@ -15,6 +16,22 @@ import { minorToMetaValue } from '@/modules/meta'
 
 type Params = { params: Promise<{ slug: string }> }
 
+function productDescription(product: {
+  title: string
+  description: string | null
+  category: { name: string } | null
+}) {
+  if (product.description?.trim()) return product.description.trim()
+
+  return `Shop ${product.title}${product.category ? ` in ${product.category.name}` : ''} at SirajiBD. View current price, availability and product details for customers in Bangladesh.`
+}
+
+function schemaCondition(condition: string) {
+  if (condition === 'used') return 'https://schema.org/UsedCondition'
+  if (condition === 'refurbished') return 'https://schema.org/RefurbishedCondition'
+  return 'https://schema.org/NewCondition'
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   await connection()
 
@@ -22,15 +39,28 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active') return {}
 
+  const description = productDescription(product)
+  const canonicalUrl = new URL(`/p/${slug}`, getSiteUrl()).href
+  const image = product.images[0]
+    ? storage.url(product.images[0].r2Key, { width: 1200, height: 630, fit: 'cover' })
+    : undefined
+
   return {
     title: product.title,
-    description: product.description ?? undefined,
+    description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
+      type: 'website',
+      url: canonicalUrl,
       title: product.title,
-      description: product.description ?? undefined,
-      images: product.images[0]
-        ? [storage.url(product.images[0].r2Key, { width: 1200, height: 630, fit: 'cover' })]
-        : [],
+      description,
+      images: image ? [image] : [],
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title: product.title,
+      description,
+      images: image ? [image] : undefined,
     },
   }
 }
@@ -44,12 +74,6 @@ export default async function ProductPage({ params }: Params) {
   // Draft and archived products must not be reachable by guessing the URL.
   if (!product || product.status !== 'active') notFound()
 
-  /**
-   * Three sizes rather than one. The displayed image stays modest so the page
-   * loads fast; hover-zoom scales it 2.5x, so it needs the headroom of a larger
-   * source; the lightbox gets the largest. Cloudinary generates each on demand,
-   * so the extra sizes cost nothing until someone actually zooms.
-   */
   const images = product.images.map((image) => ({
     id: image.id,
     alt: image.alt,
@@ -63,9 +87,72 @@ export default async function ProductPage({ params }: Params) {
     null,
   )
   const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
+  const canonicalUrl = new URL(`/p/${product.slug}`, getSiteUrl()).href
+  const description = productDescription(product)
+  const schemaDescription = product.feedDescription?.trim() || description
+  const productImageUrls = product.images.map((image) =>
+    storage.url(image.r2Key, { width: 1200, height: 1200, fit: 'contain' }),
+  )
+  const breadcrumbItems = [
+    { name: 'Home', item: getSiteUrl().href },
+    ...(product.category
+      ? [{ name: product.category.name, item: new URL(`/c/${product.category.slug}`, getSiteUrl()).href }]
+      : []),
+    { name: product.title, item: canonicalUrl },
+  ]
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    description: schemaDescription,
+    url: canonicalUrl,
+    ...(productImageUrls.length ? { image: productImageUrls } : {}),
+    ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+    ...(product.category ? { category: product.category.name } : {}),
+    ...(initialVariant?.sku ? { sku: initialVariant.sku } : {}),
+    ...(product.mpn?.trim() ? { mpn: product.mpn.trim() } : {}),
+    ...(initialVariant?.barcode && initialVariant.gtinType
+      ? { [initialVariant.gtinType]: initialVariant.barcode }
+      : {}),
+    ...(product.variants.length
+      ? {
+          offers: product.variants.map((variant) => ({
+            '@type': 'Offer',
+            url: canonicalUrl,
+            priceCurrency: 'BDT',
+            price: toDecimalString(variant.price),
+            availability:
+              variant.stock > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            itemCondition: schemaCondition(product.condition),
+            ...(variant.sku ? { sku: variant.sku } : {}),
+          })),
+        }
+      : {}),
+  }
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.item,
+    })),
+  }
 
   return (
     <div className="flex flex-col gap-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c') }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c') }}
+      />
+
       {initialVariant ? (
         <ViewContentTracker
           variantId={initialVariant.id}
@@ -73,7 +160,7 @@ export default async function ProductPage({ params }: Params) {
           value={minorToMetaValue(initialVariant.price)}
         />
       ) : null}
-      <nav className="text-sm text-(--color-muted)">
+      <nav aria-label="Breadcrumb" className="text-sm text-(--color-muted)">
         <Link href="/" className="hover:text-(--color-fg)">
           Home
         </Link>
@@ -85,6 +172,8 @@ export default async function ProductPage({ params }: Params) {
             </Link>
           </>
         ) : null}
+        {' / '}
+        <span aria-current="page">{product.title}</span>
       </nav>
 
       <div className="storefront-card grid gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
@@ -126,8 +215,6 @@ export default async function ProductPage({ params }: Params) {
         </div>
       </div>
 
-      {/* Streams in separately so it never delays the product itself — the
-          thing the visitor actually came for. */}
       <Suspense fallback={null}>
         <RelatedProducts productId={product.id} categoryId={product.categoryId} />
       </Suspense>

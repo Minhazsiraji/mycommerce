@@ -480,6 +480,12 @@ export async function insertProductWithVariants(input: ProductInput) {
         keywords: input.keywords ?? null,
         categoryId: input.categoryId,
         status: input.status,
+        discoveryEligible: input.discoveryEligible,
+        condition: input.condition,
+        feedDescription: input.feedDescription ?? null,
+        productCategory: input.productCategory ?? null,
+        mpn: input.mpn ?? null,
+        identifierExists: input.identifierExists,
       })
       .returning()
 
@@ -494,6 +500,8 @@ export async function insertProductWithVariants(input: ProductInput) {
         compareAtPrice: v.compareAtPrice,
         stock: v.stock,
         weightGrams: v.weightGrams,
+        barcode: v.barcode ?? null,
+        gtinType: v.gtinType,
         options: v.options,
         position: i,
       })),
@@ -515,6 +523,12 @@ export async function updateProductWithVariants(id: string, input: ProductInput)
         keywords: input.keywords ?? null,
         categoryId: input.categoryId,
         status: input.status,
+        discoveryEligible: input.discoveryEligible,
+        condition: input.condition,
+        feedDescription: input.feedDescription ?? null,
+        productCategory: input.productCategory ?? null,
+        mpn: input.mpn ?? null,
+        identifierExists: input.identifierExists,
         updatedAt: new Date(),
       })
       .where(eq(products.id, id))
@@ -554,6 +568,8 @@ export async function updateProductWithVariants(id: string, input: ProductInput)
         compareAtPrice: v.compareAtPrice,
         stock: v.stock,
         weightGrams: v.weightGrams,
+        barcode: v.barcode ?? null,
+        gtinType: v.gtinType,
         options: v.options,
         position: i,
         updatedAt: new Date(),

@@ -8,6 +8,7 @@ import { getOrderById, listShipments } from '@/modules/orders'
 import { OrderAdminActions } from '@/modules/orders/components/order-admin-actions'
 import { OrderNotes } from '@/modules/orders/components/order-notes'
 import { OrderParcels } from '@/modules/orders/components/order-parcels'
+import { GatewayPaymentRecheck } from '@/modules/payments/components/gateway-payment-recheck'
 
 export const metadata: Metadata = { title: 'Order' }
 
@@ -116,6 +117,10 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               <p className="text-xs text-(--color-muted)">Checkout IP: {order.checkoutIp}</p>
             ) : null}
           </section>
+
+          {order.paymentMethod === 'sslcommerz' && order.paymentStatus !== 'paid' ? (
+            <GatewayPaymentRecheck orderNumber={order.orderNumber} />
+          ) : null}
 
           <OrderParcels orderId={order.id} parcels={parcels} />
 

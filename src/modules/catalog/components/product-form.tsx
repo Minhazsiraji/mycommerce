@@ -21,6 +21,8 @@ type VariantRow = {
   compareAtPrice: string
   stock: string
   weightGrams: string
+  barcode: string
+  gtinType: string
 }
 
 export type ProductFormInitial = {
@@ -32,6 +34,12 @@ export type ProductFormInitial = {
   keywords: string | null
   categoryId: string | null
   status: string
+  discoveryEligible: boolean
+  condition: string
+  feedDescription: string | null
+  productCategory: string | null
+  mpn: string | null
+  identifierExists: boolean
   variants: {
     id: string
     sku: string
@@ -40,6 +48,8 @@ export type ProductFormInitial = {
     compareAtPrice: number | null
     stock: number
     weightGrams: number
+    barcode: string | null
+    gtinType: string | null
   }[]
 }
 
@@ -50,6 +60,8 @@ const emptyRow = (): VariantRow => ({
   compareAtPrice: '',
   stock: '0',
   weightGrams: '0',
+  barcode: '',
+  gtinType: '',
 })
 
 function toRows(initial?: ProductFormInitial): VariantRow[] {
@@ -63,6 +75,8 @@ function toRows(initial?: ProductFormInitial): VariantRow[] {
     compareAtPrice: v.compareAtPrice == null ? '' : formatBdtPlain(v.compareAtPrice),
     stock: String(v.stock),
     weightGrams: String(v.weightGrams),
+    barcode: v.barcode ?? '',
+    gtinType: v.gtinType ?? '',
   }))
 }
 
@@ -106,7 +120,13 @@ export function ProductForm({
         slug: String(formData.get('slug') ?? ''),
         description: String(formData.get('description') ?? ''),
         brand: String(formData.get('brand') ?? ''),
-      keywords: String(formData.get('keywords') ?? ''),
+        keywords: String(formData.get('keywords') ?? ''),
+        discoveryEligible: formData.get('discoveryEligible') === 'on',
+        condition: String(formData.get('condition') ?? 'new'),
+        feedDescription: String(formData.get('feedDescription') ?? ''),
+        productCategory: String(formData.get('productCategory') ?? ''),
+        mpn: String(formData.get('mpn') ?? ''),
+        identifierExists: formData.get('identifierExists') === 'on',
         categoryId: String(formData.get('categoryId') ?? '') || null,
         status: String(formData.get('status') ?? 'draft'),
         variants: (hasOptions ? rows : rows.slice(0, 1)).map((r) => ({
@@ -117,6 +137,8 @@ export function ProductForm({
           compareAtPrice: r.compareAtPrice,
           stock: r.stock,
           weightGrams: r.weightGrams,
+          barcode: r.barcode,
+          gtinType: r.gtinType || null,
           options: {},
         })),
       }
@@ -224,6 +246,53 @@ export function ProductForm({
         </p>
       </section>
 
+      <section className="flex flex-col gap-4 rounded-xl border border-(--color-border) p-4">
+        <div>
+          <h2 className="text-sm font-semibold">AI shopping discovery</h2>
+          <p className="mt-1 text-xs text-(--color-muted)">
+            Readiness controls only. Eligibility does not guarantee approval or placement by any
+            shopping platform.
+          </p>
+        </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="discoveryEligible"
+            defaultChecked={initial?.discoveryEligible ?? false}
+            className="mt-1"
+          />
+          Include this product in discovery exports
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select label="Condition" name="condition" defaultValue={initial?.condition ?? 'new'}>
+            <option value="new">New</option>
+            <option value="refurbished">Refurbished</option>
+            <option value="used">Used</option>
+          </Select>
+          <Input
+            label="Merchant product category"
+            name="productCategory"
+            defaultValue={initial?.productCategory ?? ''}
+            placeholder="Accessories > Wallets"
+          />
+          <Input label="MPN" name="mpn" defaultValue={initial?.mpn ?? ''} placeholder="Optional" />
+          <label className="flex items-center gap-2 self-end pb-2 text-sm">
+            <input
+              type="checkbox"
+              name="identifierExists"
+              defaultChecked={initial?.identifierExists ?? false}
+            />
+            Manufacturer identifier exists
+          </label>
+        </div>
+        <Textarea
+          label="Discovery description"
+          name="feedDescription"
+          defaultValue={initial?.feedDescription ?? ''}
+          error={errors.feedDescription}
+        />
+      </section>
+
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-(--color-muted)">
@@ -284,13 +353,29 @@ export function ProductForm({
               onChange={(e) => setRow(0, { weightGrams: e.target.value })}
               error={variantError(0, 'weightGrams')}
             />
+            <Input
+              label="Barcode / GTIN"
+              value={rows[0]?.barcode ?? ''}
+              onChange={(e) => setRow(0, { barcode: e.target.value })}
+              error={variantError(0, 'barcode')}
+            />
+            <Select
+              label="Identifier type"
+              value={rows[0]?.gtinType ?? ''}
+              onChange={(e) => setRow(0, { gtinType: e.target.value })}
+            >
+              <option value="">Not set</option>
+              <option value="gtin8">GTIN-8</option><option value="gtin12">GTIN-12 / UPC</option>
+              <option value="gtin13">GTIN-13 / EAN</option><option value="gtin14">GTIN-14</option>
+              <option value="isbn">ISBN</option>
+            </Select>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             {rows.map((row, i) => (
               <div
                 key={row.id ?? `new-${i}`}
-                className="grid gap-3 rounded-lg border border-(--color-border) p-4 sm:grid-cols-6"
+                className="grid gap-3 rounded-lg border border-(--color-border) p-4 sm:grid-cols-2 lg:grid-cols-4"
               >
                 <Input
                   label="Option"
@@ -326,6 +411,24 @@ export function ProductForm({
                   onChange={(e) => setRow(i, { stock: e.target.value })}
                   error={variantError(i, 'stock')}
                 />
+                <Input
+                  label="Barcode / GTIN"
+                  value={row.barcode}
+                  onChange={(e) => setRow(i, { barcode: e.target.value })}
+                  error={variantError(i, 'barcode')}
+                />
+                <Select
+                  label="Identifier type"
+                  value={row.gtinType}
+                  onChange={(e) => setRow(i, { gtinType: e.target.value })}
+                >
+                  <option value="">Not set</option>
+                  <option value="gtin8">GTIN-8</option>
+                  <option value="gtin12">GTIN-12 / UPC</option>
+                  <option value="gtin13">GTIN-13 / EAN</option>
+                  <option value="gtin14">GTIN-14</option>
+                  <option value="isbn">ISBN</option>
+                </Select>
                 <div className="flex flex-col justify-end gap-1.5">
                   <Input
                     label="Weight (g)"
