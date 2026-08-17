@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { handleGatewayNotification, readCallbackForm } from '@/modules/payments'
+import { reconcileGatewayOrder } from '@/modules/payments/reconciliation'
 
 const MAX_CALLBACK_BYTES = 64 * 1024
 
@@ -21,7 +22,6 @@ async function handle(request: Request) {
   let orderNumber = ''
   let valId = ''
 
-  // SSLCommerz posts the transaction back as form data on success and cancel.
   if (request.method === 'POST') {
     const form = await readCallbackForm(request, MAX_CALLBACK_BYTES).catch(() => null)
     orderNumber = String(form?.get('tran_id') ?? '')
@@ -29,40 +29,32 @@ async function handle(request: Request) {
   }
 
   if (!orderNumber) orderNumber = url.searchParams.get('tran_id') ?? ''
-
-  // Some gateway/browser combinations return without reposting tran_id. The
-  // callback created for this session carries the order number as a
-  // redirect-only fallback. It cannot change payment state; only the verified
-  // IPN handler can mark the order paid.
   if (!orderNumber) orderNumber = url.searchParams.get('order') ?? ''
 
-  /**
-   * Both values come from the request, so neither is trusted into a URL.
-   *
-   * The fixed origin prefix already rules out an off-site redirect, but
-   * unencoded input in a Location header is the response-splitting shape, and
-   * `..%2f` in the path segment would walk out of /orders. Order numbers are
-   * `MC-XXXXXX-XXXXXX`, so anything else is not a real return trip; the status
-   * is narrowed to the three values the gateway actually sends.
-   */
   if (!/^[A-Z0-9-]{4,32}$/i.test(orderNumber)) redirect('/')
 
-  // IPN and the browser return are independent requests and can arrive in
-  // either order. Verify the gateway's val_id here as well so the customer
-  // does not land on a stale unpaid page while a successful IPN is in flight.
-  // The service is idempotent, so an IPN that won the race makes this a no-op.
-  if (status === 'success' && valId) {
-    await handleGatewayNotification(valId).catch((error) => {
-      console.error('[sslcommerz] success return verification failed', { error })
+  if (status === 'success') {
+    // Fast path: when SSLCommerz reposts val_id, validate it immediately.
+    if (valId) {
+      await handleGatewayNotification(valId).catch((error) => {
+        console.error('[sslcommerz] success return validation failed', { orderNumber, error })
+      })
+    }
+
+    // Recovery path: some gateway/browser combinations return successfully
+    // without a val_id, and IPN can be delayed or missed. Query SSLCommerz by
+    // our merchant transaction id, obtain a provider val_id only from a
+    // VALID/VALIDATED transaction, and run it through the same authoritative
+    // validation/amount/currency checks. This remains safe even if the IPN won
+    // the race because settlement is idempotent.
+    await reconcileGatewayOrder(orderNumber).catch((error) => {
+      console.error('[sslcommerz] success return reconciliation failed', { orderNumber, error })
     })
   }
 
   const outcome = status === 'failed' || status === 'cancelled' ? status : 'cancelled'
   const query = status === 'success' ? '?payment=success' : `?payment=${outcome}`
 
-  // Stay on the deployment SSLCommerz returned to. Preview orders live in an
-  // isolated database, so sending this browser to the configured Production
-  // origin would make a valid Preview order appear to be missing.
   redirect(`/orders/${encodeURIComponent(orderNumber)}${query}`)
 }
 
