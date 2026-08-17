@@ -14,6 +14,11 @@ export const DEFAULT_STOREFRONT_SETTINGS = {
   heroSecondaryHref: '/search',
   heroBrandText: 'Siraji',
   heroBrandAccent: 'BD',
+  footerBrandText: 'Siraji',
+  footerBrandAccent: 'BD',
+  footerDescription:
+    'Clear choices. Honest information. A shopping journey you can understand.',
+  footerCopyright: '© @AgentSiraji',
 } as const
 
 export type StorefrontSettingsValues = {
@@ -29,4 +34,8 @@ export type StorefrontSettingsValues = {
   heroSecondaryHref: string
   heroBrandText: string
   heroBrandAccent: string
+  footerBrandText: string
+  footerBrandAccent: string
+  footerDescription: string
+  footerCopyright: string
 }

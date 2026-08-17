@@ -50,4 +50,21 @@ describe('storefrontSettingsInputSchema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('requires meaningful footer copy and allows an empty accent', () => {
+    expect(
+      storefrontSettingsInputSchema.safeParse({
+        ...validInput,
+        footerBrandAccent: '',
+        footerCopyright: '© @AgentSiraji',
+      }).success,
+    ).toBe(true)
+
+    expect(
+      storefrontSettingsInputSchema.safeParse({
+        ...validInput,
+        footerDescription: '',
+      }).success,
+    ).toBe(false)
+  })
 })

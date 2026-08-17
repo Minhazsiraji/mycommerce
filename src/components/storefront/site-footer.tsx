@@ -11,9 +11,16 @@ type NavigationItem = {
 
 export function SiteFooter({
   categories,
+  footer,
   privacyChoices,
 }: {
   categories: NavigationItem[]
+  footer: {
+    brandText: string
+    brandAccent: string
+    description: string
+    copyright: string
+  }
   privacyChoices?: React.ReactNode
 }) {
   const email = env.STORE_CONTACT_EMAIL
@@ -25,10 +32,13 @@ export function SiteFooter({
         <div className="mx-auto grid w-full max-w-(--container-content) grid-cols-1 gap-8 px-5 py-10 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-10 lg:py-14">
           <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
             <Link href="/" className="w-fit text-xl font-bold tracking-(--tracking-tight) focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)">
-              Siraji<span className="text-(--action-primary)">BD</span>
+              {footer.brandText}
+              {footer.brandAccent ? (
+                <span className="text-(--action-primary)">{footer.brandAccent}</span>
+              ) : null}
             </Link>
             <p className="max-w-xs text-sm leading-6 text-(--text-secondary)">
-              Clear choices. Honest information. A shopping journey you can understand.
+              {footer.description}
             </p>
           </div>
 
@@ -63,7 +73,7 @@ export function SiteFooter({
 
         <div className="border-t border-white/60 dark:border-white/15">
           <div className="mx-auto flex min-h-16 w-full max-w-(--container-content) items-center justify-between gap-4 px-5 text-xs text-(--text-muted) sm:px-8 lg:px-10">
-            <span>© SirajiBD</span>
+            <span>{footer.copyright}</span>
             {privacyChoices}
           </div>
         </div>

@@ -22,6 +22,10 @@ type Draft = {
   heroSecondaryHref: string
   heroBrandText: string
   heroBrandAccent: string
+  footerBrandText: string
+  footerBrandAccent: string
+  footerDescription: string
+  footerCopyright: string
 }
 
 const toDraft = (settings: StorefrontSettingsValues): Draft => ({
@@ -197,6 +201,48 @@ export function HomepageSettingsForm({ settings }: { settings: StorefrontSetting
             error={errors.heroBrandAccent}
           />
         </div>
+      </section>
+
+      <section className="flex flex-col gap-5 rounded-lg border border-(--color-border) p-5">
+        <div>
+          <h2 className="font-semibold">Footer settings</h2>
+          <p className="mt-1 text-sm text-(--color-muted)">
+            Controls the brand, description and owner credit shown in the storefront footer.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Footer brand text"
+            placeholder="Siraji"
+            value={draft.footerBrandText}
+            onChange={(event) => set({ footerBrandText: event.target.value })}
+            error={errors.footerBrandText}
+          />
+          <Input
+            label="Highlighted footer brand text"
+            placeholder="BD"
+            value={draft.footerBrandAccent}
+            onChange={(event) => set({ footerBrandAccent: event.target.value })}
+            error={errors.footerBrandAccent}
+          />
+        </div>
+
+        <Textarea
+          label="Footer description"
+          rows={3}
+          value={draft.footerDescription}
+          onChange={(event) => set({ footerDescription: event.target.value })}
+          error={errors.footerDescription}
+        />
+
+        <Input
+          label="Copyright / owner credit"
+          placeholder="© @AgentSiraji"
+          value={draft.footerCopyright}
+          onChange={(event) => set({ footerCopyright: event.target.value })}
+          error={errors.footerCopyright}
+        />
       </section>
 
       {formError ? (

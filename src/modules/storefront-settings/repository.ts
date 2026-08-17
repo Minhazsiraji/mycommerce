@@ -34,6 +34,10 @@ export async function getStorefrontSettings(): Promise<StorefrontSettingsValues>
     heroSecondaryHref: row.heroSecondaryHref,
     heroBrandText: row.heroBrandText,
     heroBrandAccent: row.heroBrandAccent,
+    footerBrandText: row.footerBrandText,
+    footerBrandAccent: row.footerBrandAccent,
+    footerDescription: row.footerDescription,
+    footerCopyright: row.footerCopyright,
   }
 }
 

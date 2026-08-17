@@ -38,6 +38,18 @@ export const storefrontSettings = pgTable('storefront_settings', {
   heroBrandAccent: text('hero_brand_accent')
     .notNull()
     .default(DEFAULT_STOREFRONT_SETTINGS.heroBrandAccent),
+  footerBrandText: text('footer_brand_text')
+    .notNull()
+    .default(DEFAULT_STOREFRONT_SETTINGS.footerBrandText),
+  footerBrandAccent: text('footer_brand_accent')
+    .notNull()
+    .default(DEFAULT_STOREFRONT_SETTINGS.footerBrandAccent),
+  footerDescription: text('footer_description')
+    .notNull()
+    .default(DEFAULT_STOREFRONT_SETTINGS.footerDescription),
+  footerCopyright: text('footer_copyright')
+    .notNull()
+    .default(DEFAULT_STOREFRONT_SETTINGS.footerCopyright),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
