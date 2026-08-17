@@ -12,6 +12,7 @@ import * as service from './service'
 import { CatalogError } from './service'
 import { CATALOG_TAGS } from './tags'
 import {
+  attachCategoryImageSchema,
   attachImageSchema,
   categoryInputSchema,
   productInputSchema,
@@ -203,6 +204,38 @@ export async function createImageUploadSignature(): Promise<ActionResult<UploadS
   } catch {
     // The thrown message names env vars; do not surface it to the browser.
     return fail('unavailable', 'Image uploads are not configured.')
+  }
+}
+
+export async function createCategoryImageUploadSignature(): Promise<
+  ActionResult<UploadSignature>
+> {
+  await requireRole('admin')
+
+  try {
+    return ok(storage.createUploadSignature({ folder: STORAGE_FOLDERS.categories }))
+  } catch {
+    return fail('unavailable', 'Image uploads are not configured.')
+  }
+}
+
+export async function attachCategoryImage(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const admin = await requireRole('admin')
+
+  const parsed = attachCategoryImageSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  try {
+    const category = await service.attachCategoryImage(parsed.data)
+    await recordAudit(admin, {
+      action: 'category.image_updated',
+      entityType: 'category',
+      entityId: category.id,
+    })
+    invalidate(CATEGORIES)
+    return ok({ id: category.id })
+  } catch (error) {
+    return toResult(error)
   }
 }
 

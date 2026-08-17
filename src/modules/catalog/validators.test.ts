@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  attachCategoryImageSchema,
   attachImageSchema,
   productFiltersSchema,
   productInputSchema,
@@ -21,6 +22,25 @@ describe('attachImageSchema', () => {
     expect(attachImageSchema.safeParse({ productId, key: 'unrelated/sample_123' }).success).toBe(
       false,
     )
+  })
+})
+
+describe('attachCategoryImageSchema', () => {
+  const categoryId = '123e4567-e89b-42d3-a456-426614174000'
+
+  it('accepts only keys in the signed category-upload folder', () => {
+    expect(
+      attachCategoryImageSchema.safeParse({
+        categoryId,
+        key: 'mycommerce/categories/sample_123',
+      }).success,
+    ).toBe(true)
+    expect(
+      attachCategoryImageSchema.safeParse({
+        categoryId,
+        key: 'mycommerce/products/sample_123',
+      }).success,
+    ).toBe(false)
   })
 })
 

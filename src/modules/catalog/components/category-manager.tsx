@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select'
 
 import { createCategory, deleteCategory, updateCategory } from '../actions'
 import { slugify } from '../validators'
+import { CategoryImageManager } from './category-image-manager'
 
 export type ManagedCategory = {
   id: string
@@ -16,6 +17,7 @@ export type ManagedCategory = {
   slug: string
   parentId: string | null
   productCount: number
+  imageUrl: string | null
 }
 
 export function CategoryManager({ categories }: { categories: ManagedCategory[] }) {
@@ -88,9 +90,12 @@ export function CategoryManager({ categories }: { categories: ManagedCategory[] 
       className="flex items-center justify-between gap-4 border-t border-(--color-border) px-4 py-3 text-sm"
       style={{ paddingLeft: `${16 + depth * 24}px` }}
     >
-      <span>
-        {c.name}
-        <span className="ml-2 text-xs text-(--color-muted)">/{c.slug}</span>
+      <span className="flex min-w-0 items-center gap-3">
+        <CategoryImageManager category={c} />
+        <span>
+          {c.name}
+          <span className="ml-2 text-xs text-(--color-muted)">/{c.slug}</span>
+        </span>
       </span>
       <span className="flex items-center gap-3">
         <span className="text-xs text-(--color-muted)">

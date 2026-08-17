@@ -190,7 +190,9 @@ export function ImageManager({
         >
           {busy ? 'Working…' : 'Upload images'}
         </Button>
-        <span className="text-xs text-(--color-muted)">JPG, PNG or WebP up to 5 MB</span>
+        <span className="text-xs text-(--color-muted)">
+          JPG, PNG or WebP up to 5 MB. Recommended: 1200 × 1200 px, 1:1 square.
+        </span>
       </div>
 
       {error ? (
