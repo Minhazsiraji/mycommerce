@@ -5,7 +5,7 @@ import { connection } from 'next/server'
 
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
-import { getVisibleOrder } from '@/modules/orders'
+import { getVisibleOrder, listShipments } from '@/modules/orders'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowButton } from '@/modules/payments/components/pay-now-button'
 import { PaymentStatusRefresh } from '@/modules/payments/components/payment-status-refresh'
@@ -45,6 +45,31 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
 }
 
+function fulfilmentCopy(status: string, paymentMethod: string) {
+  if (status === 'processing') {
+    return {
+      title: 'Order is being prepared',
+      body: 'Your order is confirmed and is being prepared for dispatch.',
+    }
+  }
+  if (status === 'shipped') {
+    return {
+      title: 'Your order has shipped',
+      body:
+        paymentMethod === 'cod'
+          ? 'Your parcel is on the way. Pay the courier when it arrives.'
+          : 'Your parcel is on the way. Tracking details are shown below when available.',
+    }
+  }
+  if (status === 'delivered') {
+    return {
+      title: 'Order delivered',
+      body: 'This order has been marked delivered. Thank you for shopping with SirajiBD.',
+    }
+  }
+  return null
+}
+
 export default async function OrderPage({
   params,
   searchParams,
@@ -68,7 +93,9 @@ export default async function OrderPage({
    */
   if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
+  const shipments = await listShipments(order.id)
   const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
+  const fulfilment = fulfilmentCopy(order.fulfillmentStatus, order.paymentMethod)
   const copy = order.status === 'cancelled'
     ? order.paymentStatus === 'paid'
       ? {
@@ -83,7 +110,9 @@ export default async function OrderPage({
           title: 'Payment received — confirming',
           body: 'Your payment was completed. We are confirming it now; you do not need to pay again.',
         }
-      : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
+      : fulfilment && (order.paymentStatus === 'paid' || order.paymentStatus === 'cod_pending')
+        ? fulfilment
+        : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
   const address = order.shippingAddress
 
   return (
@@ -137,6 +166,27 @@ export default async function OrderPage({
         !confirmingPayment &&
         (order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') ? (
         <PayNowButton orderNumber={order.orderNumber} amount={order.total} />
+      ) : null}
+
+      {shipments.length > 0 ? (
+        <section className="storefront-card flex flex-col gap-3 p-5 text-sm">
+          <h2 className="text-sm font-semibold">Delivery status</h2>
+          <p className="capitalize text-(--color-muted)">{order.fulfillmentStatus}</p>
+          <ul className="flex flex-col gap-3 border-t border-(--color-border) pt-3">
+            {shipments.map((shipment) => (
+              <li key={shipment.id} className="flex flex-col gap-1">
+                <span className="font-medium">{shipment.carrier}</span>
+                {shipment.trackingNumber ? (
+                  <span className="text-(--color-muted)">
+                    Tracking number: <span className="font-medium text-(--color-text)">{shipment.trackingNumber}</span>
+                  </span>
+                ) : (
+                  <span className="text-(--color-muted)">Tracking number will be added when available.</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <section className="storefront-card flex flex-col gap-3 p-5">
