@@ -15,7 +15,9 @@ export {
   listPendingTransfers,
   PaymentError,
 } from './service'
+export { reconcileGatewayOrder } from './reconciliation'
 export { CallbackPayloadTooLarge, readCallbackForm } from './callback-form'
 
+export type { GatewayReconciliationResult } from './reconciliation'
 export type { Payment, PaymentProvider } from './schema'
 export { PAYMENT_PROVIDERS } from './schema'
