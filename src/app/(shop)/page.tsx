@@ -5,13 +5,15 @@ import { SectionHeader } from '@/components/storefront/section-header'
 import { getCachedActiveProducts, getCachedCategories } from '@/modules/catalog'
 import { CategoryCard } from '@/modules/catalog/components/category-card'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
+import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
 
 export default async function HomePage() {
   await connection()
 
-  const [categoryResult, productResult] = await Promise.allSettled([
+  const [categoryResult, productResult, settingsResult] = await Promise.allSettled([
     getCachedCategories(),
     getCachedActiveProducts({ sort: 'newest', page: 1 }),
+    getCachedStorefrontSettings(),
   ])
 
   if (categoryResult.status === 'rejected') {
@@ -21,6 +23,15 @@ export default async function HomePage() {
   if (productResult.status === 'rejected') {
     console.error('Unable to load homepage new arrivals', productResult.reason)
   }
+
+  if (settingsResult.status === 'rejected') {
+    console.error('Unable to load homepage settings', settingsResult.reason)
+  }
+
+  const settings =
+    settingsResult.status === 'fulfilled'
+      ? settingsResult.value
+      : { ...DEFAULT_STOREFRONT_SETTINGS }
 
   const categories =
     categoryResult.status === 'fulfilled'
@@ -47,7 +58,11 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-16 md:gap-20">
-      <HomepageHero hasCategories={categories.length > 0} />
+      {settings.heroEnabled ? (
+        <HomepageHero hasCategories={categories.length > 0} settings={settings} />
+      ) : (
+        <h1 className="sr-only">{settings.heroTitle}</h1>
+      )}
 
       {categories.length > 0 ? (
         <section id="categories" aria-labelledby="categories-title" className="scroll-mt-6">
