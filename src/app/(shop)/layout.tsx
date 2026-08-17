@@ -13,6 +13,7 @@ import {
   PrivacyChoicesButton,
 } from '@/modules/meta/components/meta-analytics'
 import { getCachedDeliverySummary } from '@/modules/shipping'
+import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
 
 // This shared shell intentionally waits for request-time Postgres data. Next
 // 16.3 requires the blocking behavior to be declared when Cache Components is
@@ -29,32 +30,51 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     clientEnv.NEXT_PUBLIC_META_PIXEL_ID ||
       (env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN),
   )
-  let categories: Awaited<ReturnType<typeof getCachedCategories>> = []
+  const [categoriesResult, deliveryResult, settingsResult] = await Promise.allSettled([
+    getCachedCategories(),
+    getCachedDeliverySummary(),
+    getCachedStorefrontSettings(),
+  ])
 
-  try {
-    categories = await getCachedCategories()
-  } catch (error) {
-    console.error('Unable to load storefront categories', error)
+  if (categoriesResult.status === 'rejected') {
+    console.error('Unable to load storefront categories', categoriesResult.reason)
   }
+  if (deliveryResult.status === 'rejected') {
+    console.error('Unable to load storefront delivery facts', deliveryResult.reason)
+  }
+  if (settingsResult.status === 'rejected') {
+    console.error('Unable to load storefront settings', settingsResult.reason)
+  }
+
+  const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
+  const settings =
+    settingsResult.status === 'fulfilled'
+      ? settingsResult.value
+      : { ...DEFAULT_STOREFRONT_SETTINGS }
 
   const topCategories = categories.filter((category) => !category.parentId)
   const announcementFacts: { key: 'delivery' | 'threshold'; label: string }[] = []
 
-  try {
-    const { freeOver, estimate } = await getCachedDeliverySummary()
+  if (settings.announcementEnabled) {
+    const deliverySummary =
+      deliveryResult.status === 'fulfilled' ? deliveryResult.value : { freeOver: null, estimate: null }
+    const { freeOver, estimate } = deliverySummary
     const days =
       estimate &&
       (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
 
-    if (days) announcementFacts.push({ key: 'delivery', label: `Delivery in ${days} days` })
-    if (freeOver) {
+    const deliveryLabel =
+      settings.announcementDeliveryText ?? (days ? `Delivery in ${days} days` : null)
+    const offerLabel =
+      settings.announcementOfferText ?? (freeOver ? `Free delivery over ${formatBdt(freeOver)}` : null)
+
+    if (deliveryLabel) announcementFacts.push({ key: 'delivery', label: deliveryLabel })
+    if (offerLabel) {
       announcementFacts.push({
         key: 'threshold',
-        label: `Free delivery over ${formatBdt(freeOver)}`,
+        label: offerLabel,
       })
     }
-  } catch (error) {
-    console.error('Unable to load storefront delivery facts', error)
   }
 
   return (
