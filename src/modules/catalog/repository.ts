@@ -149,6 +149,15 @@ export async function updateCategory(id: string, input: Partial<CategoryInput>) 
   return row
 }
 
+export async function updateCategoryImage(id: string, imageKey: string) {
+  const [row] = await db
+    .update(categories)
+    .set({ imageKey, updatedAt: new Date() })
+    .where(eq(categories.id, id))
+    .returning()
+  return row
+}
+
 export async function deleteCategory(id: string) {
   await db.delete(categories).where(eq(categories.id, id))
 }

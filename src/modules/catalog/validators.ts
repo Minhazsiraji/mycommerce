@@ -139,6 +139,16 @@ export const attachImageSchema = z.object({
   alt: z.string().trim().max(200).optional(),
 })
 
+export const attachCategoryImageSchema = z.object({
+  categoryId: z.uuid(),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(300)
+    .regex(/^mycommerce\/categories\/[\w.\-/]+$/, 'Unexpected image key'),
+})
+
 export const reorderSchema = z.object({
   productId: z.uuid(),
   /** Ids in their new order. */

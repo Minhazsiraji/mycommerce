@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
 
+import { storage } from '@/lib/storage'
 import { listCategories, listProductsForAdmin } from '@/modules/catalog'
 import { CategoryManager } from '@/modules/catalog/components/category-manager'
 
@@ -33,6 +34,9 @@ export default async function AdminCategoriesPage() {
           slug: c.slug,
           parentId: c.parentId,
           productCount: counts.get(c.name) ?? 0,
+          imageUrl: c.imageKey
+            ? storage.url(c.imageKey, { width: 160, height: 160, fit: 'cover' })
+            : null,
         }))}
       />
     </div>

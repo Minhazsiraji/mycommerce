@@ -130,13 +130,10 @@ export async function deleteCategory(id: string) {
   await repo.deleteCategory(id)
 }
 
-export async function attachImage(input: { productId: string; key: string; alt?: string }) {
-  const product = await repo.getProductById(input.productId)
-  if (!product) throw new CatalogError('Product not found.')
-
+async function inspectUploadedImage(key: string) {
   let asset: UploadedAsset
   try {
-    asset = await storage.inspect(input.key)
+    asset = await storage.inspect(key)
   } catch {
     throw new CatalogError('The uploaded image could not be verified. Upload it again.')
   }
@@ -150,7 +147,7 @@ export async function attachImage(input: { productId: string; key: string; alt?:
     asset.width <= 12_000 &&
     asset.height <= 12_000
   const valid =
-    asset.key === input.key &&
+    asset.key === key &&
     allowedFormats.has(asset.format) &&
     Number.isFinite(asset.bytes) &&
     asset.bytes > 0 &&
@@ -158,9 +155,36 @@ export async function attachImage(input: { productId: string; key: string; alt?:
     validDimensions
 
   if (!valid) {
-    await storage.delete(input.key).catch(() => {})
+    await storage.delete(key).catch(() => {})
     throw new CatalogError('Use a JPG, PNG, WebP or AVIF image up to 5 MB.')
   }
+
+  return asset
+}
+
+export async function attachCategoryImage(input: { categoryId: string; key: string }) {
+  const category = await repo.getCategoryById(input.categoryId)
+  if (!category) throw new CatalogError('Category not found.')
+
+  await inspectUploadedImage(input.key)
+
+  const updated = await repo.updateCategoryImage(input.categoryId, input.key)
+  if (!updated) throw new CatalogError('Category not found.')
+
+  if (category.imageKey && category.imageKey !== input.key) {
+    await storage.delete(category.imageKey).catch((error) => {
+      console.error('[catalog] orphaned category image', category.imageKey, error)
+    })
+  }
+
+  return updated
+}
+
+export async function attachImage(input: { productId: string; key: string; alt?: string }) {
+  const product = await repo.getProductById(input.productId)
+  if (!product) throw new CatalogError('Product not found.')
+
+  await inspectUploadedImage(input.key)
 
   const row = await repo.insertImage(input)
   if (!row) throw new CatalogError('Could not attach the image.')
