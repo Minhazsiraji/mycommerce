@@ -63,6 +63,12 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
           keywords: product.keywords,
           categoryId: product.categoryId,
           status: product.status,
+          discoveryEligible: product.discoveryEligible,
+          condition: product.condition,
+          feedDescription: product.feedDescription,
+          productCategory: product.productCategory,
+          mpn: product.mpn,
+          identifierExists: product.identifierExists,
           variants: product.variants.map((v) => ({
             id: v.id,
             sku: v.sku,
@@ -71,6 +77,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
             compareAtPrice: v.compareAtPrice,
             stock: v.stock,
             weightGrams: v.weightGrams,
+            barcode: v.barcode,
+            gtinType: v.gtinType,
           })),
         }}
       />

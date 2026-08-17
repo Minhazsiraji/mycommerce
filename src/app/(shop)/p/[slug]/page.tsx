@@ -12,6 +12,7 @@ import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
 import { minorToMetaValue } from '@/modules/meta'
+import { getSiteUrl } from '@/lib/site-metadata'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -63,9 +64,37 @@ export default async function ProductPage({ params }: Params) {
     null,
   )
   const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
+  const structuredData = initialVariant ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.title,
+    description: product.feedDescription || product.description || undefined,
+    image: images.map((image) => image.url),
+    sku: initialVariant.sku,
+    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    mpn: product.mpn || undefined,
+    ...(initialVariant.barcode && initialVariant.gtinType
+      ? { [initialVariant.gtinType]: initialVariant.barcode }
+      : {}),
+    itemCondition: `https://schema.org/${product.condition === 'new' ? 'NewCondition' : product.condition === 'used' ? 'UsedCondition' : 'RefurbishedCondition'}`,
+    offers: {
+      '@type': 'Offer',
+      url: new URL(`/p/${product.slug}`, getSiteUrl()).href,
+      priceCurrency: 'BDT',
+      price: (initialVariant.price / 100).toFixed(2),
+      availability: initialVariant.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: `https://schema.org/${product.condition === 'new' ? 'NewCondition' : product.condition === 'used' ? 'UsedCondition' : 'RefurbishedCondition'}`,
+    },
+  } : null
 
   return (
     <div className="flex flex-col gap-10">
+      {structuredData ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
+        />
+      ) : null}
       {initialVariant ? (
         <ViewContentTracker
           variantId={initialVariant.id}
