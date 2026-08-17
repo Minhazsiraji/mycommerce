@@ -231,7 +231,7 @@ async function RelatedProducts({
   if (related.length === 0) return null
 
   return (
-    <section className="flex flex-col gap-6 border-t pt-10">
+    <section className="flex flex-col gap-6 border-t border-(--color-border) pt-10">
       <h2 className="text-xl font-semibold tracking-tight">You might also like</h2>
       <ProductGrid products={related.map((r) => ({ ...r, totalStock: Number(r.totalStock) }))} />
     </section>
