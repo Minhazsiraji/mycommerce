@@ -109,6 +109,23 @@ export default async function HomePage() {
         </section>
       ) : null}
 
+      <section
+        aria-labelledby="shopping-in-bangladesh-title"
+        className="storefront-card px-6 py-8 sm:px-8 sm:py-10"
+      >
+        <div className="max-w-3xl space-y-4">
+          <h2 id="shopping-in-bangladesh-title" className="text-2xl font-semibold tracking-tight">
+            Everyday shopping made simpler in Bangladesh
+          </h2>
+          <p className="leading-7 text-(--text-secondary)">
+            SirajiBD brings footwear, apparel, electronics and everyday accessories together in one clear storefront. Browse focused categories, compare straightforward prices and open each product page for current availability before you order.
+          </p>
+          <p className="leading-7 text-(--text-secondary)">
+            The store is designed for customers in Bangladesh with a simple path from product discovery to checkout and delivery selection. New products can be added over time without changing the way you browse, search or shop across the core categories.
+          </p>
+        </div>
+      </section>
+
       {allDiscoveryFailed ? (
         <section aria-labelledby="discovery-error-title" className="rounded-(--radius-xl) border border-(--feedback-danger-border) bg-(--feedback-danger-surface) px-6 py-10 text-center">
           <h2 id="discovery-error-title" className="text-lg font-semibold text-(--feedback-danger-text)">
