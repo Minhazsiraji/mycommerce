@@ -127,6 +127,13 @@
       "when": 1786969070046,
       "tag": "0017_regular_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787004300000,
+      "tag": "0018_fill_active_product_descriptions",
+      "breakpoints": true
     }
   ]
 }
