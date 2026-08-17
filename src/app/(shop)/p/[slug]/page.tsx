@@ -26,6 +26,12 @@ function productDescription(product: {
   return `Shop ${product.title}${product.category ? ` in ${product.category.name}` : ''} at SirajiBD. View current price, availability and product details for customers in Bangladesh.`
 }
 
+function schemaCondition(condition: string) {
+  if (condition === 'used') return 'https://schema.org/UsedCondition'
+  if (condition === 'refurbished') return 'https://schema.org/RefurbishedCondition'
+  return 'https://schema.org/NewCondition'
+}
+
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   await connection()
 
@@ -68,12 +74,6 @@ export default async function ProductPage({ params }: Params) {
   // Draft and archived products must not be reachable by guessing the URL.
   if (!product || product.status !== 'active') notFound()
 
-  /**
-   * Three sizes rather than one. The displayed image stays modest so the page
-   * loads fast; hover-zoom scales it 2.5x, so it needs the headroom of a larger
-   * source; the lightbox gets the largest. Cloudinary generates each on demand,
-   * so the extra sizes cost nothing until someone actually zooms.
-   */
   const images = product.images.map((image) => ({
     id: image.id,
     alt: image.alt,
@@ -89,6 +89,7 @@ export default async function ProductPage({ params }: Params) {
   const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
   const canonicalUrl = new URL(`/p/${product.slug}`, getSiteUrl()).href
   const description = productDescription(product)
+  const schemaDescription = product.feedDescription?.trim() || description
   const productImageUrls = product.images.map((image) =>
     storage.url(image.r2Key, { width: 1200, height: 1200, fit: 'contain' }),
   )
@@ -103,12 +104,16 @@ export default async function ProductPage({ params }: Params) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.title,
-    description,
+    description: schemaDescription,
     url: canonicalUrl,
     ...(productImageUrls.length ? { image: productImageUrls } : {}),
     ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
     ...(product.category ? { category: product.category.name } : {}),
     ...(initialVariant?.sku ? { sku: initialVariant.sku } : {}),
+    ...(product.mpn?.trim() ? { mpn: product.mpn.trim() } : {}),
+    ...(initialVariant?.barcode && initialVariant.gtinType
+      ? { [initialVariant.gtinType]: initialVariant.barcode }
+      : {}),
     ...(product.variants.length
       ? {
           offers: product.variants.map((variant) => ({
@@ -120,7 +125,7 @@ export default async function ProductPage({ params }: Params) {
               variant.stock > 0
                 ? 'https://schema.org/InStock'
                 : 'https://schema.org/OutOfStock',
-            itemCondition: 'https://schema.org/NewCondition',
+            itemCondition: schemaCondition(product.condition),
             ...(variant.sku ? { sku: variant.sku } : {}),
           })),
         }
@@ -210,8 +215,6 @@ export default async function ProductPage({ params }: Params) {
         </div>
       </div>
 
-      {/* Streams in separately so it never delays the product itself — the
-          thing the visitor actually came for. */}
       <Suspense fallback={null}>
         <RelatedProducts productId={product.id} categoryId={product.categoryId} />
       </Suspense>
