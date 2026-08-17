@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { connection } from 'next/server'
 
-import { getDiscoveryReadiness } from '@/modules/catalog'
+import {
+  getDiscoveryReadiness,
+  includeAllActiveProductsInDiscovery,
+} from '@/modules/catalog'
 
 export const metadata: Metadata = { title: 'AI shopping readiness' }
 
@@ -11,6 +14,13 @@ export default async function ShoppingReadinessPage() {
   const rows = await getDiscoveryReadiness()
   const eligible = rows.filter(({ product }) => product.discoveryEligible)
   const ready = rows.filter((row) => row.ready)
+  const active = rows.filter(({ product }) => product.status === 'active')
+  const excludedActive = active.filter(({ product }) => !product.discoveryEligible)
+
+  async function includeActiveCatalogue() {
+    'use server'
+    await includeAllActiveProductsInDiscovery()
+  }
 
   return <div className="flex flex-col gap-8">
     <div>
@@ -20,15 +30,24 @@ export default async function ShoppingReadinessPage() {
         certification, guaranteed listing, or direct ChatGPT checkout.
       </p>
     </div>
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-4">
       <Stat label="All products" value={rows.length} />
+      <Stat label="Active products" value={active.length} />
       <Stat label="Included by merchant" value={eligible.length} />
       <Stat label="Ready to export" value={ready.length} />
     </div>
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       <a href="/admin/shopping-readiness/feed" className="rounded-lg bg-(--color-accent) px-4 py-2 text-sm font-medium text-white">Download validated CSV</a>
-      <span className="self-center text-xs text-(--color-muted)">Only active, eligible products with no blocking issues are exported.</span>
+      {excludedActive.length > 0 ? <form action={includeActiveCatalogue}>
+        <button type="submit" className="rounded-lg border border-(--color-border) px-4 py-2 text-sm font-medium">
+          Include all {active.length} active products
+        </button>
+      </form> : null}
+      <span className="text-xs text-(--color-muted)">Only active, eligible products with no blocking issues are exported.</span>
     </div>
+    {excludedActive.length > 0 ? <p className="-mt-5 text-xs text-(--color-muted)">
+      Bulk inclusion changes discovery eligibility only. It does not activate archived products or bypass readiness checks.
+    </p> : null}
     <section className="overflow-x-auto rounded-xl border border-(--color-border)">
       <table className="w-full text-left text-sm"><thead><tr className="border-b border-(--color-border)">
         <th className="p-3">Product</th><th className="p-3">Included</th><th className="p-3">Readiness</th><th className="p-3">Action</th>
