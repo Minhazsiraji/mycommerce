@@ -12,15 +12,34 @@ export const viewContentEventSchema = z.object({
   variantId: z.uuid(),
 })
 
-export const initiateCheckoutEventSchema = z.object({
-  eventId: metaEventIdSchema,
-})
+export const initiateCheckoutEventSchema = z.object({ eventId: metaEventIdSchema })
 
-export type MetaContent = {
-  id: string
-  quantity: number
-  item_price: number
-}
+const optionalId = z.string().trim().max(80).regex(/^\d*$/, 'Use the numeric ID shown by Meta')
+
+export const metaIntegrationInputSchema = z
+  .object({
+    enabled: z.boolean(),
+    pixelId: optionalId,
+    datasetId: optionalId,
+    accessToken: z.string().trim().max(4000).optional().default(''),
+    clearAccessToken: z.boolean().optional().default(false),
+    testEventCode: z.string().trim().max(120),
+    domainVerificationCode: z.string().trim().max(255),
+  })
+  .superRefine((value, context) => {
+    if (value.accessToken && value.accessToken.length < 20) {
+      context.addIssue({ code: 'custom', path: ['accessToken'], message: 'Access token looks too short' })
+    }
+    if (value.enabled && !value.pixelId && !value.datasetId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['pixelId'],
+        message: 'Add a Pixel ID, a Dataset ID, or turn tracking off',
+      })
+    }
+  })
+
+export type MetaContent = { id: string; quantity: number; item_price: number }
 
 export type MetaCustomData = {
   content_ids?: string[]
