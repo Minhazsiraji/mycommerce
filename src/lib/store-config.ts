@@ -15,6 +15,7 @@ const schema = z.object({
 })
 
 const defaultName = process.env.STORE_NAME?.trim() || 'SirajiBD'
+const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || 'Bangladesh'
 
 export const STORE_CONFIG = Object.freeze(
   schema.parse({
@@ -23,12 +24,12 @@ export const STORE_CONFIG = Object.freeze(
     brandAccent: process.env.STORE_BRAND_ACCENT?.trim() || 'BD',
     canonicalUrl: process.env.STORE_CANONICAL_URL?.trim() || 'https://sirajibd.com',
     countryCode: process.env.STORE_COUNTRY_CODE?.trim() || 'BD',
-    countryName: process.env.STORE_COUNTRY_NAME?.trim() || 'Bangladesh',
+    countryName: defaultCountryName,
     currency: process.env.STORE_CURRENCY?.trim() || 'BDT',
     locale: process.env.STORE_LOCALE?.trim() || 'en-BD',
     defaultDescription:
       process.env.STORE_DEFAULT_DESCRIPTION?.trim() ||
-      `Shop footwear, apparel, electronics and everyday accessories at ${defaultName} with clear prices, convenient ordering and delivery options across Bangladesh.`,
+      `Shop footwear, apparel, electronics and everyday accessories at ${defaultName} with clear prices, convenient ordering and delivery options across ${defaultCountryName}.`,
   }),
 )
 
