@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
+import { getMetaAdminState } from '@/modules/meta'
 import { MetaIntegrationForm } from '@/modules/meta/components/meta-integration-form'
-import { getMetaAdminState } from '@/modules/meta/integration-config'
 
 export const metadata: Metadata = { title: 'Meta integration' }
 
