@@ -52,6 +52,15 @@ export default function TermsPage() {
           ),
         },
         {
+          title: 'Warranty and product support',
+          body: (
+            <>
+              <p>SirajiBD does not promise a blanket manufacturer or extended warranty for every product. If a product has a specific seller, manufacturer or service warranty, the applicable duration and material conditions should be stated on the product page or otherwise disclosed before purchase.</p>
+              <p>A product-specific warranty does not replace the return process for an item that arrives damaged, defective, wrong or incomplete, and nothing here limits rights that cannot lawfully be excluded.</p>
+            </>
+          ),
+        },
+        {
           title: 'Promotions and offers',
           body: (
             <p>Promotions may have stated eligibility, stock, time or usage limits. We may correct an obvious promotional error or end an offer prospectively, but we will not use undisclosed conditions to change a completed customer decision after the fact.</p>
