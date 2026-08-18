@@ -42,6 +42,7 @@ const serverSchema = z.object({
 
   /** Public business/contact details shown to customers when configured. */
   STORE_CONTACT_EMAIL: z.email().optional(),
+  STORE_ADMIN_EMAIL: z.email().optional(),
   STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
   STORE_BUSINESS_ADDRESS: z.string().trim().max(240).optional(),
 
