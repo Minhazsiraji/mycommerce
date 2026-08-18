@@ -6,12 +6,16 @@ import { after } from 'next/server'
 import { clientEnv, env } from '@/lib/env'
 import type { CartLine } from '@/modules/cart'
 
-import {
-  META_CONSENT_COOKIE,
-  META_CONSENT_GRANTED,
-} from './consent'
+import { META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
-import { hashUserData, normalizeBdPhone, normalizeEmail } from './normalization'
+import { getEffectiveMetaConfig } from './integration-config'
+import {
+  hashUserData,
+  normalizeBdPhone,
+  normalizeCity,
+  normalizeCountry,
+  normalizeEmail,
+} from './normalization'
 import * as repo from './repository'
 import { minorToMetaValue } from './value'
 import type { MetaCustomData } from './validators'
@@ -63,8 +67,9 @@ async function requestContext(fallbackPath: string): Promise<RequestContext | nu
   }
 }
 
-function configured() {
-  return Boolean(env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN)
+async function configured() {
+  const config = await getEffectiveMetaConfig()
+  return Boolean(config.enabled && config.datasetId && config.accessToken)
 }
 
 export const isCapiConfigured = configured
@@ -77,7 +82,8 @@ async function postEvent(input: {
   customData: MetaCustomData
   userData: Record<string, string | string[] | undefined>
 }) {
-  if (!env.META_CAPI_DATASET_ID || !env.META_CAPI_ACCESS_TOKEN) return { sent: false as const }
+  const config = await getEffectiveMetaConfig()
+  if (!config.enabled || !config.datasetId || !config.accessToken) return { sent: false as const }
 
   const event = {
     event_name: input.eventName,
@@ -91,18 +97,16 @@ async function postEvent(input: {
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(env.META_CAPI_DATASET_ID)}/events`,
+      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(config.datasetId)}/events`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.META_CAPI_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${config.accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           data: [event],
-          ...(env.META_CAPI_TEST_EVENT_CODE
-            ? { test_event_code: env.META_CAPI_TEST_EVENT_CODE }
-            : {}),
+          ...(config.testEventCode ? { test_event_code: config.testEventCode } : {}),
         }),
         cache: 'no-store',
         signal: AbortSignal.timeout(5_000),
@@ -114,6 +118,9 @@ async function postEvent(input: {
       return { sent: false as const, error: `Meta ${response.status}: ${detail}` }
     }
 
+    // Operational health only. Failure to update this timestamp must never turn
+    // a successful marketing delivery into a checkout/payment failure.
+    repo.recordMetaSuccessfulEvent(input.eventName).catch(() => undefined)
     return { sent: true as const }
   } catch (error) {
     return {
@@ -129,7 +136,7 @@ async function sendRequestEvent(
   customData: MetaCustomData,
   fallbackPath: string,
 ) {
-  if (!configured()) return
+  if (!(await configured())) return
   const context = await requestContext(fallbackPath)
   if (!context?.clientUserAgent) return
 
@@ -192,7 +199,10 @@ export async function trackAddToCart(input: {
   )
 }
 
-export async function trackInitiateCheckout(eventId: string, cart: { lines: CartLine[]; subtotal: number; itemCount: number }) {
+export async function trackInitiateCheckout(
+  eventId: string,
+  cart: { lines: CartLine[]; subtotal: number; itemCount: number },
+) {
   await sendRequestEvent(
     'InitiateCheckout',
     eventId,
@@ -214,7 +224,7 @@ export async function trackInitiateCheckout(eventId: string, cart: { lines: Cart
 
 /** Best-effort and called only after the commercial order transaction commits. */
 export async function captureOrderAttribution(orderId: string) {
-  if (!configured()) return
+  if (!(await configured())) return
   const context = await requestContext('/checkout')
   if (!context?.clientUserAgent) return
 
@@ -228,15 +238,10 @@ export async function captureOrderAttribution(orderId: string) {
 }
 
 export async function queuePurchase(orderId: string) {
-  if (!configured()) return
+  if (!(await configured())) return
 
   const context = await repo.getPurchaseContext(orderId)
-  // No attribution row means analytics consent was not granted at checkout.
-  if (
-    !context ||
-    context.order.paymentStatus !== 'paid' ||
-    context.order.status !== 'confirmed'
-  ) return
+  if (!context || context.order.paymentStatus !== 'paid' || context.order.status !== 'confirmed') return
 
   const eventId = purchaseEventId(orderId)
   await repo.enqueuePurchase(orderId, eventId)
@@ -258,6 +263,9 @@ async function deliverPurchase(eventId: string) {
   }
 
   const { order, attribution, items } = context
+  const city = normalizeCity(order.shippingAddress.city)
+  const country = normalizeCountry(order.shippingAddress.country)
+
   const result = await postEvent({
     eventName: 'Purchase',
     eventId,
@@ -269,6 +277,8 @@ async function deliverPurchase(eventId: string) {
     userData: {
       em: [hashUserData(normalizeEmail(order.email))],
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
+      ct: city ? [hashUserData(city)] : undefined,
+      country: country ? [hashUserData(country)] : undefined,
       external_id: order.userId ? [hashUserData(order.userId)] : undefined,
       client_ip_address: order.checkoutIp ?? undefined,
       client_user_agent: attribution.clientUserAgent,
@@ -294,7 +304,7 @@ async function deliverPurchase(eventId: string) {
 }
 
 export async function retryPendingPurchases() {
-  if (!configured()) return 0
+  if (!(await configured())) return 0
   const rows = await repo.listRetryableDeliveryIds()
   await Promise.all(rows.map((row) => deliverPurchase(row.eventId)))
   return rows.length
