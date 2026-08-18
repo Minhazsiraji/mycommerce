@@ -1,0 +1,32 @@
+import type { Metadata } from 'next'
+
+import { MetaIntegrationSettingsForm } from '@/modules/meta/components/integration-settings-form'
+import { getMetaAdminState } from '@/modules/meta/integration'
+
+export const metadata: Metadata = { title: 'Meta integration' }
+
+const formatDate = (value: Date | null) => (value ? value.toLocaleString('en-BD', { timeZone: 'Asia/Dhaka' }) : null)
+
+export default async function MetaIntegrationPage() {
+  const state = await getMetaAdminState()
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div>
+        <p className="text-sm text-(--color-muted)">Integrations → Meta</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Meta Pixel & Conversions API</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-(--color-muted)">
+          Configure browser and server-side tracking per store. Environment variables remain a fallback for existing deployments, while saved credentials are encrypted at rest.
+        </p>
+      </div>
+
+      <MetaIntegrationSettingsForm
+        initial={{
+          ...state,
+          lastTestedAt: formatDate(state.lastTestedAt),
+          lastSuccessfulEventAt: formatDate(state.lastSuccessfulEventAt),
+        }}
+      />
+    </div>
+  )
+}
