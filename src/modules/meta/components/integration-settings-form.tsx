@@ -55,15 +55,7 @@ export function MetaIntegrationSettingsForm({ initial }: { initial: State }) {
     setErrors({})
     setMessage(undefined)
     startTransition(async () => {
-      const result = await updateMetaIntegration({
-        enabled,
-        pixelId,
-        datasetId,
-        accessToken,
-        clearAccessToken,
-        testEventCode,
-        domainVerificationCode,
-      })
+      const result = await updateMetaIntegration({ enabled, pixelId, datasetId, accessToken, clearAccessToken, testEventCode, domainVerificationCode })
       if (!result.ok) {
         setErrors(result.error.fields ?? {})
         setMessage(result.error.message)
@@ -111,9 +103,7 @@ export function MetaIntegrationSettingsForm({ initial }: { initial: State }) {
       <section className="rounded-lg border border-(--color-border) p-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold">Meta tracking configuration</h2>
-          <p className="text-sm leading-6 text-(--color-muted)">
-            Configure a cloned store here instead of editing Vercel variables. The CAPI token is encrypted server-side and is never returned to this page.
-          </p>
+          <p className="text-sm leading-6 text-(--color-muted)">Configure a cloned store here instead of editing Vercel variables. The CAPI token is encrypted server-side and is never returned to this page.</p>
         </div>
 
         <label className="mt-5 flex items-start justify-between gap-5 rounded-lg border border-(--color-border) p-4">
@@ -125,36 +115,20 @@ export function MetaIntegrationSettingsForm({ initial }: { initial: State }) {
         </label>
 
         <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <label className="flex flex-col gap-2 text-sm font-medium">
-            Pixel ID
-            <Input value={pixelId} onChange={(event) => setPixelId(event.target.value)} inputMode="numeric" placeholder="Meta Pixel ID" />
-            {errors.pixelId ? <span className="text-xs text-red-600">{errors.pixelId}</span> : null}
-          </label>
-          <label className="flex flex-col gap-2 text-sm font-medium">
-            CAPI Dataset ID
-            <Input value={datasetId} onChange={(event) => setDatasetId(event.target.value)} inputMode="numeric" placeholder="Meta Dataset ID" />
-            {errors.datasetId ? <span className="text-xs text-red-600">{errors.datasetId}</span> : null}
-          </label>
-          <label className="flex flex-col gap-2 text-sm font-medium md:col-span-2">
-            CAPI Access Token
-            <Input type="password" autoComplete="new-password" value={accessToken} onChange={(event) => setAccessToken(event.target.value)} placeholder={initial.accessTokenConfigured ? 'Configured — leave blank to keep current token' : 'Paste access token'} />
-            <span className="text-xs font-normal text-(--color-muted)">Stored as AES-256-GCM ciphertext. The saved value is never sent back to the browser.</span>
-            {errors.accessToken ? <span className="text-xs text-red-600">{errors.accessToken}</span> : null}
+          <Input label="Pixel ID" error={errors.pixelId} value={pixelId} onChange={(event) => setPixelId(event.target.value)} inputMode="numeric" placeholder="Meta Pixel ID" />
+          <Input label="CAPI Dataset ID" error={errors.datasetId} value={datasetId} onChange={(event) => setDatasetId(event.target.value)} inputMode="numeric" placeholder="Meta Dataset ID" />
+          <div className="md:col-span-2">
+            <Input label="CAPI Access Token" error={errors.accessToken} type="password" autoComplete="new-password" value={accessToken} onChange={(event) => setAccessToken(event.target.value)} placeholder={initial.accessTokenConfigured ? 'Configured — leave blank to keep current token' : 'Paste access token'} />
+            <p className="mt-1.5 text-xs text-(--color-muted)">Stored as AES-256-GCM ciphertext. The saved value is never sent back to the browser.</p>
             {initial.accessTokenConfigured ? (
-              <label className="flex items-center gap-2 text-xs font-normal text-(--color-muted)">
+              <label className="mt-2 flex items-center gap-2 text-xs text-(--color-muted)">
                 <input type="checkbox" checked={clearAccessToken} onChange={(event) => setClearAccessToken(event.target.checked)} />
                 Remove the saved token and fall back to the environment token if one exists
               </label>
             ) : null}
-          </label>
-          <label className="flex flex-col gap-2 text-sm font-medium">
-            Test Event Code <span className="text-xs font-normal text-(--color-muted)">(optional, Preview/testing)</span>
-            <Input value={testEventCode} onChange={(event) => setTestEventCode(event.target.value)} placeholder="TEST12345" />
-          </label>
-          <label className="flex flex-col gap-2 text-sm font-medium">
-            Domain verification code <span className="text-xs font-normal text-(--color-muted)">(optional)</span>
-            <Input value={domainVerificationCode} onChange={(event) => setDomainVerificationCode(event.target.value)} placeholder="Code only, not the whole meta tag" />
-          </label>
+          </div>
+          <Input label="Test Event Code (optional, Preview/testing)" value={testEventCode} onChange={(event) => setTestEventCode(event.target.value)} placeholder="TEST12345" />
+          <Input label="Domain verification code (optional)" value={domainVerificationCode} onChange={(event) => setDomainVerificationCode(event.target.value)} placeholder="Code only, not the whole meta tag" />
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
