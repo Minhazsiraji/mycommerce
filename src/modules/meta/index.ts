@@ -5,6 +5,7 @@ export {
   retryPendingPurchases,
   trackAddToCart,
 } from './service'
-export { getMetaAdminState, getMetaPublicConfig } from './integration'
+export { getMetaAdminState } from './integration'
+export { getCachedMetaPublicConfig } from './cached'
 export { purchaseEventId } from './event-id'
 export { minorToMetaValue } from './value'
