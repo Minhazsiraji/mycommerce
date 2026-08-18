@@ -40,18 +40,14 @@ const serverSchema = z.object({
     .optional()
     .transform((v) => v !== 'false'),
 
-  /**
-   * How a customer reaches a human. Shown in the footer, omitted when unset —
-   * a store with no way to contact it is one customers do not trust with a card
-   * number, and payment gateways commonly ask for this at merchant review.
-   */
+  /** How a customer reaches a human. */
   STORE_CONTACT_EMAIL: z.email().optional(),
   STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
 
   /**
-   * Meta Conversions API. Both values are required together; the token never
-   * crosses the server boundary. Preview uses its own dataset and may set a
-   * Test Events code so validation traffic cannot contaminate Production.
+   * Meta environment fallback. Admin-managed settings take precedence once a
+   * settings row exists, but these values keep existing SirajiBD tracking live
+   * during migration and provide a safe rollback path.
    */
   META_CAPI_DATASET_ID: z.string().trim().min(1).optional(),
   META_CAPI_ACCESS_TOKEN: z.string().trim().min(20).optional(),
@@ -62,10 +58,13 @@ const serverSchema = z.object({
     .default('v25.0'),
 
   /**
-   * Bank details shown to customers paying by transfer. Env rather than admin
-   * because they are set once and changing them is a deliberate, rare act —
-   * and a typo here sends money to the wrong account.
+   * Base64-encoded 32-byte AES key used only to encrypt/decrypt integration
+   * secrets stored in Postgres. Optional so env-only Meta tracking continues to
+   * work before an operator enables Admin-managed credentials.
    */
+  INTEGRATIONS_ENCRYPTION_KEY: z.string().trim().min(43).max(64).optional(),
+
+  /** Bank details shown to customers paying by transfer. */
   BANK_ACCOUNT_NAME: z.string().optional(),
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
@@ -100,16 +99,9 @@ function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string)
   return parsed.data
 }
 
-export const env = load(
-  serverSchema,
-  process.env,
-  'server',
-)
+export const env = load(serverSchema, process.env, 'server')
 
-/**
- * Referenced explicitly rather than through process.env so Next can inline the
- * value at build time.
- */
+/** Referenced explicitly so Next can inline the public values at build time. */
 export const clientEnv = load(
   clientSchema,
   {
