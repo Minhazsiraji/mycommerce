@@ -6,6 +6,7 @@ import { AnnouncementBar } from '@/components/storefront/announcement-bar'
 import { SiteFooter } from '@/components/storefront/site-footer'
 import { StorefrontHeader } from '@/components/storefront/storefront-header'
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
 import { getEffectiveMetaConfig } from '@/modules/meta'
@@ -88,6 +89,11 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
             categories={topCategories}
+            brand={{
+              name: STORE_CONFIG.name,
+              text: STORE_CONFIG.brandText,
+              accent: STORE_CONFIG.brandAccent,
+            }}
             cart={
               <Suspense fallback={<CartBadgeFallback />}>
                 <CartBadge />
