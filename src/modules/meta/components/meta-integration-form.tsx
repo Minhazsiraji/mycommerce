@@ -71,7 +71,12 @@ export function MetaIntegrationForm({ initial, status, health }: Props) {
         setMessage(result.error.message)
         return
       }
-      setDraft((current) => ({ ...current, accessToken: '', clearAccessToken: false, tokenStored: current.tokenStored || Boolean(current.accessToken) }))
+      setDraft((current) => ({
+        ...current,
+        accessToken: '',
+        clearAccessToken: false,
+        tokenStored: current.tokenStored || Boolean(current.accessToken),
+      }))
       setMessage('Meta integration settings saved.')
       router.refresh()
     })
@@ -85,8 +90,6 @@ export function MetaIntegrationForm({ initial, status, health }: Props) {
       router.refresh()
     })
   }
-
-  const field = (name: string) => errors[name] ? <p className="mt-1 text-xs text-red-600">{errors[name]}</p> : null
 
   return (
     <div className="flex flex-col gap-8">
@@ -120,23 +123,36 @@ export function MetaIntegrationForm({ initial, status, health }: Props) {
         </label>
 
         <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Pixel ID" hint="Numeric Pixel ID from Meta Events Manager">
-            <Input value={draft.pixelId} onChange={(event) => set({ pixelId: event.target.value })} inputMode="numeric" autoComplete="off" />
-            {field('pixelId')}
-          </Field>
-          <Field label="Dataset ID" hint="Numeric Dataset ID used by Conversions API">
-            <Input value={draft.datasetId} onChange={(event) => set({ datasetId: event.target.value })} inputMode="numeric" autoComplete="off" />
-            {field('datasetId')}
-          </Field>
-          <Field label="CAPI access token" hint={draft.tokenStored ? 'A token is stored. Leave blank to keep it.' : 'Stored encrypted; never returned to the browser.'}>
+          <Field hint="Numeric Pixel ID from Meta Events Manager">
             <Input
+              label="Pixel ID"
+              error={errors.pixelId}
+              value={draft.pixelId}
+              onChange={(event) => set({ pixelId: event.target.value })}
+              inputMode="numeric"
+              autoComplete="off"
+            />
+          </Field>
+          <Field hint="Numeric Dataset ID used by Conversions API">
+            <Input
+              label="Dataset ID"
+              error={errors.datasetId}
+              value={draft.datasetId}
+              onChange={(event) => set({ datasetId: event.target.value })}
+              inputMode="numeric"
+              autoComplete="off"
+            />
+          </Field>
+          <Field hint={draft.tokenStored ? 'A token is stored. Leave blank to keep it.' : 'Stored encrypted; never returned to the browser.'}>
+            <Input
+              label="CAPI access token"
+              error={errors.accessToken}
               type="password"
               value={draft.accessToken}
               placeholder={draft.tokenStored ? '•••••••••••••••• (stored)' : 'Paste token once'}
               onChange={(event) => set({ accessToken: event.target.value, clearAccessToken: false })}
               autoComplete="new-password"
             />
-            {field('accessToken')}
             {draft.tokenStored ? (
               <label className="mt-2 flex items-center gap-2 text-xs text-(--color-muted)">
                 <input
@@ -148,13 +164,23 @@ export function MetaIntegrationForm({ initial, status, health }: Props) {
               </label>
             ) : null}
           </Field>
-          <Field label="Test Event Code" hint="Optional. Use only while validating events in Meta Test Events.">
-            <Input value={draft.testEventCode} onChange={(event) => set({ testEventCode: event.target.value })} autoComplete="off" />
-            {field('testEventCode')}
+          <Field hint="Optional. Use only while validating events in Meta Test Events.">
+            <Input
+              label="Test Event Code"
+              error={errors.testEventCode}
+              value={draft.testEventCode}
+              onChange={(event) => set({ testEventCode: event.target.value })}
+              autoComplete="off"
+            />
           </Field>
-          <Field label="Domain verification content" hint="Paste only the content value Meta gives you, not the full <meta> tag.">
-            <Input value={draft.domainVerification} onChange={(event) => set({ domainVerification: event.target.value })} autoComplete="off" />
-            {field('domainVerification')}
+          <Field hint="Paste only the content value Meta gives you, not the full <meta> tag.">
+            <Input
+              label="Domain verification content"
+              error={errors.domainVerification}
+              value={draft.domainVerification}
+              onChange={(event) => set({ domainVerification: event.target.value })}
+              autoComplete="off"
+            />
           </Field>
         </div>
 
@@ -221,8 +247,8 @@ export function MetaIntegrationForm({ initial, status, health }: Props) {
 function StatusCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return <div className="rounded-xl border border-(--color-border) p-4"><p className="text-xs text-(--color-muted)">{label}</p><p className="mt-2 font-semibold">{value}</p><p className="mt-1 text-xs text-(--color-muted)">{detail}</p></div>
 }
-function Field({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
-  return <label className="block"><span className="text-sm font-medium">{label}</span><span className="mb-2 mt-1 block text-xs text-(--color-muted)">{hint}</span>{children}</label>
+function Field({ hint, children }: { hint: string; children: React.ReactNode }) {
+  return <div className="block"><div>{children}</div><p className="mt-1 text-xs text-(--color-muted)">{hint}</p></div>
 }
 function HealthRow({ label, value }: { label: string; value: string }) {
   return <div className="grid gap-1"><dt className="text-xs text-(--color-muted)">{label}</dt><dd>{value}</dd></div>
