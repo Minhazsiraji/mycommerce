@@ -1,7 +1,43 @@
 import { relations, sql } from 'drizzle-orm'
-import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 import { orders } from '@/modules/orders/schema'
+
+/**
+ * Admin-managed Meta integration configuration.
+ *
+ * One row is used by the current single-store application (`default`). Keeping
+ * a store key in the model makes the boundary explicit and lets future client
+ * deployments add store scoping without redesigning the secret contract.
+ *
+ * The CAPI access token is AES-256-GCM encrypted before it reaches this table.
+ * It is never returned to a client component.
+ */
+export const metaIntegrationSettings = pgTable('meta_integration_settings', {
+  storeKey: text('store_key').primaryKey().default('default'),
+  trackingEnabled: boolean('tracking_enabled').notNull().default(false),
+  pixelId: text('pixel_id'),
+  datasetId: text('dataset_id'),
+  accessTokenEncrypted: text('access_token_encrypted'),
+  testEventCode: text('test_event_code'),
+  domainVerification: text('domain_verification'),
+  lastConnectionTestAt: timestamp('last_connection_test_at'),
+  lastConnectionStatus: text('last_connection_status'),
+  lastConnectionMessage: text('last_connection_message'),
+  lastSuccessfulEventAt: timestamp('last_successful_event_at'),
+  lastSuccessfulEventName: text('last_successful_event_name'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
 
 /**
  * Consent-scoped attribution captured when the order is created.
