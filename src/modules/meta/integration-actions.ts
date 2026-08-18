@@ -1,11 +1,12 @@
 'use server'
 
-import { refresh } from 'next/cache'
+import { refresh, updateTag } from 'next/cache'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
+import { META_INTEGRATION_CACHE_TAG } from './cached'
 import { saveMetaIntegration, testMetaConnection } from './integration'
 import { metaIntegrationInputSchema } from './validators'
 
@@ -30,6 +31,7 @@ export async function updateMetaIntegration(input: unknown): Promise<ActionResul
     },
   })
 
+  updateTag(META_INTEGRATION_CACHE_TAG)
   refresh()
   return ok(null)
 }
