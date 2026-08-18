@@ -22,15 +22,20 @@ vi.mock('next/headers', () => ({
   }),
 }))
 vi.mock('@/lib/env', () => ({
-  clientEnv: { NEXT_PUBLIC_APP_URL: 'https://shop.example' },
+  clientEnv: { NEXT_PUBLIC_APP_URL: 'https://shop.example', NEXT_PUBLIC_META_PIXEL_ID: undefined },
   env: {
     META_CAPI_DATASET_ID: 'dataset-test',
     META_CAPI_ACCESS_TOKEN: 'server-only-test-token-with-safe-length',
     META_CAPI_TEST_EVENT_CODE: 'TEST123',
     META_GRAPH_API_VERSION: 'v25.0',
+    BETTER_AUTH_SECRET: 'test-auth-secret-that-is-more-than-thirty-two-characters',
   },
 }))
-vi.mock('./repository', () => ({ deleteAttributionForUser: vi.fn() }))
+vi.mock('./repository', () => ({
+  deleteAttributionForUser: vi.fn(),
+  getIntegrationSettings: vi.fn().mockResolvedValue(undefined),
+  recordSuccessfulEvent: vi.fn().mockResolvedValue(undefined),
+}))
 
 import { trackAddToCart } from './service'
 
@@ -45,7 +50,6 @@ describe('Meta delivery failure isolation', () => {
 
   it('does not throw when Meta is unavailable', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network offline')))
-
     await expect(
       trackAddToCart({
         eventId: 'addtocart:3f99ce0d-c696-43f4-84ff-c6cae1539876',
@@ -59,13 +63,11 @@ describe('Meta delivery failure isolation', () => {
     state.consent = 'denied_v1'
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
-
     await trackAddToCart({
       eventId: 'addtocart:3f99ce0d-c696-43f4-84ff-c6cae1539876',
       variant: { id: '01989be2-5ef1-7ad0-a826-6aa6cc777111', price: 45000, productTitle: 'Shoe spray' },
       quantity: 1,
     })
-
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
