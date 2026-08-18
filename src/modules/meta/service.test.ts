@@ -23,14 +23,21 @@ vi.mock('next/headers', () => ({
 }))
 vi.mock('@/lib/env', () => ({
   clientEnv: { NEXT_PUBLIC_APP_URL: 'https://shop.example' },
-  env: {
-    META_CAPI_DATASET_ID: 'dataset-test',
-    META_CAPI_ACCESS_TOKEN: 'server-only-test-token-with-safe-length',
-    META_CAPI_TEST_EVENT_CODE: 'TEST123',
-    META_GRAPH_API_VERSION: 'v25.0',
-  },
+  env: { META_GRAPH_API_VERSION: 'v25.0' },
 }))
-vi.mock('./repository', () => ({ deleteAttributionForUser: vi.fn() }))
+vi.mock('./integration-config', () => ({
+  getEffectiveMetaConfig: async () => ({
+    enabled: true,
+    source: 'env',
+    datasetId: '1234567890',
+    accessToken: 'server-only-test-token-with-safe-length',
+    testEventCode: 'TEST123',
+  }),
+}))
+vi.mock('./repository', () => ({
+  deleteAttributionForUser: vi.fn(),
+  recordMetaSuccessfulEvent: vi.fn().mockResolvedValue(undefined),
+}))
 
 import { trackAddToCart } from './service'
 
