@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { connection } from 'next/server'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
@@ -73,7 +74,7 @@ export default async function ShippingPage() {
         {
           title: 'Receiving your order',
           body: (
-            <p>When practical, check the parcel and product promptly after delivery. If the item is damaged, defective, wrong or incomplete, contact us as soon as possible and follow the <a className="underline" href="/returns">Returns & Refunds</a> process.</p>
+            <p>When practical, check the parcel and product promptly after delivery. If the item is damaged, defective, wrong or incomplete, contact us as soon as possible and follow the <Link className="underline" href="/returns">Returns & Refunds</Link> process.</p>
           ),
         },
         {
