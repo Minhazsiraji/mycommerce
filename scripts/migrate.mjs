@@ -1,13 +1,5 @@
 /**
- * Applies pending migrations. Runs as part of `vercel-build`, before Next
- * compiles, so production schema is never behind the code that needs it.
- *
- * Uses Drizzle's programmatic migrator rather than the `drizzle-kit` CLI: the
- * CLI is a devDependency and would need to survive Vercel's production prune.
- * Drizzle tracks applied migrations in `__drizzle_migrations`, so re-running is
- * a no-op — safe on every build.
- *
- * Run locally with: node scripts/migrate.mjs
+ * Applies pending migrations before Vercel compiles the app.
  */
 import { neonConfig, Pool } from '@neondatabase/serverless'
 import { config as loadEnv } from 'dotenv'
@@ -32,10 +24,18 @@ const pool = new Pool({ connectionString: databaseUrl })
 try {
   const started = Date.now()
   await migrate(drizzle(pool), { migrationsFolder: './drizzle' })
-  console.log(`[migrate] up to date in ${Date.now() - started}ms`)
+
+  const result = await pool.query("select column_name from information_schema.columns where table_schema = 'public' and table_name = 'meta_integration_settings'")
+  const columns = new Set(result.rows.map((row) => row.column_name))
+  const required = ['store_key', 'tracking_enabled', 'pixel_id', 'dataset_id', 'access_token_encrypted']
+  const missing = required.filter((column) => !columns.has(column))
+
+  if (missing.length) {
+    throw new Error(`meta_integration_settings schema incomplete: ${missing.join(', ')}`)
+  }
+
+  console.log(`[migrate] schema verified; up to date in ${Date.now() - started}ms`)
 } catch (error) {
-  // Fail the build. Deploying code whose tables do not exist turns a loud
-  // build failure into every page 500ing in production.
   console.error('[migrate] FAILED:', error instanceof Error ? error.message : error)
   process.exit(1)
 } finally {
