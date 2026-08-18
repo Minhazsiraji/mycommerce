@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 
 import { getMetaAdminState } from '@/modules/meta'
 import { MetaIntegrationSettingsForm } from '@/modules/meta/components/integration-settings-form'
@@ -8,6 +9,9 @@ export const metadata: Metadata = { title: 'Meta integration' }
 const formatDate = (value: Date | null) => (value ? value.toLocaleString('en-BD', { timeZone: 'Asia/Dhaka' }) : null)
 
 export default async function MetaIntegrationPage() {
+  // This page reads encrypted integration state from Postgres. Force the read to
+  // request time so CI/static builds do not require a live DATABASE_URL.
+  await connection()
   const state = await getMetaAdminState()
 
   return (
