@@ -1,16 +1,83 @@
 import 'server-only'
 
-import { and, asc, eq, inArray, lt, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, lt, or, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
 import {
   metaEventDeliveries,
+  metaIntegrationSettings,
   metaOrderAttributions,
   orderItems,
   orders,
   products,
   productVariants,
 } from '@/lib/db/schema'
+
+export const META_STORE_KEY = 'default'
+
+export function getMetaIntegrationSettings() {
+  return db.query.metaIntegrationSettings.findFirst({
+    where: eq(metaIntegrationSettings.storeKey, META_STORE_KEY),
+  })
+}
+
+export async function saveMetaIntegrationSettings(input: {
+  trackingEnabled: boolean
+  pixelId: string | null
+  datasetId: string | null
+  accessTokenEncrypted: string | null
+  testEventCode: string | null
+  domainVerification: string | null
+}) {
+  const now = new Date()
+  const [row] = await db
+    .insert(metaIntegrationSettings)
+    .values({ storeKey: META_STORE_KEY, ...input, updatedAt: now })
+    .onConflictDoUpdate({
+      target: metaIntegrationSettings.storeKey,
+      set: { ...input, updatedAt: now },
+    })
+    .returning()
+  return row
+}
+
+export async function recordMetaConnectionTest(status: 'ok' | 'error', message: string) {
+  await db
+    .update(metaIntegrationSettings)
+    .set({
+      lastConnectionTestAt: new Date(),
+      lastConnectionStatus: status,
+      lastConnectionMessage: message.slice(0, 300),
+      updatedAt: new Date(),
+    })
+    .where(eq(metaIntegrationSettings.storeKey, META_STORE_KEY))
+}
+
+export async function recordMetaSuccessfulEvent(eventName: string) {
+  await db
+    .update(metaIntegrationSettings)
+    .set({
+      lastSuccessfulEventAt: new Date(),
+      lastSuccessfulEventName: eventName.slice(0, 80),
+      updatedAt: new Date(),
+    })
+    .where(eq(metaIntegrationSettings.storeKey, META_STORE_KEY))
+}
+
+export function listRecentMetaDeliveries(limit = 25) {
+  return db
+    .select({
+      eventName: metaEventDeliveries.eventName,
+      status: metaEventDeliveries.status,
+      attempts: metaEventDeliveries.attempts,
+      sentAt: metaEventDeliveries.sentAt,
+      createdAt: metaEventDeliveries.createdAt,
+      lastError: metaEventDeliveries.lastError,
+    })
+    .from(metaEventDeliveries)
+    .orderBy(desc(metaEventDeliveries.createdAt))
+    .limit(limit)
+}
 
 export function findVariantForTracking(variantId: string) {
   return db
