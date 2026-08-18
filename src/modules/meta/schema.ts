@@ -1,13 +1,12 @@
 import { relations, sql } from 'drizzle-orm'
-import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
 
 import { orders } from '@/modules/orders/schema'
 
 /**
  * Consent-scoped attribution captured when the order is created.
- *
- * It is separate from the accounting record so tracking identifiers can be
- * removed without changing the immutable commercial order snapshot.
+ * It is separate from the commercial order so tracking identifiers can be
+ * removed without changing the immutable accounting record.
  */
 export const metaOrderAttributions = pgTable('meta_order_attributions', {
   orderId: uuid('order_id')
@@ -20,12 +19,7 @@ export const metaOrderAttributions = pgTable('meta_order_attributions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
-/**
- * A tiny Postgres-backed outbox for paid-order Purchase events.
- *
- * The unique event id prevents application replay; Meta receives the same id
- * from Pixel and CAPI and performs cross-channel deduplication as well.
- */
+/** A Postgres-backed outbox for paid-order Purchase events. */
 export const metaEventDeliveries = pgTable(
   'meta_event_deliveries',
   {
@@ -49,6 +43,31 @@ export const metaEventDeliveries = pgTable(
     index('meta_event_deliveries_retry_idx').on(table.status, table.attempts, table.createdAt),
   ],
 )
+
+/**
+ * Store-owned Meta integration configuration.
+ *
+ * The only credential is stored as authenticated ciphertext. Public identifiers
+ * remain readable so the server can safely hand the Pixel id to the browser.
+ * A clone gets its own row/database, while store_key leaves room for a future
+ * multi-store control plane without redesigning the contract.
+ */
+export const metaIntegrationSettings = pgTable('meta_integration_settings', {
+  storeKey: text('store_key').primaryKey().default('default'),
+  enabled: boolean('enabled').notNull().default(false),
+  pixelId: text('pixel_id'),
+  datasetId: text('dataset_id'),
+  accessTokenEncrypted: text('access_token_encrypted'),
+  testEventCode: text('test_event_code'),
+  domainVerificationCode: text('domain_verification_code'),
+  lastTestStatus: text('last_test_status'),
+  lastTestMessage: text('last_test_message'),
+  lastTestedAt: timestamp('last_tested_at'),
+  lastSuccessfulEventName: text('last_successful_event_name'),
+  lastSuccessfulEventAt: timestamp('last_successful_event_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
 
 export const metaOrderAttributionsRelations = relations(metaOrderAttributions, ({ one }) => ({
   order: one(orders, {
