@@ -58,6 +58,12 @@ export default function ContactPage() {
           ),
         },
         {
+          title: 'Accessibility support',
+          body: (
+            <p>If a disability, assistive technology or another accessibility need makes it difficult to use part of the store or understand important purchase information, contact us and describe the barrier. We will make a reasonable effort to provide the relevant information or customer-service assistance in an accessible alternative where practical.</p>
+          ),
+        },
+        {
           title: 'Protecting your information',
           body: (
             <p>Do not send passwords, one-time passwords, full payment-card credentials or other authentication secrets by ordinary email, chat or social media. SirajiBD support should not need those secrets to identify or support an order.</p>
