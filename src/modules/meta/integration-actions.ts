@@ -1,12 +1,18 @@
 'use server'
 
+import { createHash } from 'node:crypto'
 import { refresh } from 'next/cache'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
-import { env } from '@/lib/env'
+import { clientEnv, env } from '@/lib/env'
 import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
+import {
+  buildMetaConnectionTestPayload,
+  formatMetaConnectionError,
+  sanitizeMetaError,
+} from './connection-test'
 import { getEffectiveMetaConfig } from './integration-config'
 import { encryptIntegrationSecret, integrationEncryptionReady } from './integration-crypto'
 import * as repo from './repository'
@@ -92,37 +98,71 @@ export async function testMetaConnection(): Promise<ActionResult<{ message: stri
   if (!config.datasetId || !config.accessToken) {
     return fail('unavailable', 'A Dataset ID and CAPI access token are required for a server connection test.')
   }
+  if (!config.testEventCode) {
+    return fail(
+      'validation',
+      'Add a Meta Test Event Code before testing the server connection. This prevents the connection check from creating normal production analytics traffic.',
+    )
+  }
+
+  const sourceUrl = `${clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/__meta-connection-test`
+  const syntheticExternalIdHash = createHash('sha256')
+    .update('meta-capi-admin-connection-test')
+    .digest('hex')
+  const payload = buildMetaConnectionTestPayload({
+    testEventCode: config.testEventCode,
+    eventSourceUrl: sourceUrl,
+    syntheticExternalIdHash,
+  })
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(config.datasetId)}?fields=id,name`,
+      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(config.datasetId)}/events`,
       {
-        headers: { Authorization: `Bearer ${config.accessToken}` },
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
         cache: 'no-store',
         signal: AbortSignal.timeout(8_000),
       },
     )
 
     if (!response.ok) {
-      const message = `Meta rejected the connection (HTTP ${response.status}). Check the Dataset ID and access token.`
+      let rawError: unknown
+      try {
+        rawError = await response.json()
+      } catch {
+        rawError = undefined
+      }
+      const metaError = sanitizeMetaError(rawError, config.accessToken)
+      const message = formatMetaConnectionError({ httpStatus: response.status, metaError })
       await repo.recordMetaConnectionTest('error', message)
       await recordAudit(admin, {
         action: 'meta_integration.connection_tested',
         entityType: 'meta_integration',
         entityId: repo.META_STORE_KEY,
-        detail: { result: 'error', httpStatus: response.status },
+        detail: {
+          result: 'error',
+          httpStatus: response.status,
+          metaCode: metaError.code,
+          metaSubcode: metaError.subcode,
+          metaType: metaError.type,
+        },
       })
       refresh()
       return fail('unavailable', message)
     }
 
-    const message = 'Meta server connection succeeded.'
+    const message = 'Meta server connection succeeded with a Test Events CAPI event.'
     await repo.recordMetaConnectionTest('ok', message)
     await recordAudit(admin, {
       action: 'meta_integration.connection_tested',
       entityType: 'meta_integration',
       entityId: repo.META_STORE_KEY,
-      detail: { result: 'ok' },
+      detail: { result: 'ok', mode: 'test_event' },
     })
     refresh()
     return ok({ message })
