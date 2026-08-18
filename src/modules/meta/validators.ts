@@ -16,6 +16,28 @@ export const initiateCheckoutEventSchema = z.object({
   eventId: metaEventIdSchema,
 })
 
+const metaId = z.string().trim().max(40).refine(
+  (value) => value === '' || /^\d{5,40}$/.test(value),
+  'Use the numeric ID shown in Meta Events Manager',
+)
+
+export const metaIntegrationInputSchema = z.object({
+  trackingEnabled: z.boolean(),
+  pixelId: metaId,
+  datasetId: metaId,
+  accessToken: z.string().trim().max(4096),
+  clearAccessToken: z.boolean().default(false),
+  testEventCode: z.string().trim().max(120),
+  domainVerification: z
+    .string()
+    .trim()
+    .max(255)
+    .refine(
+      (value) => value === '' || /^[A-Za-z0-9_-]+$/.test(value),
+      'Use only the verification content value from Meta, not the full meta tag',
+    ),
+})
+
 export type MetaContent = {
   id: string
   quantity: number
