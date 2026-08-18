@@ -40,9 +40,10 @@ const serverSchema = z.object({
     .optional()
     .transform((v) => v !== 'false'),
 
-  /** How a customer reaches a human. */
+  /** Public business/contact details shown to customers when configured. */
   STORE_CONTACT_EMAIL: z.email().optional(),
   STORE_CONTACT_PHONE: z.string().trim().max(40).optional(),
+  STORE_BUSINESS_ADDRESS: z.string().trim().max(240).optional(),
 
   /**
    * Meta environment fallback. Admin-managed settings take precedence once a
