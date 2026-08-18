@@ -1,3 +1,5 @@
+import { connection } from 'next/server'
+
 import { STORE_CONFIG } from '@/lib/store-config'
 import { storage } from '@/lib/storage'
 import {
@@ -7,6 +9,11 @@ import {
 } from '@/modules/catalog'
 
 export async function GET() {
+  // Cache Components may otherwise attempt to prerender a GET route during
+  // `next build`. The feed is a live catalogue projection, so wait for an
+  // incoming request before touching Postgres.
+  await connection()
+
   const products = await listMerchantFeedProducts()
 
   const feedProducts: MerchantProduct[] = products.map((product) => ({
