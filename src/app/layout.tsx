@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 
 import { ThemeScript } from '@/components/theme-script'
 import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
+import { STORE_CONFIG } from '@/lib/store-config'
 
 import './globals.css'
 
@@ -14,14 +15,14 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-const siteDescription =
-  'Shop footwear, apparel, electronics and everyday accessories at SirajiBD with clear prices, convenient ordering and delivery options across Bangladesh.'
+const siteDescription = STORE_CONFIG.defaultDescription
+const defaultTitle = `${STORE_CONFIG.name} | Smarter Everyday Shopping in ${STORE_CONFIG.countryName}`
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
-    template: '%s | SirajiBD',
+    default: defaultTitle,
+    template: `%s | ${STORE_CONFIG.name}`,
   },
   description: siteDescription,
   alternates: { canonical: '/' },
@@ -32,13 +33,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     url: '/',
-    siteName: 'SirajiBD',
-    title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
+    siteName: STORE_CONFIG.name,
+    title: defaultTitle,
     description: siteDescription,
   },
   twitter: {
     card: 'summary',
-    title: 'SirajiBD | Smarter Everyday Shopping in Bangladesh',
+    title: defaultTitle,
     description: siteDescription,
   },
 }
@@ -49,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // this element before React hydrates, so the client tree legitimately
     // differs from the server's. It suppresses the warning on this element
     // only, not on anything inside it.
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang={STORE_CONFIG.locale.split('-')[0]} className={inter.variable} suppressHydrationWarning>
       <head>
         <ThemeScript />
       </head>
