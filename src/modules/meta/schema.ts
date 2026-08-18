@@ -3,15 +3,8 @@ import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } 
 
 import { orders } from '@/modules/orders/schema'
 
-/**
- * Consent-scoped attribution captured when the order is created.
- * It is separate from the commercial order so tracking identifiers can be
- * removed without changing the immutable accounting record.
- */
 export const metaOrderAttributions = pgTable('meta_order_attributions', {
-  orderId: uuid('order_id')
-    .primaryKey()
-    .references(() => orders.id, { onDelete: 'cascade' }),
+  orderId: uuid('order_id').primaryKey().references(() => orders.id, { onDelete: 'cascade' }),
   fbp: text('fbp'),
   fbc: text('fbc'),
   clientUserAgent: text('client_user_agent').notNull(),
@@ -19,18 +12,13 @@ export const metaOrderAttributions = pgTable('meta_order_attributions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
-/** A Postgres-backed outbox for paid-order Purchase events. */
 export const metaEventDeliveries = pgTable(
   'meta_event_deliveries',
   {
-    id: uuid('id')
-      .primaryKey()
-      .default(sql`uuidv7()`),
+    id: uuid('id').primaryKey().default(sql`uuidv7()`),
     eventId: text('event_id').notNull(),
     eventName: text('event_name').notNull(),
-    orderId: uuid('order_id')
-      .notNull()
-      .references(() => orders.id, { onDelete: 'cascade' }),
+    orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
     status: text('status').notNull().default('pending'),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
@@ -45,15 +33,12 @@ export const metaEventDeliveries = pgTable(
 )
 
 /**
- * Store-owned Meta integration configuration.
- *
- * The only credential is stored as authenticated ciphertext. Public identifiers
- * remain readable so the server can safely hand the Pixel id to the browser.
- * A clone gets its own row/database, while store_key leaves room for a future
- * multi-store control plane without redesigning the contract.
+ * Store-owned Meta integration configuration. The CAPI token is authenticated
+ * ciphertext; public ids remain readable so the server can hand Pixel id to the
+ * browser. store_key keeps the contract future-ready for multi-store control.
  */
 export const metaIntegrationSettings = pgTable('meta_integration_settings', {
-  storeKey: text('store_key').primaryKey().default('default'),
+  storeKey: text('store_key').primaryKey(),
   enabled: boolean('enabled').notNull().default(false),
   pixelId: text('pixel_id'),
   datasetId: text('dataset_id'),
@@ -70,10 +55,7 @@ export const metaIntegrationSettings = pgTable('meta_integration_settings', {
 })
 
 export const metaOrderAttributionsRelations = relations(metaOrderAttributions, ({ one }) => ({
-  order: one(orders, {
-    fields: [metaOrderAttributions.orderId],
-    references: [orders.id],
-  }),
+  order: one(orders, { fields: [metaOrderAttributions.orderId], references: [orders.id] }),
 }))
 
 export const metaEventDeliveriesRelations = relations(metaEventDeliveries, ({ one }) => ({
