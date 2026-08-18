@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
 
 import { getMetaAdminState } from '@/modules/meta'
 import { MetaIntegrationForm } from '@/modules/meta/components/meta-integration-form'
@@ -8,6 +9,10 @@ export const metadata: Metadata = { title: 'Meta integration' }
 const iso = (value: Date | null | undefined) => value ? value.toISOString() : null
 
 export default async function MetaIntegrationPage() {
+  // This page reads live operational data and must never be prerendered during
+  // CI/build, where DATABASE_URL is intentionally unavailable.
+  await connection()
+
   const state = await getMetaAdminState()
   const settings = state.settings
 
