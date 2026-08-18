@@ -6,11 +6,9 @@ import { after } from 'next/server'
 import { clientEnv, env } from '@/lib/env'
 import type { CartLine } from '@/modules/cart'
 
-import {
-  META_CONSENT_COOKIE,
-  META_CONSENT_GRANTED,
-} from './consent'
+import { META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
+import { resolveMetaRuntimeConfig, type MetaRuntimeConfig } from './integration'
 import { hashUserData, normalizeBdPhone, normalizeEmail } from './normalization'
 import * as repo from './repository'
 import { minorToMetaValue } from './value'
@@ -32,6 +30,13 @@ const capIdentifier = (value: string | undefined) => {
 }
 
 const cleanUserAgent = (value: string | null) => value?.trim().slice(0, 500) || null
+const normalizeLocation = (value: string | null | undefined) => value?.trim().toLowerCase() || null
+const normalizeCountry = (value: string | null | undefined) => {
+  const clean = normalizeLocation(value)
+  if (!clean) return null
+  if (clean === 'bangladesh' || clean === 'bd') return 'bd'
+  return clean.length === 2 ? clean : null
+}
 
 async function hasConsent() {
   return (await cookies()).get(META_CONSENT_COOKIE)?.value === META_CONSENT_GRANTED
@@ -39,7 +44,6 @@ async function hasConsent() {
 
 function safeSourceUrl(raw: string | null, fallbackPath: string) {
   const base = new URL(clientEnv.NEXT_PUBLIC_APP_URL)
-
   try {
     const candidate = new URL(raw ?? fallbackPath, base)
     return candidate.origin === base.origin ? candidate.toString() : new URL(fallbackPath, base).toString()
@@ -50,10 +54,8 @@ function safeSourceUrl(raw: string | null, fallbackPath: string) {
 
 async function requestContext(fallbackPath: string): Promise<RequestContext | null> {
   if (!(await hasConsent())) return null
-
   const [jar, requestHeaders] = await Promise.all([cookies(), headers()])
   const forwarded = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
-
   return {
     clientIpAddress: requestHeaders.get('cf-connecting-ip') ?? forwarded ?? null,
     clientUserAgent: cleanUserAgent(requestHeaders.get('user-agent')),
@@ -63,21 +65,23 @@ async function requestContext(fallbackPath: string): Promise<RequestContext | nu
   }
 }
 
-function configured() {
-  return Boolean(env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN)
+export async function isCapiConfigured() {
+  const config = await resolveMetaRuntimeConfig()
+  return Boolean(config.enabled && config.datasetId && config.accessToken)
 }
 
-export const isCapiConfigured = configured
-
-async function postEvent(input: {
-  eventName: EventName
-  eventId: string
-  eventTime?: Date
-  eventSourceUrl: string
-  customData: MetaCustomData
-  userData: Record<string, string | string[] | undefined>
-}) {
-  if (!env.META_CAPI_DATASET_ID || !env.META_CAPI_ACCESS_TOKEN) return { sent: false as const }
+async function postEvent(
+  config: MetaRuntimeConfig,
+  input: {
+    eventName: EventName
+    eventId: string
+    eventTime?: Date
+    eventSourceUrl: string
+    customData: MetaCustomData
+    userData: Record<string, string | string[] | undefined>
+  },
+) {
+  if (!config.enabled || !config.datasetId || !config.accessToken) return { sent: false as const }
 
   const event = {
     event_name: input.eventName,
@@ -91,18 +95,13 @@ async function postEvent(input: {
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(env.META_CAPI_DATASET_ID)}/events`,
+      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(config.datasetId)}/events`,
       {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.META_CAPI_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${config.accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           data: [event],
-          ...(env.META_CAPI_TEST_EVENT_CODE
-            ? { test_event_code: env.META_CAPI_TEST_EVENT_CODE }
-            : {}),
+          ...(config.testEventCode ? { test_event_code: config.testEventCode } : {}),
         }),
         cache: 'no-store',
         signal: AbortSignal.timeout(5_000),
@@ -114,12 +113,10 @@ async function postEvent(input: {
       return { sent: false as const, error: `Meta ${response.status}: ${detail}` }
     }
 
+    await repo.recordSuccessfulEvent(input.eventName).catch(() => undefined)
     return { sent: true as const }
   } catch (error) {
-    return {
-      sent: false as const,
-      error: error instanceof Error ? error.message : 'Unknown Meta delivery failure',
-    }
+    return { sent: false as const, error: error instanceof Error ? error.message : 'Unknown Meta delivery failure' }
   }
 }
 
@@ -129,11 +126,12 @@ async function sendRequestEvent(
   customData: MetaCustomData,
   fallbackPath: string,
 ) {
-  if (!configured()) return
+  const config = await resolveMetaRuntimeConfig()
+  if (!config.enabled || !config.datasetId || !config.accessToken) return
   const context = await requestContext(fallbackPath)
   if (!context?.clientUserAgent) return
 
-  await postEvent({
+  await postEvent(config, {
     eventName,
     eventId,
     eventSourceUrl: context.eventSourceUrl,
@@ -150,7 +148,6 @@ async function sendRequestEvent(
 export async function trackViewContent(eventId: string, variantId: string) {
   const variant = await repo.findVariantForTracking(variantId)
   if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return
-
   await sendRequestEvent(
     'ViewContent',
     eventId,
@@ -178,13 +175,7 @@ export async function trackAddToCart(input: {
       content_ids: [input.variant.id],
       content_name: input.variant.productTitle,
       content_type: 'product',
-      contents: [
-        {
-          id: input.variant.id,
-          quantity: input.quantity,
-          item_price: minorToMetaValue(input.variant.price),
-        },
-      ],
+      contents: [{ id: input.variant.id, quantity: input.quantity, item_price: minorToMetaValue(input.variant.price) }],
       currency: 'BDT',
       value: minorToMetaValue(input.variant.price * input.quantity),
     },
@@ -199,11 +190,7 @@ export async function trackInitiateCheckout(eventId: string, cart: { lines: Cart
     {
       content_ids: cart.lines.map((line) => line.variantId),
       content_type: 'product',
-      contents: cart.lines.map((line) => ({
-        id: line.variantId,
-        quantity: line.quantity,
-        item_price: minorToMetaValue(line.unitPrice),
-      })),
+      contents: cart.lines.map((line) => ({ id: line.variantId, quantity: line.quantity, item_price: minorToMetaValue(line.unitPrice) })),
       currency: 'BDT',
       num_items: cart.itemCount,
       value: minorToMetaValue(cart.subtotal),
@@ -212,12 +199,10 @@ export async function trackInitiateCheckout(eventId: string, cart: { lines: Cart
   )
 }
 
-/** Best-effort and called only after the commercial order transaction commits. */
 export async function captureOrderAttribution(orderId: string) {
-  if (!configured()) return
+  if (!(await isCapiConfigured())) return
   const context = await requestContext('/checkout')
   if (!context?.clientUserAgent) return
-
   await repo.saveOrderAttribution({
     orderId,
     fbp: context.fbp,
@@ -228,47 +213,42 @@ export async function captureOrderAttribution(orderId: string) {
 }
 
 export async function queuePurchase(orderId: string) {
-  if (!configured()) return
-
+  if (!(await isCapiConfigured())) return
   const context = await repo.getPurchaseContext(orderId)
-  // No attribution row means analytics consent was not granted at checkout.
-  if (
-    !context ||
-    context.order.paymentStatus !== 'paid' ||
-    context.order.status !== 'confirmed'
-  ) return
+  if (!context || context.order.paymentStatus !== 'paid' || context.order.status !== 'confirmed') return
 
   const eventId = purchaseEventId(orderId)
   await repo.enqueuePurchase(orderId, eventId)
-  after(() =>
-    deliverPurchase(eventId).catch((error) =>
-      console.error('[meta] queued Purchase delivery failed', error),
-    ),
-  )
+  after(() => deliverPurchase(eventId).catch((error) => console.error('[meta] queued Purchase delivery failed', error)))
 }
 
 async function deliverPurchase(eventId: string) {
   const delivery = await repo.claimDelivery(eventId)
   if (!delivery) return
 
-  const context = await repo.getPurchaseContext(delivery.orderId)
+  const [context, config] = await Promise.all([repo.getPurchaseContext(delivery.orderId), resolveMetaRuntimeConfig()])
   if (!context) {
     await repo.markDeliveryFailed(eventId, 'Order or consented attribution is unavailable')
     return
   }
+  if (!config.enabled || !config.datasetId || !config.accessToken) {
+    await repo.markDeliveryFailed(eventId, 'Meta CAPI is not configured')
+    return
+  }
 
   const { order, attribution, items } = context
-  const result = await postEvent({
+  const city = normalizeLocation(order.shippingAddress.city)
+  const country = normalizeCountry(order.shippingAddress.country)
+  const result = await postEvent(config, {
     eventName: 'Purchase',
     eventId,
     eventTime: delivery.createdAt,
-    eventSourceUrl: safeSourceUrl(
-      `${clientEnv.NEXT_PUBLIC_APP_URL}/orders/${encodeURIComponent(order.orderNumber)}`,
-      '/orders',
-    ),
+    eventSourceUrl: safeSourceUrl(`${clientEnv.NEXT_PUBLIC_APP_URL}/orders/${encodeURIComponent(order.orderNumber)}`, '/orders'),
     userData: {
       em: [hashUserData(normalizeEmail(order.email))],
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
+      ct: city ? [hashUserData(city)] : undefined,
+      country: country ? [hashUserData(country)] : undefined,
       external_id: order.userId ? [hashUserData(order.userId)] : undefined,
       client_ip_address: order.checkoutIp ?? undefined,
       client_user_agent: attribution.clientUserAgent,
@@ -278,11 +258,7 @@ async function deliverPurchase(eventId: string) {
     customData: {
       content_ids: items.map((item) => item.variantId ?? item.sku),
       content_type: 'product',
-      contents: items.map((item) => ({
-        id: item.variantId ?? item.sku,
-        quantity: item.quantity,
-        item_price: minorToMetaValue(item.unitPrice),
-      })),
+      contents: items.map((item) => ({ id: item.variantId ?? item.sku, quantity: item.quantity, item_price: minorToMetaValue(item.unitPrice) })),
       currency: 'BDT',
       num_items: items.reduce((total, item) => total + item.quantity, 0),
       value: minorToMetaValue(order.total),
@@ -294,7 +270,7 @@ async function deliverPurchase(eventId: string) {
 }
 
 export async function retryPendingPurchases() {
-  if (!configured()) return 0
+  if (!(await isCapiConfigured())) return 0
   const rows = await repo.listRetryableDeliveryIds()
   await Promise.all(rows.map((row) => deliverPurchase(row.eventId)))
   return rows.length
