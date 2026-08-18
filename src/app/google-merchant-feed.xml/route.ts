@@ -6,8 +6,6 @@ import {
   type MerchantProduct,
 } from '@/modules/catalog'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   const products = await listMerchantFeedProducts()
 
