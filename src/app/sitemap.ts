@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 
 import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
+import { STORE_TRUST_ROUTES } from '@/lib/store-policies'
 import { listActiveProductSlugs, listIndexableCategories } from '@/modules/catalog'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -23,6 +24,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: new URL(`/p/${slug}`, siteUrl).href,
       changeFrequency: 'weekly' as const,
       priority: 0.7,
+    })),
+    ...STORE_TRUST_ROUTES.map((route) => ({
+      url: new URL(route.href, siteUrl).href,
+      changeFrequency: 'monthly' as const,
+      priority: route.href === '/about' || route.href === '/contact' ? 0.5 : 0.4,
     })),
   ]
 }

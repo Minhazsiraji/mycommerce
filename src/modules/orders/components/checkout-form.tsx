@@ -1,6 +1,7 @@
 'use client'
 
 import type { Route } from 'next'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
@@ -427,6 +428,26 @@ export function CheckoutForm({
         >
           {pending ? 'Placing order…' : 'Place order'}
         </button>
+
+        <p className="text-xs leading-5 text-(--color-muted)">
+          By placing your order, you agree to the{' '}
+          <Link className="underline underline-offset-2 hover:text-(--text-primary)" href="/terms">
+            Terms & Conditions
+          </Link>{' '}
+          and acknowledge the{' '}
+          <Link className="underline underline-offset-2 hover:text-(--text-primary)" href="/returns">
+            Returns & Refunds
+          </Link>
+          ,{' '}
+          <Link className="underline underline-offset-2 hover:text-(--text-primary)" href="/shipping">
+            Shipping & Delivery
+          </Link>{' '}
+          and{' '}
+          <Link className="underline underline-offset-2 hover:text-(--text-primary)" href="/privacy">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </aside>
     </form>
   )
