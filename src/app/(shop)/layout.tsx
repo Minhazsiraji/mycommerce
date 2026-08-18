@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 
@@ -5,81 +6,65 @@ import { AnnouncementBar } from '@/components/storefront/announcement-bar'
 import { SiteFooter } from '@/components/storefront/site-footer'
 import { StorefrontHeader } from '@/components/storefront/storefront-header'
 import { formatBdt } from '@/lib/money'
-import { clientEnv, env } from '@/lib/env'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
-import {
-  MetaAnalytics,
-  PrivacyChoicesButton,
-} from '@/modules/meta/components/meta-analytics'
+import { MetaAnalytics, PrivacyChoicesButton } from '@/modules/meta/components/meta-analytics'
+import { getMetaPublicConfig } from '@/modules/meta/integration'
 import { getCachedDeliverySummary } from '@/modules/shipping'
 import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
 
-// This shared shell intentionally waits for request-time Postgres data. Next
-// 16.3 requires the blocking behavior to be declared when Cache Components is
-// enabled; child pages can still add Suspense boundaries independently.
 export const instant = false
 
+export async function generateMetadata(): Promise<Metadata> {
+  await connection()
+  try {
+    const meta = await getMetaPublicConfig()
+    if (!meta.domainVerificationCode) return {}
+    return { other: { 'facebook-domain-verification': meta.domainVerificationCode } }
+  } catch (error) {
+    console.error('Unable to load Meta domain verification settings', error)
+    return {}
+  }
+}
+
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  // Categories and delivery facts come from Postgres. Keep them out of build-time
-  // prerendering so CI and Preview builds never need a database credential; the
-  // cached service functions below still share their results between requests.
   await connection()
 
-  const metaEnabled = Boolean(
-    clientEnv.NEXT_PUBLIC_META_PIXEL_ID ||
-      (env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN),
-  )
-  const [categoriesResult, deliveryResult, settingsResult] = await Promise.allSettled([
+  const [categoriesResult, deliveryResult, settingsResult, metaResult] = await Promise.allSettled([
     getCachedCategories(),
     getCachedDeliverySummary(),
     getCachedStorefrontSettings(),
+    getMetaPublicConfig(),
   ])
 
-  if (categoriesResult.status === 'rejected') {
-    console.error('Unable to load storefront categories', categoriesResult.reason)
-  }
-  if (deliveryResult.status === 'rejected') {
-    console.error('Unable to load storefront delivery facts', deliveryResult.reason)
-  }
-  if (settingsResult.status === 'rejected') {
-    console.error('Unable to load storefront settings', settingsResult.reason)
-  }
+  if (categoriesResult.status === 'rejected') console.error('Unable to load storefront categories', categoriesResult.reason)
+  if (deliveryResult.status === 'rejected') console.error('Unable to load storefront delivery facts', deliveryResult.reason)
+  if (settingsResult.status === 'rejected') console.error('Unable to load storefront settings', settingsResult.reason)
+  if (metaResult.status === 'rejected') console.error('Unable to load Meta integration settings', metaResult.reason)
 
   const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
-  const settings =
-    settingsResult.status === 'fulfilled'
-      ? settingsResult.value
-      : { ...DEFAULT_STOREFRONT_SETTINGS }
+  const settings = settingsResult.status === 'fulfilled' ? settingsResult.value : { ...DEFAULT_STOREFRONT_SETTINGS }
+  const meta = metaResult.status === 'fulfilled'
+    ? metaResult.value
+    : { enabled: false, pixelId: null, browserConfigured: false, serverConfigured: false, domainVerificationCode: null, source: 'environment' as const }
+  const metaEnabled = meta.enabled && (meta.browserConfigured || meta.serverConfigured)
 
   const topCategories = categories.filter((category) => !category.parentId)
   const announcementFacts: { key: 'delivery' | 'threshold'; label: string }[] = []
 
   if (settings.announcementEnabled) {
-    const deliverySummary =
-      deliveryResult.status === 'fulfilled' ? deliveryResult.value : { freeOver: null, estimate: null }
+    const deliverySummary = deliveryResult.status === 'fulfilled' ? deliveryResult.value : { freeOver: null, estimate: null }
     const { freeOver, estimate } = deliverySummary
-    const days =
-      estimate &&
-      (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
-
-    const deliveryLabel =
-      settings.announcementDeliveryText ?? (days ? `Delivery in ${days} days` : null)
-    const offerLabel =
-      settings.announcementOfferText ?? (freeOver ? `Free delivery over ${formatBdt(freeOver)}` : null)
-
+    const days = estimate && (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
+    const deliveryLabel = settings.announcementDeliveryText ?? (days ? `Delivery in ${days} days` : null)
+    const offerLabel = settings.announcementOfferText ?? (freeOver ? `Free delivery over ${formatBdt(freeOver)}` : null)
     if (deliveryLabel) announcementFacts.push({ key: 'delivery', label: deliveryLabel })
-    if (offerLabel) {
-      announcementFacts.push({
-        key: 'threshold',
-        label: offerLabel,
-      })
-    }
+    if (offerLabel) announcementFacts.push({ key: 'threshold', label: offerLabel })
   }
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={clientEnv.NEXT_PUBLIC_META_PIXEL_ID} enabled={metaEnabled} />
+      <MetaAnalytics pixelId={meta.pixelId ?? undefined} enabled={metaEnabled} />
       <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
@@ -94,11 +79,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         </div>
       </div>
 
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8"
-      >
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8">
         {children}
       </main>
 
