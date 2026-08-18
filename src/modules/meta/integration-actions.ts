@@ -11,6 +11,7 @@ import { recordAudit } from '@/modules/admin'
 import {
   buildMetaConnectionTestPayload,
   formatMetaConnectionError,
+  metaConnectionTestConfigError,
   sanitizeMetaError,
 } from './connection-test'
 import { getEffectiveMetaConfig } from './integration-config'
@@ -93,35 +94,35 @@ export async function saveMetaIntegration(input: unknown): Promise<ActionResult<
 export async function testMetaConnection(): Promise<ActionResult<{ message: string }>> {
   const admin = await requireRole('admin')
   const config = await getEffectiveMetaConfig()
+  const configError = metaConnectionTestConfigError(config)
 
-  if (!config.enabled) return fail('unavailable', 'Meta tracking is disabled.')
-  if (!config.datasetId || !config.accessToken) {
-    return fail('unavailable', 'A Dataset ID and CAPI access token are required for a server connection test.')
-  }
-  if (!config.testEventCode) {
-    return fail(
-      'validation',
-      'Add a Meta Test Event Code before testing the server connection. This prevents the connection check from creating normal production analytics traffic.',
-    )
+  if (configError) {
+    const category = !config.testEventCode && config.enabled && config.datasetId && config.accessToken
+      ? 'validation'
+      : 'unavailable'
+    return fail(category, configError)
   }
 
+  const datasetId = config.datasetId!
+  const accessToken = config.accessToken!
+  const testEventCode = config.testEventCode!
   const sourceUrl = `${clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/__meta-connection-test`
   const syntheticExternalIdHash = createHash('sha256')
     .update('meta-capi-admin-connection-test')
     .digest('hex')
   const payload = buildMetaConnectionTestPayload({
-    testEventCode: config.testEventCode,
+    testEventCode,
     eventSourceUrl: sourceUrl,
     syntheticExternalIdHash,
   })
 
   try {
     const response = await fetch(
-      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(config.datasetId)}/events`,
+      `https://graph.facebook.com/${env.META_GRAPH_API_VERSION}/${encodeURIComponent(datasetId)}/events`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${config.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
@@ -137,7 +138,7 @@ export async function testMetaConnection(): Promise<ActionResult<{ message: stri
       } catch {
         rawError = undefined
       }
-      const metaError = sanitizeMetaError(rawError, config.accessToken)
+      const metaError = sanitizeMetaError(rawError, accessToken)
       const message = formatMetaConnectionError({ httpStatus: response.status, metaError })
       await repo.recordMetaConnectionTest('error', message)
       await recordAudit(admin, {
