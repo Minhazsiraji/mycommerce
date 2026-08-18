@@ -21,6 +21,22 @@ export type MetaConnectionTestPayload = {
   test_event_code: string
 }
 
+export function metaConnectionTestConfigError(input: {
+  enabled: boolean
+  datasetId?: string
+  accessToken?: string
+  testEventCode?: string
+}) {
+  if (!input.enabled) return 'Meta tracking is disabled.'
+  if (!input.datasetId || !input.accessToken) {
+    return 'A Dataset ID and CAPI access token are required for a server connection test.'
+  }
+  if (!input.testEventCode) {
+    return 'Add a Meta Test Event Code before testing the server connection. This prevents the connection check from creating normal production analytics traffic.'
+  }
+  return null
+}
+
 export function buildMetaConnectionTestPayload(input: {
   testEventCode: string
   eventSourceUrl: string
