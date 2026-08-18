@@ -11,6 +11,16 @@ export function normalizeBdPhone(value: string) {
   return digits
 }
 
+export function normalizeCity(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+export function normalizeCountry(value: string) {
+  const clean = value.trim().toLowerCase()
+  if (clean === 'bangladesh' || clean === 'bd' || clean === 'bgd') return 'bd'
+  return clean.replace(/[^a-z]/g, '')
+}
+
 export function hashUserData(value: string) {
   return createHash('sha256').update(value).digest('hex')
 }

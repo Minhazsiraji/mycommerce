@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 
@@ -5,9 +6,9 @@ import { AnnouncementBar } from '@/components/storefront/announcement-bar'
 import { SiteFooter } from '@/components/storefront/site-footer'
 import { StorefrontHeader } from '@/components/storefront/storefront-header'
 import { formatBdt } from '@/lib/money'
-import { clientEnv, env } from '@/lib/env'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
+import { getEffectiveMetaConfig } from '@/modules/meta'
 import {
   MetaAnalytics,
   PrivacyChoicesButton,
@@ -15,25 +16,28 @@ import {
 import { getCachedDeliverySummary } from '@/modules/shipping'
 import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
 
-// This shared shell intentionally waits for request-time Postgres data. Next
-// 16.3 requires the blocking behavior to be declared when Cache Components is
-// enabled; child pages can still add Suspense boundaries independently.
 export const instant = false
 
+export async function generateMetadata(): Promise<Metadata> {
+  await connection()
+  try {
+    const meta = await getEffectiveMetaConfig()
+    return meta.domainVerification
+      ? { other: { 'facebook-domain-verification': meta.domainVerification } }
+      : {}
+  } catch {
+    return {}
+  }
+}
+
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  // Categories and delivery facts come from Postgres. Keep them out of build-time
-  // prerendering so CI and Preview builds never need a database credential; the
-  // cached service functions below still share their results between requests.
   await connection()
 
-  const metaEnabled = Boolean(
-    clientEnv.NEXT_PUBLIC_META_PIXEL_ID ||
-      (env.META_CAPI_DATASET_ID && env.META_CAPI_ACCESS_TOKEN),
-  )
-  const [categoriesResult, deliveryResult, settingsResult] = await Promise.allSettled([
+  const [categoriesResult, deliveryResult, settingsResult, metaResult] = await Promise.allSettled([
     getCachedCategories(),
     getCachedDeliverySummary(),
     getCachedStorefrontSettings(),
+    getEffectiveMetaConfig(),
   ])
 
   if (categoriesResult.status === 'rejected') {
@@ -45,12 +49,19 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   if (settingsResult.status === 'rejected') {
     console.error('Unable to load storefront settings', settingsResult.reason)
   }
+  if (metaResult.status === 'rejected') {
+    console.error('Unable to load Meta integration configuration')
+  }
 
   const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
   const settings =
     settingsResult.status === 'fulfilled'
       ? settingsResult.value
       : { ...DEFAULT_STOREFRONT_SETTINGS }
+  const meta =
+    metaResult.status === 'fulfilled'
+      ? metaResult.value
+      : { enabled: false, source: 'disabled' as const }
 
   const topCategories = categories.filter((category) => !category.parentId)
   const announcementFacts: { key: 'delivery' | 'threshold'; label: string }[] = []
@@ -59,9 +70,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     const deliverySummary =
       deliveryResult.status === 'fulfilled' ? deliveryResult.value : { freeOver: null, estimate: null }
     const { freeOver, estimate } = deliverySummary
-    const days =
-      estimate &&
-      (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
+    const days = estimate && (estimate.min === estimate.max ? `${estimate.min}` : `${estimate.min}–${estimate.max}`)
 
     const deliveryLabel =
       settings.announcementDeliveryText ?? (days ? `Delivery in ${days} days` : null)
@@ -69,17 +78,12 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       settings.announcementOfferText ?? (freeOver ? `Free delivery over ${formatBdt(freeOver)}` : null)
 
     if (deliveryLabel) announcementFacts.push({ key: 'delivery', label: deliveryLabel })
-    if (offerLabel) {
-      announcementFacts.push({
-        key: 'threshold',
-        label: offerLabel,
-      })
-    }
+    if (offerLabel) announcementFacts.push({ key: 'threshold', label: offerLabel })
   }
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={clientEnv.NEXT_PUBLIC_META_PIXEL_ID} enabled={metaEnabled} />
+      <MetaAnalytics pixelId={meta.pixelId} enabled={meta.enabled} />
       <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
@@ -110,7 +114,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           description: settings.footerDescription,
           copyright: settings.footerCopyright,
         }}
-        privacyChoices={<PrivacyChoicesButton enabled={metaEnabled} />}
+        privacyChoices={<PrivacyChoicesButton enabled={meta.enabled} />}
       />
     </div>
   )

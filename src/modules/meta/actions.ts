@@ -10,7 +10,7 @@ import { initiateCheckoutEventSchema, viewContentEventSchema } from './validator
 export async function trackViewContent(input: unknown): Promise<ActionResult<null>> {
   const parsed = viewContentEventSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-  if (!service.isCapiConfigured()) return ok(null)
+  if (!(await service.isCapiConfigured())) return ok(null)
 
   const limit = await rateLimit('meta-view-content', 120, 3600)
   if (!limit.ok) return ok(null)
@@ -22,7 +22,7 @@ export async function trackViewContent(input: unknown): Promise<ActionResult<nul
 export async function trackInitiateCheckout(input: unknown): Promise<ActionResult<null>> {
   const parsed = initiateCheckoutEventSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-  if (!service.isCapiConfigured()) return ok(null)
+  if (!(await service.isCapiConfigured())) return ok(null)
 
   const limit = await rateLimit('meta-initiate-checkout', 30, 3600)
   if (!limit.ok) return ok(null)

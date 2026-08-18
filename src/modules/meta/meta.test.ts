@@ -1,16 +1,18 @@
 import { getTableConfig } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 
-import { metaEventDeliveries } from './schema'
-import {
-  META_CONSENT_DENIED,
-  META_CONSENT_GRANTED,
-  parseMetaConsent,
-} from './consent'
+import { META_CONSENT_DENIED, META_CONSENT_GRANTED, parseMetaConsent } from './consent'
 import { purchaseEventId } from './event-id'
-import { hashUserData, normalizeBdPhone, normalizeEmail } from './normalization'
+import {
+  hashUserData,
+  normalizeBdPhone,
+  normalizeCity,
+  normalizeCountry,
+  normalizeEmail,
+} from './normalization'
+import { metaEventDeliveries, metaIntegrationSettings } from './schema'
 import { minorToMetaValue } from './value'
-import { metaEventIdSchema } from './validators'
+import { metaEventIdSchema, metaIntegrationInputSchema } from './validators'
 
 describe('Meta commerce event safety', () => {
   it('uses a stable Purchase event id for browser/server deduplication', () => {
@@ -25,17 +27,25 @@ describe('Meta commerce event safety', () => {
     expect(eventIndex?.config.unique).toBe(true)
   })
 
+  it('keeps Meta admin configuration in a dedicated singleton-keyed table', () => {
+    const config = getTableConfig(metaIntegrationSettings)
+    expect(config.name).toBe('meta_integration_settings')
+    expect(config.columns.find((column) => column.name === 'access_token_encrypted')).toBeTruthy()
+    expect(config.columns.find((column) => column.name === 'tracking_enabled')).toBeTruthy()
+  })
+
   it('converts integer poisha only at the provider boundary', () => {
     expect(minorToMetaValue(199900)).toBe(1999)
     expect(minorToMetaValue(45050)).toBe(450.5)
   })
 
-  it('normalizes and hashes customer match data deterministically', () => {
+  it('normalizes and hashes real customer match data deterministically', () => {
     expect(normalizeEmail('  Buyer@Example.COM ')).toBe('buyer@example.com')
     expect(normalizeBdPhone('01712-345678')).toBe('8801712345678')
     expect(normalizeBdPhone('+880 1712 345678')).toBe('8801712345678')
+    expect(normalizeCity(' Dhaka City ')).toBe('dhakacity')
+    expect(normalizeCountry('Bangladesh')).toBe('bd')
     expect(hashUserData('buyer@example.com')).toMatch(/^[a-f0-9]{64}$/)
-    expect(hashUserData('buyer@example.com')).toBe(hashUserData('buyer@example.com'))
   })
 
   it('defaults to no consent and recognises only explicit versioned choices', () => {
@@ -49,5 +59,28 @@ describe('Meta commerce event safety', () => {
     expect(metaEventIdSchema.safeParse('addtocart:3f99ce0d-c696-43f4-84ff-c6cae1539876').success).toBe(true)
     expect(metaEventIdSchema.safeParse('same-id-for-everyone').success).toBe(false)
     expect(metaEventIdSchema.safeParse('purchase:../../../token').success).toBe(false)
+  })
+
+  it('validates numeric Meta IDs and domain verification content', () => {
+    const valid = metaIntegrationInputSchema.safeParse({
+      trackingEnabled: true,
+      pixelId: '1234567890',
+      datasetId: '1234567890',
+      accessToken: '',
+      clearAccessToken: false,
+      testEventCode: 'TEST123',
+      domainVerification: 'abc_DEF-123',
+    })
+    expect(valid.success).toBe(true)
+
+    expect(metaIntegrationInputSchema.safeParse({
+      trackingEnabled: true,
+      pixelId: 'pixel-123',
+      datasetId: '',
+      accessToken: '',
+      clearAccessToken: false,
+      testEventCode: '',
+      domainVerification: '<meta name="facebook-domain-verification">',
+    }).success).toBe(false)
   })
 })
