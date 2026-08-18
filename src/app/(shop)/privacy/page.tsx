@@ -57,6 +57,15 @@ export default function PrivacyPage() {
           ),
         },
         {
+          title: 'Transactional and marketing communications',
+          body: (
+            <>
+              <p>Order confirmations, payment notices, delivery updates, return/refund messages, account-security notices and replies to support requests are transactional communications needed to provide or protect the service.</p>
+              <p>SirajiBD will not treat an order email address or phone number as blanket permission for unrelated promotional messaging. If optional marketing subscriptions are introduced, the signup purpose and available unsubscribe or opt-out method should be disclosed at the point of collection.</p>
+            </>
+          ),
+        },
+        {
           title: 'Service providers and sharing',
           body: (
             <>
