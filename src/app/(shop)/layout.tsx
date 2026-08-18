@@ -8,11 +8,11 @@ import { StorefrontHeader } from '@/components/storefront/storefront-header'
 import { formatBdt } from '@/lib/money'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
+import { getEffectiveMetaConfig } from '@/modules/meta'
 import {
   MetaAnalytics,
   PrivacyChoicesButton,
 } from '@/modules/meta/components/meta-analytics'
-import { getEffectiveMetaConfig } from '@/modules/meta/integration-config'
 import { getCachedDeliverySummary } from '@/modules/shipping'
 import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
 
