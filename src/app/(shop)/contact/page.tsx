@@ -9,8 +9,12 @@ export const metadata: Metadata = {
   alternates: { canonical: '/contact' },
 }
 
+const SIRAJIBD_BUSINESS_EMAIL = 'business@sirajibd.com'
+const SIRAJIBD_ADMIN_EMAIL = 'admin@sirajibd.com'
+
 export default function ContactPage() {
-  const email = env.STORE_CONTACT_EMAIL
+  const businessEmail = env.STORE_CONTACT_EMAIL ?? SIRAJIBD_BUSINESS_EMAIL
+  const adminEmail = env.STORE_ADMIN_EMAIL ?? SIRAJIBD_ADMIN_EMAIL
   const phone = env.STORE_CONTACT_PHONE
   const address = env.STORE_BUSINESS_ADDRESS
 
@@ -23,14 +27,18 @@ export default function ContactPage() {
           title: 'SirajiBD customer support',
           body: (
             <div className="space-y-2">
-              {email ? (
-                <p>
-                  Email:{' '}
-                  <a className="font-medium underline" href={`mailto:${email}`}>
-                    {email}
-                  </a>
-                </p>
-              ) : null}
+              <p>
+                Business & customer support:{' '}
+                <a className="font-medium underline" href={`mailto:${businessEmail}`}>
+                  {businessEmail}
+                </a>
+              </p>
+              <p>
+                Administration:{' '}
+                <a className="font-medium underline" href={`mailto:${adminEmail}`}>
+                  {adminEmail}
+                </a>
+              </p>
               {phone ? (
                 <p>
                   Phone:{' '}
@@ -38,12 +46,20 @@ export default function ContactPage() {
                     {phone}
                   </a>
                 </p>
-              ) : null}
+              ) : (
+                <p>Phone support is not currently published. Please use one of the official SirajiBD email addresses above.</p>
+              )}
               {address ? <p>Business address: {address}</p> : null}
-              {!email && !phone ? (
-                <p>Direct customer-support details are being configured. Until they are published here, please do not send sensitive payment information through unofficial channels.</p>
-              ) : null}
             </div>
+          ),
+        },
+        {
+          title: 'Which email should I use?',
+          body: (
+            <ul className="list-disc space-y-2 pl-5">
+              <li><strong>{businessEmail}</strong> — orders, delivery, returns, refunds, payments, product questions and general customer support.</li>
+              <li><strong>{adminEmail}</strong> — administrative, business, compliance, privacy or account-level matters that are not ordinary order support.</li>
+            </ul>
           ),
         },
         {
