@@ -42,7 +42,7 @@ export default function AboutPage() {
         {
           title: 'Trust and transparency',
           body: (
-            <p>We avoid using placeholder claims about business age, certifications, authorised-dealer status or product guarantees that have not actually been established. When a policy or product condition matters to a purchase, we aim to disclose it before the customer commits to the order.</p>
+            <p>We aim to publish only business, product and service claims we can support, to disclose material purchase conditions before checkout, and to correct meaningful errors when we identify them. Current store policies are linked throughout the customer journey so they are available before and after an order.</p>
           ),
         },
         {
