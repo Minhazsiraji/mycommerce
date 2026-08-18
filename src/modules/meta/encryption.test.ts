@@ -22,7 +22,9 @@ describe('Meta integration credential encryption', () => {
   it('rejects tampered ciphertext', () => {
     const encrypted = encryptCredential('EAA-another-long-test-token-for-integrity-checks')
     const parts = encrypted.split(':')
-    parts[3] = `${parts[3]}A`
+    const payload = Buffer.from(parts[3]!, 'base64url')
+    payload[0] = payload[0]! ^ 1
+    parts[3] = payload.toString('base64url')
     expect(() => decryptCredential(parts.join(':'))).toThrow()
   })
 })
