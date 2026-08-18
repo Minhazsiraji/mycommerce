@@ -8,7 +8,7 @@ import { StorefrontHeader } from '@/components/storefront/storefront-header'
 import { formatBdt } from '@/lib/money'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
-import { getMetaPublicConfig } from '@/modules/meta'
+import { getCachedMetaPublicConfig } from '@/modules/meta'
 import { MetaAnalytics, PrivacyChoicesButton } from '@/modules/meta/components/meta-analytics'
 import { getCachedDeliverySummary } from '@/modules/shipping'
 import { DEFAULT_STOREFRONT_SETTINGS, getCachedStorefrontSettings } from '@/modules/storefront-settings'
@@ -18,7 +18,7 @@ export const instant = false
 export async function generateMetadata(): Promise<Metadata> {
   await connection()
   try {
-    const meta = await getMetaPublicConfig()
+    const meta = await getCachedMetaPublicConfig()
     if (!meta.domainVerificationCode) return {}
     return { other: { 'facebook-domain-verification': meta.domainVerificationCode } }
   } catch (error) {
@@ -34,7 +34,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     getCachedCategories(),
     getCachedDeliverySummary(),
     getCachedStorefrontSettings(),
-    getMetaPublicConfig(),
+    getCachedMetaPublicConfig(),
   ])
 
   if (categoriesResult.status === 'rejected') console.error('Unable to load storefront categories', categoriesResult.reason)
