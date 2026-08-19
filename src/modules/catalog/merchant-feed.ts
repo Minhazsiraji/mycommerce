@@ -62,6 +62,25 @@ function tag(name: string, value: string | null | undefined) {
   return `<${name}>${escapeHtml(value)}</${name}>`
 }
 
+/**
+ * A store name is not automatically a product brand.
+ *
+ * Demo/catalogue data can legitimately use the storefront identity as a visual
+ * placeholder, but publishing that value to Merchant Center would claim the
+ * merchant is the manufacturer/brand owner. Suppress an exact store-name match
+ * unless the catalogue is later given a distinct, verified product brand.
+ * This rule also prevents cloned stores from inheriting their new store name as
+ * the brand of every product.
+ */
+function merchantBrand(brand: string | null, storeName: string) {
+  const normalized = brand?.trim()
+  if (!normalized) return null
+  if (normalized.localeCompare(storeName.trim(), undefined, { sensitivity: 'accent' }) === 0) {
+    return null
+  }
+  return normalized
+}
+
 export function buildGoogleMerchantFeed(products: MerchantProduct[], config: MerchantFeedConfig) {
   const siteUrl = config.siteUrl.replace(/\/$/, '')
   const items: string[] = []
@@ -74,6 +93,7 @@ export function buildGoogleMerchantFeed(products: MerchantProduct[], config: Mer
       product.description?.trim() ||
       `${product.title} available from ${config.storeName}.`
     const hasVariants = product.variants.length > 1
+    const brand = merchantBrand(product.brand, config.storeName)
 
     for (const variant of product.variants) {
       const link = new URL(`/p/${product.slug}`, `${siteUrl}/`)
@@ -87,7 +107,7 @@ export function buildGoogleMerchantFeed(products: MerchantProduct[], config: Mer
       const variantOptions = variantOption(variant.options)
       const hasGtin = product.identifierExists && Boolean(variant.barcode?.trim())
       const hasMpn = Boolean(product.mpn?.trim())
-      const hasBrand = Boolean(product.brand?.trim())
+      const hasBrand = Boolean(brand)
       const discounted = variant.compareAtPrice != null && variant.compareAtPrice > variant.price
 
       items.push(
@@ -104,7 +124,7 @@ export function buildGoogleMerchantFeed(products: MerchantProduct[], config: Mer
           tag('g:price', money(discounted ? variant.compareAtPrice! : variant.price, config.currency)),
           discounted ? tag('g:sale_price', money(variant.price, config.currency)) : '',
           tag('g:condition', condition(product.condition)),
-          hasBrand ? tag('g:brand', product.brand!.trim()) : '',
+          hasBrand ? tag('g:brand', brand) : '',
           hasGtin ? tag('g:gtin', variant.barcode!.trim()) : '',
           hasMpn ? tag('g:mpn', product.mpn!.trim()) : '',
           !hasGtin && !hasMpn && !hasBrand && !product.identifierExists
