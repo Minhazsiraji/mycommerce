@@ -87,8 +87,8 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
       <h2 className="font-semibold">Your privacy choices</h2>
       <p className="mt-2 text-sm leading-6 text-(--color-muted)">
         Essential cookies keep your cart, account and checkout working. With your permission,
-        Meta analytics helps us measure product views, checkout and paid orders. Advertising
-        tracking stays off unless you allow it.
+        optional analytics such as Meta and Google help us measure product views, checkout and
+        completed orders. Advertising and analytics tracking stays off unless you allow it.
       </p>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
         <button
