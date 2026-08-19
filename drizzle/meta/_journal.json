@@ -23,6 +23,7 @@
     {"idx":18,"version":"7","when":1787004300000,"tag":"0018_fill_active_product_descriptions","breakpoints":true},
     {"idx":19,"version":"7","when":1787020000000,"tag":"0019_meta_integration_settings","breakpoints":true},
     {"idx":20,"version":"7","when":1787032400000,"tag":"0020_repair_meta_integration_settings","breakpoints":true},
-    {"idx":21,"version":"7","when":1787041260000,"tag":"0021_verify_meta_integration_settings","breakpoints":true}
+    {"idx":21,"version":"7","when":1787041260000,"tag":"0021_verify_meta_integration_settings","breakpoints":true},
+    {"idx":22,"version":"7","when":1787115600000,"tag":"0022_google_integration_settings","breakpoints":true}
   ]
 }
