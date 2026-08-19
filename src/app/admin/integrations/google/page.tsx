@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
 
-import { getGoogleAdminState } from '@/modules/google'
+import { getGoogleAdminState, googleAdminFormDefaults } from '@/modules/google'
 import { GoogleIntegrationForm } from '@/modules/google/components/google-integration-form'
 
 export const metadata: Metadata = { title: 'Google integration' }
@@ -23,11 +23,7 @@ export default async function GoogleIntegrationPage() {
       </div>
 
       <GoogleIntegrationForm
-        initial={{
-          trackingEnabled: settings?.trackingEnabled ?? state.effective.enabled,
-          tagId: settings?.tagId ?? '',
-          purchaseTrackingEnabled: settings?.purchaseTrackingEnabled ?? state.effective.purchaseTrackingEnabled,
-        }}
+        initial={googleAdminFormDefaults(settings, state.effective)}
         status={state.effective}
       />
     </div>
