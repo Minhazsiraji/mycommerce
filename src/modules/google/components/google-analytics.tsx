@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 
-import { META_CONSENT_EVENT, type MetaConsent } from '@/modules/meta/consent'
+import { META_CONSENT_EVENT, type MetaConsent } from '@/modules/meta'
 import { readMetaConsent } from '@/modules/meta/components/client'
 
 type GoogleWindow = Window & {
