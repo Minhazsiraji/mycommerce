@@ -3,7 +3,7 @@
 import { refresh } from 'next/cache'
 import { z } from 'zod'
 
-import { fromZodError, ok, type ActionResult } from '@/lib/action-result'
+import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
 import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
@@ -26,14 +26,9 @@ export async function saveGoogleIntegration(input: unknown): Promise<ActionResul
   const tagId = data.tagId.trim() || null
 
   if (tagId && !GOOGLE_TAG_PATTERN.test(tagId)) {
-    return {
-      ok: false,
-      error: {
-        category: 'validation',
-        message: 'Please correct the highlighted fields.',
-        fields: { tagId: 'Use a valid Google tag ID such as GT-XXXX, G-XXXX or AW-XXXX.' },
-      },
-    }
+    return fail('validation', 'Please correct the highlighted fields.', {
+      tagId: 'Use a valid Google tag ID such as GT-XXXX, G-XXXX or AW-XXXX.',
+    })
   }
 
   await repo.saveGoogleIntegrationSettings({
