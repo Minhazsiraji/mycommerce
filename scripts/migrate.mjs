@@ -1,7 +1,8 @@
 /**
  * Applies pending migrations before Vercel compiles the app.
  * Also repairs the known historical Meta integration schema drift before
- * Drizzle checks its migration journal, then verifies the required columns.
+ * Drizzle checks its migration journal, then verifies required integration
+ * tables used by request-time Admin pages.
  */
 import { neonConfig, Pool } from '@neondatabase/serverless'
 import { config as loadEnv } from 'dotenv'
@@ -48,15 +49,39 @@ try {
   `)
   console.log('[migrate] Meta schema preflight repair complete')
 
+  // Google integration settings are deliberately simple and contain no secret.
+  // Creating the table idempotently before Drizzle makes preview clones robust
+  // even if an interrupted deploy records journal state out of order.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "google_integration_settings" (
+      "store_key" text PRIMARY KEY DEFAULT 'default' NOT NULL,
+      "tracking_enabled" boolean DEFAULT false NOT NULL,
+      "tag_id" text,
+      "purchase_tracking_enabled" boolean DEFAULT true NOT NULL,
+      "created_at" timestamp DEFAULT now() NOT NULL,
+      "updated_at" timestamp DEFAULT now() NOT NULL
+    )
+  `)
+  console.log('[migrate] Google integration schema preflight complete')
+
   await migrate(drizzle(pool), { migrationsFolder: './drizzle' })
 
-  const result = await pool.query("select column_name from information_schema.columns where table_schema = 'public' and table_name = 'meta_integration_settings'")
-  const columns = new Set(result.rows.map((row) => row.column_name))
-  const required = ['store_key', 'tracking_enabled', 'pixel_id', 'dataset_id', 'access_token_encrypted']
-  const missing = required.filter((column) => !columns.has(column))
+  const metaResult = await pool.query("select column_name from information_schema.columns where table_schema = 'public' and table_name = 'meta_integration_settings'")
+  const metaColumns = new Set(metaResult.rows.map((row) => row.column_name))
+  const metaRequired = ['store_key', 'tracking_enabled', 'pixel_id', 'dataset_id', 'access_token_encrypted']
+  const metaMissing = metaRequired.filter((column) => !metaColumns.has(column))
 
-  if (missing.length) {
-    throw new Error(`meta_integration_settings schema incomplete: ${missing.join(', ')}`)
+  if (metaMissing.length) {
+    throw new Error(`meta_integration_settings schema incomplete: ${metaMissing.join(', ')}`)
+  }
+
+  const googleResult = await pool.query("select column_name from information_schema.columns where table_schema = 'public' and table_name = 'google_integration_settings'")
+  const googleColumns = new Set(googleResult.rows.map((row) => row.column_name))
+  const googleRequired = ['store_key', 'tracking_enabled', 'tag_id', 'purchase_tracking_enabled']
+  const googleMissing = googleRequired.filter((column) => !googleColumns.has(column))
+
+  if (googleMissing.length) {
+    throw new Error(`google_integration_settings schema incomplete: ${googleMissing.join(', ')}`)
   }
 
   console.log(`[migrate] schema verified; up to date in ${Date.now() - started}ms`)
