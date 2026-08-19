@@ -26,7 +26,16 @@ describe('integration secret encryption', () => {
 
   it('rejects tampered ciphertext', () => {
     const encrypted = encryptIntegrationSecret('another-sensitive-token')
-    const tampered = `${encrypted.slice(0, -1)}${encrypted.endsWith('A') ? 'B' : 'A'}`
+    const parts = encrypted.split('.')
+    expect(parts).toHaveLength(4)
+
+    // Flip an actual ciphertext byte rather than the final Base64 character.
+    // Changing only trailing Base64 padding bits can decode to the exact same
+    // bytes, which made this security test nondeterministically pass or fail.
+    const ciphertext = Buffer.from(parts[2]!, 'base64')
+    ciphertext[0] = ciphertext[0]! ^ 0x01
+    const tampered = [parts[0], parts[1], ciphertext.toString('base64'), parts[3]].join('.')
+
     expect(() => decryptIntegrationSecret(tampered)).toThrow()
   })
 })

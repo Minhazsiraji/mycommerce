@@ -16,13 +16,15 @@ export type PickableVariant = {
 export function VariantPicker({
   variants,
   title,
+  initialVariantId,
 }: {
   variants: PickableVariant[]
   title: string
+  initialVariantId?: string
 }) {
+  const requested = initialVariantId ? variants.find((variant) => variant.id === initialVariantId) : undefined
   const [selectedId, setSelectedId] = useState(
-    // Default to the first variant that can actually be bought.
-    (variants.find((v) => v.stock > 0) ?? variants[0])?.id,
+    requested?.id ?? (variants.find((v) => v.stock > 0) ?? variants[0])?.id,
   )
 
   const selected = variants.find((v) => v.id === selectedId) ?? variants[0]

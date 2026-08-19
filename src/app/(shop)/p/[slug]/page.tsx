@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 
 import { formatBdt, toDecimalString } from '@/lib/money'
 import { getSiteUrl } from '@/lib/site-metadata'
+import { STORE_CONFIG } from '@/lib/store-config'
 import { storage } from '@/lib/storage'
 import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/catalog'
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
@@ -14,7 +15,10 @@ import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
 import { minorToMetaValue } from '@/modules/meta'
 
-type Params = { params: Promise<{ slug: string }> }
+type Params = {
+  params: Promise<{ slug: string }>
+  searchParams?: Promise<{ variant?: string }>
+}
 
 function productDescription(product: {
   title: string
@@ -23,7 +27,7 @@ function productDescription(product: {
 }) {
   if (product.description?.trim()) return product.description.trim()
 
-  return `Shop ${product.title}${product.category ? ` in ${product.category.name}` : ''} at SirajiBD. View current price, availability and product details for customers in Bangladesh.`
+  return `Shop ${product.title}${product.category ? ` in ${product.category.name}` : ''} at ${STORE_CONFIG.name}. View current price, availability and product details for customers in ${STORE_CONFIG.countryName}.`
 }
 
 function schemaCondition(condition: string) {
@@ -65,10 +69,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-export default async function ProductPage({ params }: Params) {
+export default async function ProductPage({ params, searchParams }: Params) {
   await connection()
 
   const { slug } = await params
+  const query = await searchParams
   const product = await getCachedProductBySlug(slug)
 
   // Draft and archived products must not be reachable by guessing the URL.
@@ -86,7 +91,11 @@ export default async function ProductPage({ params }: Params) {
     (min, v) => (min == null || v.price < min ? v.price : min),
     null,
   )
-  const initialVariant = product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
+  const requestedVariant = query?.variant
+    ? product.variants.find((variant) => variant.id === query.variant)
+    : undefined
+  const initialVariant =
+    requestedVariant ?? product.variants.find((variant) => variant.stock > 0) ?? product.variants[0]
   const canonicalUrl = new URL(`/p/${product.slug}`, getSiteUrl()).href
   const description = productDescription(product)
   const schemaDescription = product.feedDescription?.trim() || description
@@ -116,18 +125,22 @@ export default async function ProductPage({ params }: Params) {
       : {}),
     ...(product.variants.length
       ? {
-          offers: product.variants.map((variant) => ({
-            '@type': 'Offer',
-            url: canonicalUrl,
-            priceCurrency: 'BDT',
-            price: toDecimalString(variant.price),
-            availability:
-              variant.stock > 0
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/OutOfStock',
-            itemCondition: schemaCondition(product.condition),
-            ...(variant.sku ? { sku: variant.sku } : {}),
-          })),
+          offers: product.variants.map((variant) => {
+            const offerUrl = new URL(canonicalUrl)
+            if (product.variants.length > 1) offerUrl.searchParams.set('variant', variant.id)
+            return {
+              '@type': 'Offer',
+              url: offerUrl.href,
+              priceCurrency: STORE_CONFIG.currency,
+              price: toDecimalString(variant.price),
+              availability:
+                variant.stock > 0
+                  ? 'https://schema.org/InStock'
+                  : 'https://schema.org/OutOfStock',
+              itemCondition: schemaCondition(product.condition),
+              ...(variant.sku ? { sku: variant.sku } : {}),
+            }
+          }),
         }
       : {}),
   }
@@ -190,6 +203,7 @@ export default async function ProductPage({ params }: Params) {
           {product.variants.length > 0 ? (
             <VariantPicker
               title={product.title}
+              initialVariantId={initialVariant?.id}
               variants={product.variants.map((v) => ({
                 id: v.id,
                 title: v.title,

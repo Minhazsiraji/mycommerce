@@ -14,9 +14,11 @@ type NavigationItem = {
 export function StorefrontHeader({
   categories,
   cart,
+  brand,
 }: {
   categories: NavigationItem[]
   cart: React.ReactNode
+  brand: { name: string; text: string; accent: string }
 }) {
   return (
     <>
@@ -34,10 +36,11 @@ export function StorefrontHeader({
 
             <Link
               href="/"
-              aria-label="SirajiBD home"
+              aria-label={`${brand.name} home`}
               className="mr-auto text-xl font-bold tracking-(--tracking-tight) text-(--text-primary) focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) lg:mr-0"
             >
-              Siraji<span className="text-(--action-primary)">BD</span>
+              {brand.text}
+              {brand.accent ? <span className="text-(--action-primary)">{brand.accent}</span> : null}
             </Link>
 
             {categories.length > 0 ? (
@@ -71,7 +74,7 @@ export function StorefrontHeader({
             </div>
           </div>
 
-          <SearchBar id="site-search-mobile" className="pb-4 md:hidden" label="Search SirajiBD products" />
+          <SearchBar id="site-search-mobile" className="pb-4 md:hidden" label={`Search ${brand.name} products`} />
 
           {categories.length > 0 ? (
             <nav aria-label="Browse categories" className="-mx-4 overflow-x-auto px-4 pb-3 md:hidden">

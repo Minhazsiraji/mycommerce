@@ -36,6 +36,14 @@ export {
   PAGE_SIZE,
 } from './repository'
 
+export { listMerchantFeedProducts } from './merchant-feed-repository'
+export {
+  buildGoogleMerchantFeed,
+  type MerchantFeedConfig,
+  type MerchantProduct,
+  type MerchantVariant,
+} from './merchant-feed'
+
 /** Cached reads for the storefront. Invalidated by tag from the actions. */
 export {
   getCachedActiveProducts,
