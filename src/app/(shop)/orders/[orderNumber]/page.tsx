@@ -5,6 +5,8 @@ import { connection } from 'next/server'
 
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
+import { getEffectiveGoogleConfig } from '@/modules/google'
+import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowButton } from '@/modules/payments/components/pay-now-button'
@@ -93,7 +95,14 @@ export default async function OrderPage({
    */
   if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
-  const shipments = await listShipments(order.id)
+  const [shipments, googleConfig] = await Promise.all([
+    listShipments(order.id),
+    getEffectiveGoogleConfig().catch(() => ({
+      enabled: false,
+      source: 'disabled' as const,
+      purchaseTrackingEnabled: false,
+    })),
+  ])
   const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
   const fulfilment = fulfilmentCopy(order.fulfillmentStatus, order.paymentMethod)
   const copy = order.status === 'cancelled'
@@ -114,25 +123,42 @@ export default async function OrderPage({
         ? fulfilment
         : (STATUS_COPY[order.paymentStatus] ?? STATUS_COPY.unpaid!)
   const address = order.shippingAddress
+  const isPaidConfirmed = order.paymentStatus === 'paid' && order.status === 'confirmed'
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
-      {order.paymentStatus === 'paid' && order.status === 'confirmed' ? (
-        <PurchaseTracker
-          eventId={purchaseEventId(order.id)}
-          data={{
-            content_ids: order.items.map((item) => item.variantId ?? item.sku),
-            content_type: 'product',
-            contents: order.items.map((item) => ({
-              id: item.variantId ?? item.sku,
+      {isPaidConfirmed ? (
+        <>
+          <PurchaseTracker
+            eventId={purchaseEventId(order.id)}
+            data={{
+              content_ids: order.items.map((item) => item.variantId ?? item.sku),
+              content_type: 'product',
+              contents: order.items.map((item) => ({
+                id: item.variantId ?? item.sku,
+                quantity: item.quantity,
+                item_price: minorToMetaValue(item.unitPrice),
+              })),
+              currency: 'BDT',
+              num_items: order.items.reduce((total, item) => total + item.quantity, 0),
+              value: minorToMetaValue(order.total),
+            }}
+          />
+          <GooglePurchaseTracker
+            enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
+            transactionId={order.orderNumber}
+            value={minorToMetaValue(order.total)}
+            currency="BDT"
+            shipping={minorToMetaValue(order.shippingCost)}
+            items={order.items.map((item) => ({
+              item_id: item.variantId ?? item.sku,
+              item_name: item.productTitle,
+              item_variant: item.variantTitle ?? undefined,
+              price: minorToMetaValue(item.unitPrice),
               quantity: item.quantity,
-              item_price: minorToMetaValue(item.unitPrice),
-            })),
-            currency: 'BDT',
-            num_items: order.items.reduce((total, item) => total + item.quantity, 0),
-            value: minorToMetaValue(order.total),
-          }}
-        />
+            }))}
+          />
+        </>
       ) : null}
       {confirmingPayment ? <PaymentStatusRefresh /> : null}
       <div className="flex flex-col gap-2">
