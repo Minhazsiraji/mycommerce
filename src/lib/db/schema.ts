@@ -16,6 +16,7 @@ export * from '@/modules/shipping/schema'
 export * from '@/modules/admin/schema'
 export * from '@/modules/fraud/schema'
 export * from '@/modules/meta/schema'
+export * from '@/modules/google/schema'
 export * from '@/modules/storefront-settings/schema'
 
 // Infrastructure rather than a domain — see the note in lib/rate-limit.ts.

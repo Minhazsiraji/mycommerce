@@ -9,6 +9,8 @@ import { formatBdt } from '@/lib/money'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
 import { getCachedCategories } from '@/modules/catalog'
+import { getEffectiveGoogleConfig } from '@/modules/google'
+import { GoogleAnalytics } from '@/modules/google/components/google-analytics'
 import { getEffectiveMetaConfig } from '@/modules/meta'
 import {
   MetaAnalytics,
@@ -34,11 +36,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   await connection()
 
-  const [categoriesResult, deliveryResult, settingsResult, metaResult] = await Promise.allSettled([
+  const [categoriesResult, deliveryResult, settingsResult, metaResult, googleResult] = await Promise.allSettled([
     getCachedCategories(),
     getCachedDeliverySummary(),
     getCachedStorefrontSettings(),
     getEffectiveMetaConfig(),
+    getEffectiveGoogleConfig(),
   ])
 
   if (categoriesResult.status === 'rejected') {
@@ -53,6 +56,9 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   if (metaResult.status === 'rejected') {
     console.error('Unable to load Meta integration configuration')
   }
+  if (googleResult.status === 'rejected') {
+    console.error('Unable to load Google integration configuration')
+  }
 
   const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
   const settings =
@@ -63,6 +69,11 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     metaResult.status === 'fulfilled'
       ? metaResult.value
       : { enabled: false, source: 'disabled' as const }
+  const google =
+    googleResult.status === 'fulfilled'
+      ? googleResult.value
+      : { enabled: false, source: 'disabled' as const, purchaseTrackingEnabled: false }
+  const analyticsEnabled = meta.enabled || google.enabled
 
   const topCategories = categories.filter((category) => !category.parentId)
   const announcementFacts: { key: 'delivery' | 'threshold'; label: string }[] = []
@@ -84,7 +95,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={meta.pixelId} enabled={meta.enabled} />
+      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} />
+      <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
       <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
@@ -120,7 +132,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           description: settings.footerDescription,
           copyright: settings.footerCopyright,
         }}
-        privacyChoices={<PrivacyChoicesButton enabled={meta.enabled} />}
+        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} />}
       />
     </div>
   )
