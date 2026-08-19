@@ -32,12 +32,13 @@ import { NextResponse, type NextRequest } from 'next/server'
  * where the speed comes from. So: host-based CSP, plus `'unsafe-inline'` for the
  * bootstrap and flight-data scripts Next emits inline.
  *
- * What is kept is a narrow host allowlist: application code plus Meta's single
- * documented Pixel host. Everything else remains blocked. What is given up is
- * protection against injected *inline* script, which first requires an XSS
- * hole: React escapes by default and `dangerouslySetInnerHTML` is banned on user
- * content (docs/04-security.md, threat 10). CSP is defence in depth here, not
- * the primary control.
+ * What is kept is a narrow host allowlist: application code, Meta's documented
+ * Pixel hosts, and the Google hosts required by the Merchant Center Google tag.
+ * Everything else remains blocked. What is given up is protection against
+ * injected *inline* script, which first requires an XSS hole: React escapes by
+ * default and `dangerouslySetInnerHTML` is banned on user content
+ * (docs/04-security.md, threat 10). CSP is defence in depth here, not the primary
+ * control.
  */
 
 const PRIVATE_PREFIXES = ['/account', '/admin']
@@ -59,15 +60,19 @@ export default function proxy(request: NextRequest) {
     `default-src 'self'`,
     // React's development build needs eval() for its debugging features. It
     // never uses eval() in production, so that relaxation stays scoped to dev.
-    // Permitted by host, but loaded only after explicit analytics consent.
-    `script-src 'self' 'unsafe-inline' https://connect.facebook.net${isDev ? " 'unsafe-eval'" : ''}`,
+    // Meta Pixel and the Merchant Center Google tag are permitted by host, but
+    // loaded only after explicit analytics consent.
+    `script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'unsafe-inline'`,
-    // Cloudinary serves every product image.
-    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com`,
+    // Cloudinary serves every product image. Meta Pixel and Merchant Center may
+    // emit measurement pixels only after analytics consent.
+    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com https://*.merchant-center-analytics.goog`,
     `font-src 'self'`,
     // api.cloudinary.com receives direct browser uploads from admin.
+    // Merchant Center's Google tag sends measurement only to its documented
+    // analytics host. No broad google.com / doubleclick allowance is needed.
     // ws: is the dev HMR socket only.
-    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net${isDev ? ' ws:' : ''}`,
+    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
