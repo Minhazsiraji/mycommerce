@@ -21,7 +21,7 @@ const NAV = [
   { href: '/admin/products', label: 'Products' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/shopping-readiness', label: 'AI readiness' },
-  { href: '/admin/integrations/meta', label: 'Integrations' },
+  { href: '/admin/integrations', label: 'Integrations' },
   { href: '/admin/shipping', label: 'Delivery' },
   { href: '/admin/transfers', label: 'Transfers' },
   { href: '/admin/fraud', label: 'Fraud' },
