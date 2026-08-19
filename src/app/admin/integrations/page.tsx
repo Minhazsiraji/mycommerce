@@ -3,6 +3,8 @@ import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Integrations' }
 
+type IntegrationHref = '/admin/integrations/meta' | '/admin/integrations/google'
+
 export default function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-6">
@@ -21,7 +23,7 @@ export default function IntegrationsPage() {
   )
 }
 
-function IntegrationCard({ href, title, detail }: { href: string; title: string; detail: string }) {
+function IntegrationCard({ href, title, detail }: { href: IntegrationHref; title: string; detail: string }) {
   return (
     <Link href={href} className="rounded-xl border border-(--color-border) p-5 transition hover:bg-(--color-surface)">
       <h2 className="font-semibold">{title}</h2>
