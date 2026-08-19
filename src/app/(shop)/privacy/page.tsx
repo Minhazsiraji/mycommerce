@@ -51,7 +51,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>Essential cookies or similar storage are used where necessary to keep features such as sessions, account security, cart and checkout working.</p>
-              <p>Optional browser analytics, including Meta Pixel when configured, are activated only after you choose to allow analytics. You can revisit the site’s Privacy choices control to change that optional browser-analytics choice.</p>
+              <p>Optional browser analytics, including Meta Pixel and Google measurement when configured, are activated only after you choose to allow analytics. You can revisit the site’s Privacy choices control to change that optional browser-analytics choice.</p>
               <p>Where a server-side conversion integration is configured, limited order/conversion information may also be sent for measurement and attribution subject to the store’s settings and applicable requirements. Identifiers are normalised or hashed where the integration requires it.</p>
             </>
           ),
