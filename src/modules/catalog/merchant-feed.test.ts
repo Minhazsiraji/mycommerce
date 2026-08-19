@@ -74,4 +74,29 @@ describe('Google Merchant XML feed', () => {
     expect(xml).toContain('Example &amp; Shop product feed')
     expect(xml).not.toContain('/p/no-image')
   })
+
+  it('does not publish the storefront identity as a fallback product brand', () => {
+    const xml = buildGoogleMerchantFeed([
+      { ...product, brand: 'Example Shop' },
+    ], {
+      storeName: 'Example Shop',
+      siteUrl: 'https://shop.example.com',
+      currency: 'BDT',
+    })
+
+    expect(xml).not.toContain('<g:brand>Example Shop</g:brand>')
+    expect(xml).toContain('<g:identifier_exists>no</g:identifier_exists>')
+  })
+
+  it('keeps a distinct real product brand', () => {
+    const xml = buildGoogleMerchantFeed([
+      { ...product, brand: 'Acme' },
+    ], {
+      storeName: 'Example Shop',
+      siteUrl: 'https://shop.example.com',
+      currency: 'BDT',
+    })
+
+    expect(xml).toContain('<g:brand>Acme</g:brand>')
+  })
 })
