@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react'
 
-import { META_CONSENT_EVENT } from '@/modules/meta/consent'
+import { META_CONSENT_EVENT } from '@/modules/meta'
 import { readMetaConsent } from '@/modules/meta/components/client'
 
 type GooglePurchaseItem = {
