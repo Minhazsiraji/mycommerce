@@ -18,7 +18,10 @@ export async function startGatewayPaymentFromOrder(orderNumber: string): Promise
     redirect(`/orders/${encodeURIComponent(orderNumber)}?paymentError=gateway`)
   }
 
-  redirect(result.data.redirectUrl)
+  // Next typed routes model application routes, while SSLCommerz returns an
+  // external HTTPS destination. redirect() supports external URLs at runtime;
+  // this narrow cast is only to bridge that type-system mismatch.
+  redirect(result.data.redirectUrl as never)
 }
 
 export async function switchOrderToBankTransfer(orderNumber: string): Promise<never> {
