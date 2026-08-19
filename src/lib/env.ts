@@ -84,6 +84,15 @@ const serverSchema = z.object({
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_META_PIXEL_ID: z.string().trim().min(1).optional(),
+  /**
+   * Optional per-store Google tag fallback. Admin-managed Google settings take
+   * precedence once configured; cloned stores should supply their own tag ID.
+   */
+  NEXT_PUBLIC_GOOGLE_TAG_ID: z
+    .string()
+    .trim()
+    .regex(/^(GT|G|AW)-[A-Z0-9-]+$/i)
+    .optional(),
 })
 
 const skip = process.env.SKIP_ENV_VALIDATION === 'true'
@@ -109,6 +118,7 @@ export const clientEnv = load(
   {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_META_PIXEL_ID: process.env.NEXT_PUBLIC_META_PIXEL_ID,
+    NEXT_PUBLIC_GOOGLE_TAG_ID: process.env.NEXT_PUBLIC_GOOGLE_TAG_ID,
   },
   'client',
 )
