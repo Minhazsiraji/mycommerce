@@ -11,7 +11,7 @@ import { GooglePurchaseTracker } from '@/modules/google/components/purchase-trac
 import { getVisibleOrder, listShipments } from '@/modules/orders'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowButton } from '@/modules/payments/components/pay-now-button'
-import { PaymentStatusRefresh } from '@/modules/payments/components/payment-status-refresh'
+import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
 import { minorToMetaValue, purchaseEventId } from '@/modules/meta'
 import { PurchaseTracker } from '@/modules/meta/components/event-trackers'
 
@@ -98,13 +98,17 @@ async function OrderDetail({
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>
-  searchParams: Promise<{ payment?: string }>
+  searchParams: Promise<{ payment?: string; c?: string }>
 }) {
   await connection()
 
   const { orderNumber } = await params
   const order = await getVisibleOrder(orderNumber)
-  const { payment: returnStatus } = await searchParams
+  const { payment: returnStatus, c: confirmAttemptRaw } = await searchParams
+
+  // Clamped rather than trusted: this rides in the URL, so a hand-edited value
+  // must not be able to drive an unbounded refresh loop.
+  const confirmAttempt = Math.min(Math.max(Number(confirmAttemptRaw) || 0, 0), 99)
 
   /**
    * Send anyone who cannot see this to the lookup form, prefilled.
@@ -173,7 +177,11 @@ async function OrderDetail({
           />
         </>
       ) : null}
-      {confirmingPayment ? <PaymentStatusRefresh /> : null}
+      {/* Inert refresh, because PaymentStatusRefresh cannot run here — see the
+          note in payment-confirming-refresh.tsx. */}
+      {confirmingPayment ? (
+        <PaymentConfirmingRefresh orderNumber={order.orderNumber} attempt={confirmAttempt} />
+      ) : null}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
         <p className="text-(--color-muted)">{copy.body}</p>
@@ -305,7 +313,7 @@ export default function OrderPage({
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>
-  searchParams: Promise<{ payment?: string }>
+  searchParams: Promise<{ payment?: string; c?: string }>
 }) {
   return (
     <Suspense fallback={<OrderDetailSkeleton />}>
