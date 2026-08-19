@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
+import { Suspense } from 'react'
 
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
@@ -72,7 +73,27 @@ function fulfilmentCopy(status: string, paymentMethod: string) {
   return null
 }
 
-export default async function OrderPage({
+/**
+ * The order page's dynamic half, inside its own Suspense boundary.
+ *
+ * This split is load-bearing, not cosmetic. Every read below is per-request —
+ * `connection()`, the session-scoped order lookup, `searchParams` — and with
+ * `cacheComponents` enabled, doing that at the top level of the page component
+ * makes the route "blocking" (Next error E1084). The observable consequence was
+ * not a slow page: **the entire subtree was delivered as HTML that never
+ * hydrated**, so every client component inside it was inert.
+ *
+ * That is why the Google `purchase` event never fired. `GooglePurchaseTracker`
+ * was rendered with correct props — the markup was in the document — but its
+ * `useEffect` never ran, because React never hydrated it. The same fault
+ * silently killed Meta's `PurchaseTracker`, `PayNowButton` (so a customer whose
+ * card failed could not retry) and `PaymentStatusRefresh`.
+ *
+ * `page_view` kept working throughout because `GoogleAnalytics` lives in the
+ * shop layout, which hydrates normally — which is exactly why the symptom
+ * looked like a Google-tag problem rather than a rendering one.
+ */
+async function OrderDetail({
   params,
   searchParams,
 }: {
@@ -144,19 +165,11 @@ export default async function OrderPage({
               value: minorToMetaValue(order.total),
             }}
           />
+          {/* Eligibility and the payload shape live in the google module, so
+              they can be tested directly rather than through this page. */}
           <GooglePurchaseTracker
             enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
-            transactionId={order.orderNumber}
-            value={minorToMetaValue(order.total)}
-            currency="BDT"
-            shipping={minorToMetaValue(order.shippingCost)}
-            items={order.items.map((item) => ({
-              item_id: item.variantId ?? item.sku,
-              item_name: item.productTitle,
-              item_variant: item.variantTitle ?? undefined,
-              price: minorToMetaValue(item.unitPrice),
-              quantity: item.quantity,
-            }))}
+            order={order}
           />
         </>
       ) : null}
@@ -271,5 +284,32 @@ export default async function OrderPage({
         ← Continue shopping
       </Link>
     </div>
+  )
+}
+
+function OrderDetailSkeleton() {
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <div className="h-9 w-2/3 animate-pulse rounded bg-(--color-surface)" />
+        <div className="h-5 w-full animate-pulse rounded bg-(--color-surface)" />
+      </div>
+      <div className="h-40 animate-pulse rounded-lg bg-(--color-surface)" />
+      <div className="h-32 animate-pulse rounded-lg bg-(--color-surface)" />
+    </div>
+  )
+}
+
+export default function OrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orderNumber: string }>
+  searchParams: Promise<{ payment?: string }>
+}) {
+  return (
+    <Suspense fallback={<OrderDetailSkeleton />}>
+      <OrderDetail params={params} searchParams={searchParams} />
+    </Suspense>
   )
 }
