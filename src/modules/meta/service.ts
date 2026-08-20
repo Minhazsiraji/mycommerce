@@ -16,6 +16,7 @@ import {
   normalizeCountry,
   normalizeEmail,
 } from './normalization'
+import { buildMetaPurchaseData } from './purchase-data'
 import * as repo from './repository'
 import { minorToMetaValue } from './value'
 import type { MetaCustomData } from './validators'
@@ -285,18 +286,8 @@ async function deliverPurchase(eventId: string) {
       fbp: attribution.fbp ?? undefined,
       fbc: attribution.fbc ?? undefined,
     },
-    customData: {
-      content_ids: items.map((item) => item.variantId ?? item.sku),
-      content_type: 'product',
-      contents: items.map((item) => ({
-        id: item.variantId ?? item.sku,
-        quantity: item.quantity,
-        item_price: minorToMetaValue(item.unitPrice),
-      })),
-      currency: 'BDT',
-      num_items: items.reduce((total, item) => total + item.quantity, 0),
-      value: minorToMetaValue(order.total),
-    },
+    // Same builder the browser Pixel block uses — see purchase-data.ts.
+    customData: buildMetaPurchaseData({ total: order.total, items }),
   })
 
   if (result.sent) await repo.markDeliverySent(eventId)

@@ -10,7 +10,7 @@ import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
 import { MetaPurchasePayload } from '@/modules/meta/components/meta-purchase-payload'
-import { minorToMetaValue, purchaseEventId } from '@/modules/meta'
+import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowPanel } from '@/modules/payments/components/pay-now-panel'
 import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
@@ -138,20 +138,11 @@ async function OrderDetail({
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       {isPaidConfirmed ? (
         <>
+          {/* Same builder the CAPI delivery uses, so browser and server cannot
+              describe the same sale differently. */}
           <MetaPurchasePayload
             eventId={purchaseEventId(order.id)}
-            data={{
-              content_ids: order.items.map((item) => item.variantId ?? item.sku),
-              content_type: 'product',
-              contents: order.items.map((item) => ({
-                id: item.variantId ?? item.sku,
-                quantity: item.quantity,
-                item_price: minorToMetaValue(item.unitPrice),
-              })),
-              currency: 'BDT',
-              num_items: order.items.reduce((total, item) => total + item.quantity, 0),
-              value: minorToMetaValue(order.total),
-            }}
+            data={buildMetaPurchaseData(order)}
           />
           <GooglePurchaseTracker
             enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
