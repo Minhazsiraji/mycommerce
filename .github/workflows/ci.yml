@@ -85,7 +85,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run full migration chain on empty Postgres
-        run: pnpm db:migrate
+        # The production migration runner uses Neon's WebSocket driver and is
+        # separately exercised by Vercel/Neon deployments. For a deterministic
+        # local PostgreSQL service, Drizzle Kit applies the exact same checked-in
+        # migration journal and SQL files using its PostgreSQL connection path.
+        run: pnpm exec drizzle-kit migrate
 
       - name: Verify clean-install schema
         env:
