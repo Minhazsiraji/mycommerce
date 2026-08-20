@@ -9,11 +9,11 @@ import { formatBdt } from '@/lib/money'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
+import { MetaPurchasePayload } from '@/modules/meta/components/meta-purchase-payload'
+import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
-import { PayNowButton } from '@/modules/payments/components/pay-now-button'
+import { PayNowPanel } from '@/modules/payments/components/pay-now-panel'
 import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
-import { minorToMetaValue, purchaseEventId } from '@/modules/meta'
-import { PurchaseTracker } from '@/modules/meta/components/event-trackers'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
@@ -76,48 +76,32 @@ function fulfilmentCopy(status: string, paymentMethod: string) {
 /**
  * The order page's dynamic half, inside its own Suspense boundary.
  *
- * This split is load-bearing, not cosmetic. Every read below is per-request —
- * `connection()`, the session-scoped order lookup, `searchParams` — and with
- * `cacheComponents` enabled, doing that at the top level of the page component
- * makes the route "blocking" (Next error E1084). The observable consequence was
- * not a slow page: **the entire subtree was delivered as HTML that never
- * hydrated**, so every client component inside it was inert.
- *
- * That is why the Google `purchase` event never fired. `GooglePurchaseTracker`
- * was rendered with correct props — the markup was in the document — but its
- * `useEffect` never ran, because React never hydrated it. The same fault
- * silently killed Meta's `PurchaseTracker`, `PayNowButton` (so a customer whose
- * card failed could not retry) and `PaymentStatusRefresh`.
- *
- * `page_view` kept working throughout because `GoogleAnalytics` lives in the
- * shop layout, which hydrates normally — which is exactly why the symptom
- * looked like a Google-tag problem rather than a rendering one.
+ * Per-request reads on this route have historically produced a non-hydrating
+ * subtree. Critical recovery and conversion controls therefore use progressive
+ * HTML/server mechanisms rather than assuming client effects or click handlers
+ * will wake up.
  */
 async function OrderDetail({
   params,
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>
-  searchParams: Promise<{ payment?: string; c?: string }>
+  searchParams: Promise<{ payment?: string; c?: string; paymentError?: string }>
 }) {
   await connection()
 
   const { orderNumber } = await params
   const order = await getVisibleOrder(orderNumber)
-  const { payment: returnStatus, c: confirmAttemptRaw } = await searchParams
+  const {
+    payment: returnStatus,
+    c: confirmAttemptRaw,
+    paymentError,
+  } = await searchParams
 
   // Clamped rather than trusted: this rides in the URL, so a hand-edited value
   // must not be able to drive an unbounded refresh loop.
   const confirmAttempt = Math.min(Math.max(Number(confirmAttemptRaw) || 0, 0), 99)
 
-  /**
-   * Send anyone who cannot see this to the lookup form, prefilled.
-   *
-   * The viewing cookie only lasts a week, so the commonest visitor here is a
-   * guest coming back to an old confirmation email — a 404 would strand them.
-   * Redirecting unconditionally also keeps this from being an oracle: a missing
-   * order and someone else's order produce exactly the same response.
-   */
   if (!order) redirect(`/orders/lookup?order=${encodeURIComponent(orderNumber)}`)
 
   const [shipments, googleConfig] = await Promise.all([
@@ -154,34 +138,23 @@ async function OrderDetail({
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       {isPaidConfirmed ? (
         <>
-          <PurchaseTracker
+          {/* Same builder the CAPI delivery uses, so browser and server cannot
+              describe the same sale differently. */}
+          <MetaPurchasePayload
             eventId={purchaseEventId(order.id)}
-            data={{
-              content_ids: order.items.map((item) => item.variantId ?? item.sku),
-              content_type: 'product',
-              contents: order.items.map((item) => ({
-                id: item.variantId ?? item.sku,
-                quantity: item.quantity,
-                item_price: minorToMetaValue(item.unitPrice),
-              })),
-              currency: 'BDT',
-              num_items: order.items.reduce((total, item) => total + item.quantity, 0),
-              value: minorToMetaValue(order.total),
-            }}
+            data={buildMetaPurchaseData(order)}
           />
-          {/* Eligibility and the payload shape live in the google module, so
-              they can be tested directly rather than through this page. */}
           <GooglePurchaseTracker
             enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
             order={order}
           />
         </>
       ) : null}
-      {/* Inert refresh, because PaymentStatusRefresh cannot run here — see the
-          note in payment-confirming-refresh.tsx. */}
+
       {confirmingPayment ? (
         <PaymentConfirmingRefresh orderNumber={order.orderNumber} attempt={confirmAttempt} />
       ) : null}
+
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
         <p className="text-(--color-muted)">{copy.body}</p>
@@ -212,7 +185,11 @@ async function OrderDetail({
       ) : order.paymentMethod === 'sslcommerz' &&
         !confirmingPayment &&
         (order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') ? (
-        <PayNowButton orderNumber={order.orderNumber} amount={order.total} />
+        <PayNowPanel
+          orderNumber={order.orderNumber}
+          amount={order.total}
+          errorCode={paymentError}
+        />
       ) : null}
 
       {shipments.length > 0 ? (
@@ -313,7 +290,7 @@ export default function OrderPage({
   searchParams,
 }: {
   params: Promise<{ orderNumber: string }>
-  searchParams: Promise<{ payment?: string; c?: string }>
+  searchParams: Promise<{ payment?: string; c?: string; paymentError?: string }>
 }) {
   return (
     <Suspense fallback={<OrderDetailSkeleton />}>

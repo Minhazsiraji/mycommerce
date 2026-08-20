@@ -8,6 +8,11 @@ import {
   META_PRIVACY_OPEN_EVENT,
   type MetaConsent,
 } from '../consent'
+import {
+  META_PURCHASE_ELEMENT_ID,
+  metaPurchaseStorageKey,
+  parseMetaPurchasePayload,
+} from '../purchase-payload'
 import { readMetaConsent, writeMetaConsent } from './client'
 
 function bootPixel(pixelId: string) {
@@ -36,6 +41,33 @@ function bootPixel(pixelId: string) {
 
   window.fbq('consent', 'grant')
   window.dispatchEvent(new Event('sirajibd:pixel-ready'))
+}
+
+/**
+ * Emits the order-page Meta Purchase at most once per stable event ID.
+ *
+ * The order detail subtree is known not to hydrate. Reading an inert JSON block
+ * from the layout keeps browser Pixel reporting aligned with the server-side
+ * CAPI event without depending on a dead page-level useEffect.
+ */
+function emitMetaPurchaseOnce(): boolean {
+  const block = document.getElementById(META_PURCHASE_ELEMENT_ID)
+  const payload = parseMetaPurchasePayload(block?.textContent)
+  if (!payload || !window.fbq) return false
+
+  const storageKey = metaPurchaseStorageKey(payload.eventId)
+  try {
+    if (localStorage.getItem(storageKey)) return true
+    // Prefer one lost browser event over duplicate reported revenue if the
+    // tracking call itself throws. CAPI still carries the stable event ID.
+    localStorage.setItem(storageKey, '1')
+  } catch {
+    // Hardened browsers can deny storage. Meta can still deduplicate with the
+    // event ID shared by Pixel and CAPI.
+  }
+
+  window.fbq('track', 'Purchase', payload.data, { eventID: payload.eventId })
+  return true
 }
 
 export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled: boolean }) {
@@ -74,6 +106,16 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
       window.fbq?.('track', 'PageView')
       lastPage.current = pathname
     }
+
+    if (emitMetaPurchaseOnce()) return
+
+    // Dynamic order content can stream in after the layout hydrated. Observe
+    // for the inert purchase block instead of guessing a timeout.
+    const observer = new MutationObserver(() => {
+      if (emitMetaPurchaseOnce()) observer.disconnect()
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [consent, pathname, pixelId])
 
   if (!enabled || (consent !== 'unset' && !choicesOpen)) return null
