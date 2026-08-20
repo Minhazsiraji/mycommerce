@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "clone:audit": "node scripts/clone-readiness.mjs",
     "data:generate": "node scripts/generate-bd-locations.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
