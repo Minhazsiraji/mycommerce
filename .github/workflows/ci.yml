@@ -36,14 +36,10 @@ jobs:
       - run: pnpm test
 
       - name: Build
-        # Real secrets are never exposed to CI. Env validation is skipped and
-        # placeholders stand in for values the build reads at compile time.
         env:
           SKIP_ENV_VALIDATION: 'true'
           NEXT_PUBLIC_APP_URL: http://localhost:3000
           BETTER_AUTH_URL: http://localhost:3000
-          # CI-only placeholder. It is not used by Preview or Production and
-          # prevents Better Auth from falling back to its insecure default.
           BETTER_AUTH_SECRET: ci-only-build-secret-not-for-runtime-use
         run: pnpm build
 
@@ -70,30 +66,25 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mycommerce_clone_test
+      PGPASSWORD: postgres
 
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Run full migration chain on empty Postgres
-        # The production migration runner uses Neon's WebSocket driver and is
-        # separately exercised by Vercel/Neon deployments. For a deterministic
-        # local PostgreSQL service, Drizzle Kit applies the exact same checked-in
-        # migration journal and SQL files using its PostgreSQL connection path.
-        run: pnpm exec drizzle-kit migrate
+      - name: Apply every checked-in migration to empty Postgres
+        # The app's runtime migrator intentionally uses Neon's WebSocket driver,
+        # which cannot connect to a localhost service. This CI gate therefore
+        # exercises the exact checked-in SQL migration files directly, in journal
+        # filename order, against an empty PostgreSQL 18 database. Vercel deploys
+        # continue to exercise the actual Neon runtime migration runner.
+        run: |
+          set -euo pipefail
+          for migration in $(find drizzle -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]_*.sql' | sort); do
+            echo "Applying ${migration}"
+            psql -h localhost -U postgres -d mycommerce_clone_test -v ON_ERROR_STOP=1 -f "${migration}"
+          done
 
       - name: Verify clean-install schema
-        env:
-          PGPASSWORD: postgres
         run: |
           psql -h localhost -U postgres -d mycommerce_clone_test -v ON_ERROR_STOP=1 <<'SQL'
           SELECT to_regclass('public.users') AS users_table;
