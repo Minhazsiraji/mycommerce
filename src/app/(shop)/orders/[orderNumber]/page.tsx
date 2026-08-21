@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
@@ -67,7 +68,7 @@ function fulfilmentCopy(status: string, paymentMethod: string) {
   if (status === 'delivered') {
     return {
       title: 'Order delivered',
-      body: 'This order has been marked delivered. Thank you for shopping with SirajiBD.',
+      body: `This order has been marked delivered. Thank you for shopping with ${STORE_CONFIG.name}.`,
     }
   }
   return null

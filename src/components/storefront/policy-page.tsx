@@ -1,6 +1,7 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 
+import { STORE_CONFIG } from '@/lib/store-config'
 import { POLICY_LAST_UPDATED, STORE_TRUST_ROUTES } from '@/lib/store-policies'
 
 type PolicySection = {
@@ -27,7 +28,7 @@ export function PolicyPage({
           ← Back to store
         </Link>
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-semibold tracking-wider text-(--text-muted) uppercase">SirajiBD customer information</p>
+          <p className="text-xs font-semibold tracking-wider text-(--text-muted) uppercase">{STORE_CONFIG.name} customer information</p>
           <h1 className="text-3xl font-bold tracking-(--tracking-tight) text-(--text-primary) sm:text-4xl">{title}</h1>
           <p className="max-w-3xl text-base leading-7 text-(--text-secondary)">{summary}</p>
           <p className="text-xs text-(--text-muted)">Last updated: {POLICY_LAST_UPDATED}</p>

@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
   title: 'Returns & Refunds',
-  description: 'Read SirajiBD return, exchange, cancellation and refund terms for orders delivered in Bangladesh.',
+  description: `Read ${STORE_CONFIG.name} return, exchange, cancellation and refund terms for orders delivered in ${STORE_CONFIG.countryName}.`,
   alternates: { canonical: '/returns' },
 }
 
@@ -13,7 +14,7 @@ export default function ReturnsPage() {
   return (
     <PolicyPage
       title="Returns & Refunds"
-      summary="We want return and refund decisions to be predictable. This policy explains the standard SirajiBD process for eligible orders delivered in Bangladesh."
+      summary={`We want return and refund decisions to be predictable. This policy explains the standard ${STORE_CONFIG.name} process for eligible orders delivered in ${STORE_CONFIG.countryName}.`}
       sections={[
         {
           title: '7-day return window',
@@ -29,7 +30,7 @@ export default function ReturnsPage() {
           body: (
             <>
               <p>If an item arrives damaged, defective, materially different from the ordered item, or with included parts missing, contact us promptly through the <Link className="underline" href="/contact">Contact Us</Link> page.</p>
-              <p>For an approved claim caused by SirajiBD or fulfilment error, we will arrange an appropriate replacement, exchange or refund and cover the reasonable return delivery cost.</p>
+              <p>For an approved claim caused by {STORE_CONFIG.name} or fulfilment error, we will arrange an appropriate replacement, exchange or refund and cover the reasonable return delivery cost.</p>
             </>
           ),
         },
@@ -38,7 +39,7 @@ export default function ReturnsPage() {
           body: (
             <>
               <p>Eligible unused items may also be returned within the 7-day window when you simply change your mind.</p>
-              <p>For a change-of-mind return, the customer is responsible for the return delivery cost. The original delivery charge is not refundable unless the return is due to a SirajiBD or fulfilment error.</p>
+              <p>For a change-of-mind return, the customer is responsible for the return delivery cost. The original delivery charge is not refundable unless the return is due to a {STORE_CONFIG.name} or fulfilment error.</p>
             </>
           ),
         },
@@ -57,7 +58,7 @@ export default function ReturnsPage() {
           title: 'How to request a return',
           body: (
             <ol className="list-decimal space-y-2 pl-5">
-              <li>Contact SirajiBD within the return window and provide the order number and reason for return.</li>
+              <li>Contact {STORE_CONFIG.name} within the return window and provide the order number and reason for return.</li>
               <li>For damaged, defective, wrong or incomplete products, provide clear photos or other reasonable evidence if requested.</li>
               <li>Wait for return instructions before sending the item. Unauthorised parcels may be difficult to identify or process.</li>
               <li>Pack the item securely and follow the courier or drop-off instructions we provide.</li>

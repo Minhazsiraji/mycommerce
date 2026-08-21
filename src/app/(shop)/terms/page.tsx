@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { STORE_CONFIG, STORE_HOST } from '@/lib/store-config'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions',
-  description: 'Read the terms that apply when using SirajiBD, placing orders and purchasing products through the store.',
+  description: `Read the terms that apply when using ${STORE_CONFIG.name}, placing orders and purchasing products through the store.`,
   alternates: { canonical: '/terms' },
 }
 
@@ -13,10 +14,10 @@ export default function TermsPage() {
   return (
     <PolicyPage
       title="Terms & Conditions"
-      summary="These terms govern use of sirajibd.com and purchases made through the SirajiBD online store. Separate policies linked below form part of the customer information for an order."
+      summary={`These terms govern use of ${STORE_HOST} and purchases made through the ${STORE_CONFIG.name} online store. Separate policies linked below form part of the customer information for an order.`}
       sections={[
         {
-          title: 'Using SirajiBD',
+          title: `Using ${STORE_CONFIG.name}`,
           body: (
             <>
               <p>You may use the store for lawful personal shopping and related account or order activities. Do not misuse the service, interfere with its security, attempt unauthorised access, submit fraudulent orders or use the store in a way that harms other customers or the service.</p>
@@ -55,7 +56,7 @@ export default function TermsPage() {
           title: 'Warranty and product support',
           body: (
             <>
-              <p>SirajiBD does not promise a blanket manufacturer or extended warranty for every product. If a product has a specific seller, manufacturer or service warranty, the applicable duration and material conditions should be stated on the product page or otherwise disclosed before purchase.</p>
+              <p>{STORE_CONFIG.name} does not promise a blanket manufacturer or extended warranty for every product. If a product has a specific seller, manufacturer or service warranty, the applicable duration and material conditions should be stated on the product page or otherwise disclosed before purchase.</p>
               <p>A product-specific warranty does not replace the return process for an item that arrives damaged, defective, wrong or incomplete, and nothing here limits rights that cannot lawfully be excluded.</p>
             </>
           ),
@@ -69,7 +70,7 @@ export default function TermsPage() {
         {
           title: 'Intellectual property',
           body: (
-            <p>The SirajiBD branding, site design, original text, graphics and other protected store materials may not be copied or commercially reused without permission except where applicable law allows it. Product or third-party names and marks remain the property of their respective owners.</p>
+            <p>The {STORE_CONFIG.name} branding, site design, original text, graphics and other protected store materials may not be copied or commercially reused without permission except where applicable law allows it. Product or third-party names and marks remain the property of their respective owners.</p>
           ),
         },
         {

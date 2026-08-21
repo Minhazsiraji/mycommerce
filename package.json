@@ -19,7 +19,8 @@
     "data:generate": "node scripts/generate-bd-locations.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "admin:promote": "node --env-file=.env.local scripts/make-admin.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

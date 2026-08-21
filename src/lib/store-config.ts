@@ -36,3 +36,26 @@ export const STORE_CONFIG = Object.freeze(
 export function getStoreUrl(path = '/') {
   return new URL(path, `${STORE_CONFIG.canonicalUrl}/`)
 }
+
+/**
+ * The bare hostname, for prose that names the site rather than links to it.
+ *
+ * Policy pages have to say "purchases made through example.com" somewhere, and
+ * a literal there is a clone blocker of the worst kind: a client's Terms would
+ * name someone else's business. Deriving it means the sentence follows
+ * STORE_CANONICAL_URL like everything else.
+ */
+export const STORE_HOST = new URL(STORE_CONFIG.canonicalUrl).host
+
+/**
+ * Filename-safe store name for downloads (CSV exports, product feeds).
+ *
+ * Sanitised rather than interpolated raw: the store name is operator-supplied
+ * and these values land in a Content-Disposition header, where a quote or a
+ * newline would let a bad STORE_NAME rewrite the response headers.
+ */
+export const STORE_SLUG =
+  STORE_CONFIG.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'store'
