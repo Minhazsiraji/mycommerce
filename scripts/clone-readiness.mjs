@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { auditFile } from './clone-audit-rules.mjs'
+
 const root = process.cwd()
 const failures = []
 
@@ -56,9 +58,25 @@ assert(!/CLOUDINARY_API_SECRET="[^"\n]+"/.test(envExample), 'Cloudinary secret m
 assert(!/RESEND_API_KEY="[^"\n]+"/.test(envExample), 'Resend API key must be empty in .env.example')
 
 const storeConfig = read('src/lib/store-config.ts')
-assert(storeConfig.includes('process.env.STORE_CANONICAL_URL'), 'Canonical origin must be configurable')
-assert(storeConfig.includes('process.env.STORE_NAME'), 'Store name must be configurable')
+assert(storeConfig.includes('STORE_CANONICAL_URL'), 'Canonical origin must be configurable')
+assert(storeConfig.includes('STORE_NAME'), 'Store name must be configurable')
 assert(storeConfig.includes('process.env.STORE_CURRENCY'), 'Store currency must be configurable')
+
+/**
+ * The identity a misconfigured deployment falls back to must be nobody's.
+ * While these defaults read "SirajiBD", any clone that missed a variable served
+ * another company's name and canonical URL, and the product was white-label in
+ * documentation only.
+ */
+assert(
+  !/\|\|\s*['"`]SirajiBD['"`]/.test(storeConfig) &&
+    !/\|\|\s*['"`]https:\/\/sirajibd\.com['"`]/.test(storeConfig),
+  'Store identity must not fall back to a specific business — see docs/CLONE_READINESS.md',
+)
+assert(
+  storeConfig.includes("VERCEL_ENV === 'production'"),
+  'A production deployment must fail rather than serve placeholder store identity',
+)
 
 const siteMetadata = read('src/lib/site-metadata.ts')
 assert(siteMetadata.includes("vercelEnv === 'production'"), 'Only Production should be indexable')
@@ -79,28 +97,6 @@ assert(envRuntime.includes('META_CAPI_ACCESS_TOKEN'), 'Meta CAPI must be deploym
 const sourceRoot = path.join(root, 'src')
 const allowedSirajiDefaultFile = path.normalize(path.join(sourceRoot, 'lib', 'store-config.ts'))
 
-/**
- * The audit used to look only for the full origin `https://sirajibd.com`, which
- * meant 36 bare "SirajiBD" literals sat in the legal and content pages and the
- * gate still reported PASS. A client's Terms and Privacy naming another
- * business is the most expensive possible clone defect, so the store name and
- * bare host are now failures in their own right.
- *
- * Two narrow exemptions, both deliberate rather than convenient:
- *  - `src/lib/store-config.ts` holds the documented default values.
- *  - the `sirajibd_` / `sirajibd:` prefixes are a frozen storage namespace for
- *    the consent cookie, the Meta dedup keys and the pixel-ready event.
- *    Renaming them would revoke every existing customer's analytics consent and
- *    orphan in-flight deduplication, so they stay put and are invisible to
- *    customers. A clone inherits the prefix; it carries no identity.
- */
-const NAMESPACE_PREFIX = /sirajibd[_:]/g
-const STORE_IDENTITY = /sirajibd/gi
-
-function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
-}
-
 function walk(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name)
@@ -111,29 +107,11 @@ function walk(directory) {
     if (!/\.(ts|tsx|js|jsx|mjs)$/.test(entry.name)) continue
     if (/\.test\./.test(entry.name)) continue
 
-    const relative = path.relative(root, full)
-    const content = fs.readFileSync(full, 'utf8')
-
-    if (content.includes('https://sirajibd.com') && path.normalize(full) !== allowedSirajiDefaultFile) {
-      failures.push(`Hard-coded SirajiBD production origin found in ${relative}`)
-    }
-
-    if (path.normalize(full) !== allowedSirajiDefaultFile) {
-      // Comments describe the original deployment's history; only shipped
-      // strings can reach a client's customers.
-      const shipped = stripComments(content).replace(NAMESPACE_PREFIX, '')
-      const identity = shipped.match(STORE_IDENTITY)
-      if (identity) {
-        failures.push(
-          `Hard-coded store identity (${identity.length}x "SirajiBD") found in ${relative} — use STORE_CONFIG.name / STORE_HOST`,
-        )
-      }
-    }
-
-    const hardcodedGoogleTag = content.match(/['"`](?:GT|G|AW)-[A-Z0-9-]{5,}['"`]/gi)
-    if (hardcodedGoogleTag) {
-      failures.push(`Hard-coded Google tag ID found in ${relative}`)
-    }
+    failures.push(
+      ...auditFile(path.relative(root, full), fs.readFileSync(full, 'utf8'), {
+        allowStoreDefaults: path.normalize(full) === allowedSirajiDefaultFile,
+      }),
+    )
   }
 }
 

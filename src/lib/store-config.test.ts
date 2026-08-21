@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getStoreUrl, STORE_CONFIG, STORE_HOST, STORE_SLUG } from './store-config'
 
@@ -13,6 +13,43 @@ describe('store config defaults', () => {
     const url = getStoreUrl('/p/example-product')
     expect(url.origin).toBe(new URL(STORE_CONFIG.canonicalUrl).origin)
     expect(url.pathname).toBe('/p/example-product')
+  })
+})
+
+describe('a production deployment must configure its own identity', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it.each(['STORE_NAME', 'STORE_CANONICAL_URL'])('refuses to boot without %s', async (missing) => {
+    vi.resetModules()
+    vi.stubEnv('VERCEL_ENV', 'production')
+    vi.stubEnv('STORE_NAME', missing === 'STORE_NAME' ? '' : 'Client Store')
+    vi.stubEnv('STORE_CANONICAL_URL', missing === 'STORE_CANONICAL_URL' ? '' : 'https://client.example')
+
+    await expect(import('./store-config')).rejects.toThrow(missing)
+  })
+
+  it('boots when both are configured', async () => {
+    vi.resetModules()
+    vi.stubEnv('VERCEL_ENV', 'production')
+    vi.stubEnv('STORE_NAME', 'Client Store')
+    vi.stubEnv('STORE_CANONICAL_URL', 'https://client.example')
+
+    const { STORE_CONFIG: configured } = await import('./store-config')
+    expect(configured.name).toBe('Client Store')
+    expect(configured.canonicalUrl).toBe('https://client.example')
+  })
+
+  it('falls back quietly outside production, so local work needs no setup', async () => {
+    vi.resetModules()
+    vi.stubEnv('VERCEL_ENV', '')
+    vi.stubEnv('STORE_NAME', '')
+
+    const { STORE_CONFIG: local } = await import('./store-config')
+    expect(local.name).toBe('Commerce')
+    expect(local.name).not.toMatch(/sirajibd/i)
   })
 })
 

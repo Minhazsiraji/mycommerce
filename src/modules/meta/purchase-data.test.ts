@@ -114,7 +114,7 @@ describe('Pixel and CAPI agree', () => {
 
   it('derives the browser dedup key from that same event ID', () => {
     const eventId = purchaseEventId('01a011af-33a4-7ac4-80e7-770979412b76')
-    expect(metaPurchaseStorageKey(eventId)).toBe(`sirajibd_meta_${eventId}`)
+    expect(metaPurchaseStorageKey(eventId)).toBe(`commerce_meta_${eventId}`)
   })
 })
 

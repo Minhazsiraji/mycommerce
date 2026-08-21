@@ -6,7 +6,7 @@ import { after } from 'next/server'
 import { clientEnv, env } from '@/lib/env'
 import type { CartLine } from '@/modules/cart'
 
-import { META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
+import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
 import { getEffectiveMetaConfig } from './integration-config'
 import {
@@ -39,7 +39,11 @@ const capIdentifier = (value: string | undefined) => {
 const cleanUserAgent = (value: string | null) => value?.trim().slice(0, 500) || null
 
 async function hasConsent() {
-  return (await cookies()).get(META_CONSENT_COOKIE)?.value === META_CONSENT_GRANTED
+  const jar = await cookies()
+  // The browser may not have re-rendered since the rename, so a visitor who
+  // granted consent under the old cookie must still count as granted.
+  const value = jar.get(META_CONSENT_COOKIE)?.value ?? jar.get(LEGACY_CONSENT_COOKIE)?.value
+  return value === META_CONSENT_GRANTED
 }
 
 function safeSourceUrl(raw: string | null, fallbackPath: string) {

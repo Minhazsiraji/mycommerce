@@ -14,22 +14,53 @@ const schema = z.object({
   defaultDescription: z.string().trim().min(20).max(320),
 })
 
-const defaultName = process.env.STORE_NAME?.trim() || 'SirajiBD'
-const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || 'Bangladesh'
+/**
+ * The built-in identity is deliberately generic.
+ *
+ * SirajiBD is Store #1 running on this software, not the software's own name.
+ * When the defaults below said "SirajiBD", every clone that forgot a variable
+ * silently inherited another company's identity, and the product could not
+ * honestly be described as white-label. A clone that misconfigures itself now
+ * looks unconfigured instead of looking like someone else.
+ */
+const FALLBACK_NAME = 'Commerce'
+const FALLBACK_COUNTRY = 'Bangladesh'
+
+/**
+ * A live storefront must never fall back. Silently serving "Commerce" and a
+ * localhost canonical from a real domain would corrupt every canonical tag,
+ * sitemap URL and Merchant feed entry before anyone noticed; a failed deploy
+ * leaves the previous good build serving. Loud beats silent.
+ */
+function required(key: 'STORE_NAME' | 'STORE_CANONICAL_URL', fallback: string): string {
+  const value = process.env[key]?.trim()
+  if (value) return value
+
+  if (process.env.VERCEL_ENV === 'production') {
+    throw new Error(
+      `${key} must be set for a production deployment. Every store, including SirajiBD, configures its own identity — see docs/CLONE_READINESS.md.`,
+    )
+  }
+
+  return fallback
+}
+
+const defaultName = required('STORE_NAME', FALLBACK_NAME)
+const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || FALLBACK_COUNTRY
 
 export const STORE_CONFIG = Object.freeze(
   schema.parse({
     name: defaultName,
-    brandText: process.env.STORE_BRAND_TEXT?.trim() || 'Siraji',
-    brandAccent: process.env.STORE_BRAND_ACCENT?.trim() || 'BD',
-    canonicalUrl: process.env.STORE_CANONICAL_URL?.trim() || 'https://sirajibd.com',
+    brandText: process.env.STORE_BRAND_TEXT?.trim() || defaultName,
+    brandAccent: process.env.STORE_BRAND_ACCENT?.trim() || '',
+    canonicalUrl: required('STORE_CANONICAL_URL', 'http://localhost:3000'),
     countryCode: process.env.STORE_COUNTRY_CODE?.trim() || 'BD',
     countryName: defaultCountryName,
     currency: process.env.STORE_CURRENCY?.trim() || 'BDT',
     locale: process.env.STORE_LOCALE?.trim() || 'en-BD',
     defaultDescription:
       process.env.STORE_DEFAULT_DESCRIPTION?.trim() ||
-      `Shop footwear, apparel, electronics and everyday accessories at ${defaultName} with clear prices, convenient ordering and delivery options across ${defaultCountryName}.`,
+      `Shop at ${defaultName} with clear prices, convenient ordering and delivery options across ${defaultCountryName}.`,
   }),
 )
 

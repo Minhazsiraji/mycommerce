@@ -5,15 +5,17 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   META_CONSENT_EVENT,
+  META_PIXEL_READY_EVENT,
   META_PRIVACY_OPEN_EVENT,
   type MetaConsent,
 } from '../consent'
 import {
+  legacyMetaPurchaseStorageKey,
   META_PURCHASE_ELEMENT_ID,
   metaPurchaseStorageKey,
   parseMetaPurchasePayload,
 } from '../purchase-payload'
-import { readMetaConsent, writeMetaConsent } from './client'
+import { migrateLegacyConsent, readMetaConsent, writeMetaConsent } from './client'
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
@@ -34,13 +36,13 @@ function bootPixel(pixelId: string) {
     document.head.appendChild(script)
   }
 
-  if (window._sirajiMetaPixelId !== pixelId) {
+  if (window._commerceMetaPixelId !== pixelId) {
     window.fbq('init', pixelId)
-    window._sirajiMetaPixelId = pixelId
+    window._commerceMetaPixelId = pixelId
   }
 
   window.fbq('consent', 'grant')
-  window.dispatchEvent(new Event('sirajibd:pixel-ready'))
+  window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
 }
 
 /**
@@ -58,6 +60,7 @@ function emitMetaPurchaseOnce(): boolean {
   const storageKey = metaPurchaseStorageKey(payload.eventId)
   try {
     if (localStorage.getItem(storageKey)) return true
+    if (localStorage.getItem(legacyMetaPurchaseStorageKey(payload.eventId))) return true
     // Prefer one lost browser event over duplicate reported revenue if the
     // tracking call itself throws. CAPI still carries the stable event ID.
     localStorage.setItem(storageKey, '1')
@@ -82,6 +85,12 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   )
   const [choicesOpen, setChoicesOpen] = useState(false)
   const lastPage = useRef<string | undefined>(undefined)
+
+  // Before anything reads consent, carry a pre-rename choice across so the
+  // visitor is neither re-prompted nor silently re-tracked.
+  useEffect(() => {
+    migrateLegacyConsent()
+  }, [])
 
   useEffect(() => {
     const openChoices = () => setChoicesOpen(true)

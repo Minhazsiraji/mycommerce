@@ -2,7 +2,35 @@
 
 Status: **V1 release candidate** on the clone-finalization branch. Do not label or release as `commerce-v1.0-clone-ready` until the automated clean-install gate, Preview acceptance test, and explicit owner release approval all pass.
 
-MyCommerce is a cloneable single-store deployment template. SirajiBD remains the built-in default deployment, but a client clone must override identity and use isolated client-owned infrastructure and credentials. This is not a shared multi-tenant SaaS.
+> **Merge prerequisite.** SirajiBD Production currently sets no `STORE_*` variables at all — it runs entirely on what used to be hard-coded defaults. Those defaults are now generic, and production refuses to boot without identity. **Set `STORE_NAME`, `STORE_BRAND_TEXT`, `STORE_BRAND_ACCENT` and `STORE_CANONICAL_URL` on the Production environment before merging**, or the next production deploy fails. It fails loudly and the previous deployment keeps serving, which is the intended behaviour — but it is still a deploy you have to plan.
+
+MyCommerce is a white-label single-store commerce product. SirajiBD is Store #1 running on it — not the software's identity. There is no built-in business to inherit: every deployment, SirajiBD included, configures its own name, domain and integrations, and a production deployment that configures neither `STORE_NAME` nor `STORE_CANONICAL_URL` fails to build rather than serving a placeholder. Each clone uses isolated client-owned infrastructure and credentials. This is not a shared multi-tenant SaaS.
+
+## What this product is ready for
+
+These are rated separately on purpose. Averaging them would let a genuine strength cover for a genuine limit.
+
+| Capability | Status |
+|---|---|
+| White-label branding and identity | **Ready** — no business identity is compiled in |
+| Bangladesh commerce, end to end | **Ready** — the path this software was built for |
+| Data isolation between deployments | **Ready by design**, gated on per-deployment configuration |
+| Analytics isolation | **Ready** — every integration defaults to off |
+| International checkout | **Not ready** — see the boundary below |
+| Multi-currency | **Not ready** — see the boundary below |
+| Payment-provider portability | **Partial** — the provider interface exists; SSLCommerz is the only implementation |
+
+## Internationalization boundary
+
+Branding is fully white-label. **Commerce is not.** A client outside Bangladesh cannot take an order on this software today, and the following is what would have to change:
+
+- **Address model.** `addressSchema` requires a `district` drawn from `BD_DISTRICT_SET` and an `upazila` (Thana/Upazila). Both are Bangladeshi administrative divisions with no equivalent elsewhere, and both are hard requirements at checkout.
+- **Phone.** `bdPhoneSchema` accepts only `01XXXXXXXXX`, `+8801XXXXXXXXX` and `8801XXXXXXXXX`.
+- **Currency.** `src/lib/money.ts` exports `CURRENCY = 'BDT'` as a compile-time constant, formats with `৳`, and parses `৳`/`Tk`/`BDT` prefixes. `STORE_CURRENCY` reaches SEO metadata and the Merchant feed but **does not** reach money formatting or the payment boundary — setting it alone would produce a feed that disagrees with the prices on the page.
+- **Payment.** SSLCommerz is the only gateway implementation. `modules/payments` defines a provider interface, so adding one is a contained change, but nothing else is written yet.
+- **Tax.** There is no tax engine. Prices are tax-inclusive by convention, which is not a safe assumption in VAT/GST or US sales-tax jurisdictions.
+
+Sell this as **white-label ecommerce software for Bangladesh**. Do not describe it as international until the address, phone, currency and payment items above are addressed — a client who buys on an international claim discovers the limit at their first order, which is the worst possible moment.
 
 ## Store identity environment
 
@@ -75,7 +103,11 @@ pnpm clone:audit
 
 The audit fails when required clone configuration is missing from `.env.example`, SSLCommerz stops being sandbox-first, example secrets become populated, canonical/store/integration configuration becomes non-configurable, Preview indexing protection disappears, Merchant feed stops using store configuration, or unexpected SirajiBD production origin / Google tag literals are introduced into runtime source.
 
-It also fails on any hard-coded store **name** or bare host in a shipped string. This check was added after the audit reported PASS while 36 `SirajiBD` literals sat in the Terms, Privacy, Returns, Shipping, About and Contact pages — a clone's own legal pages named another business. Comments are exempt (they document the original deployment's history); so is `src/lib/store-config.ts`, which holds the documented defaults, and the `sirajibd_` / `sirajibd:` storage namespace used by the consent cookie, the Meta dedup keys and the pixel-ready event. That namespace is frozen deliberately: renaming it would revoke every existing customer's analytics consent and orphan in-flight deduplication. It is invisible to customers and carries no identity.
+It also fails on a hard-coded store **name**, bare host, business email address, Meta pixel/dataset ID, Resend key, Meta access token, database URL or Cloudinary credential in any shipped string. The identity check was added after the audit reported PASS while 36 `SirajiBD` literals sat in the Terms, Privacy, Returns, Shipping, About and Contact pages — a clone's own legal pages named another business. Comments are exempt, since they document history and never reach a customer; so is `src/lib/store-config.ts`, the one file that names the fallbacks.
+
+**The gate is itself tested.** `src/lib/clone-audit-rules.test.ts` feeds each rule a deliberately-broken fixture and asserts it fails, including a case proving the `store-config.ts` exemption has not simply disabled the rule. A gate observed only in the passing state is not evidence of anything.
+
+Browser storage keys are now store-neutral (`commerce_analytics_consent`, `commerce_meta_*`, `commerce:*` events). The pre-rename names are still read: a stored consent choice is a privacy decision, and losing one would re-prompt a visitor or, worse, read a previous refusal as "unset" and resume tracking. `migrateLegacyConsent` copies the old cookie across on first visit and clears it; the legacy purchase key is still checked before firing so a tab left open across the deploy cannot report a second Purchase. Covered by `src/modules/meta/consent-migration.test.ts`. The legacy reads can be deleted once the one-year cookie has expired for everyone, some time after 2027-08.
 
 GitHub CI also runs the complete Drizzle migration chain against a brand-new PostgreSQL 18 database and verifies key commerce/integration tables exist. This is the clean-install migration gate; it prevents an application release whose migrations only work against the historical SirajiBD database.
 
@@ -94,7 +126,7 @@ GitHub CI also runs the complete Drizzle migration chain against a brand-new Pos
 11. Set `STORE_CONTACT_EMAIL` and `STORE_ADMIN_EMAIL` explicitly. Left unset they fall back to `business@` and `admin@` on the configured domain, which is a plausible-looking address the client may not actually own.
 12. Edit homepage/footer content and upload client imagery.
 13. Add/import client categories, products, variants, prices, stock and delivery rules.
-14. Review and publish client-specific Returns, Shipping, Privacy, Terms, Contact and About content. The business name now follows `STORE_NAME` automatically, but the substantive claims — return windows, delivery coverage, warranty position, governing law — are still SirajiBD's and must be replaced with what is true for that client.
+14. Review and publish client-specific Returns, Shipping, Privacy, Terms, Contact and About content. **These pages are templates, not legal advice.** The business name now follows `STORE_NAME` automatically, but the substantive claims — return windows, delivery coverage, warranty position, data-handling description, governing law — were written for a Bangladeshi retailer and are not verified against any other jurisdiction. The client is responsible for reviewing local consumer-protection, tax, privacy and returns requirements, and for having the published text checked by someone qualified to do so. Shipping this template unchanged is a client decision, and it must be an informed one.
 15. Connect the client production domain and verify canonical/robots/sitemap behavior.
 16. Connect Search Console / Merchant Center where applicable.
 17. Validate `/google-merchant-feed.xml` before submission.
