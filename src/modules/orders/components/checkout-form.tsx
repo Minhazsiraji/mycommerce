@@ -14,6 +14,21 @@ import { ratesForDistrict } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
 
 const PRESET = countryPreset(STORE_CONFIG.countryCode)
+
+const PAYMENT_LABELS: Record<CheckoutPaymentMethod, { title: string; detail: string }> = {
+  cod: {
+    title: 'Cash on delivery',
+    detail: 'Pay the courier when your order arrives.',
+  },
+  bank_transfer: {
+    title: 'Bank transfer',
+    detail: 'Transfer to our account, then send us the reference. We confirm within a day.',
+  },
+  sslcommerz: {
+    title: 'Card, bKash, Nagad or Rocket',
+    detail: 'Pay securely through SSLCommerz.',
+  },
+}
 import {
   BD_DISTRICTS,
   bdAreasFor,
@@ -57,12 +72,15 @@ export function CheckoutForm({
   rates,
   defaults,
   signedIn,
+  paymentMethods,
 }: {
   subtotal: number
   tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
+  /** Only what this deployment has credentials for; the server checks again. */
+  paymentMethods: CheckoutPaymentMethod[]
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -75,7 +93,9 @@ export function CheckoutForm({
   const [upazila, setUpazila] = useState(
     canonicalBdArea(defaults.district, initialCity, defaults.upazila),
   )
-  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod')
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>(
+    paymentMethods[0] ?? 'cod',
+  )
 
   const isBdModel = PRESET.addressModel === 'bd-administrative'
 
@@ -353,71 +373,30 @@ export function CheckoutForm({
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-(--color-muted)">Payment</h2>
 
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'cod'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'cod'}
-              onChange={() => setPaymentMethod('cod')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Cash on delivery</span>
-              <span className="block text-xs text-(--color-muted)">
-                Pay the courier when your order arrives.
+          {paymentMethods.map((method) => (
+            <label
+              key={method}
+              className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
+                paymentMethod === method
+                  ? 'border-(--color-accent) bg-(--color-accent)/5'
+                  : 'border-(--color-border)'
+              }`}
+            >
+              <input
+                type="radio"
+                name="payment"
+                checked={paymentMethod === method}
+                onChange={() => setPaymentMethod(method)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">{PAYMENT_LABELS[method].title}</span>
+                <span className="block text-xs text-(--color-muted)">
+                  {PAYMENT_LABELS[method].detail}
+                </span>
               </span>
-            </span>
-          </label>
-
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'bank_transfer'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'bank_transfer'}
-              onChange={() => setPaymentMethod('bank_transfer')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Bank transfer</span>
-              <span className="block text-xs text-(--color-muted)">
-                Transfer to our account, then send us the reference. We confirm within a day.
-              </span>
-            </span>
-          </label>
-
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'sslcommerz'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'sslcommerz'}
-              onChange={() => setPaymentMethod('sslcommerz')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Card, bKash, Nagad or Rocket</span>
-              <span className="block text-xs text-(--color-muted)">
-                Pay securely through SSLCommerz.
-              </span>
-            </span>
-          </label>
+            </label>
+          ))}
         </section>
 
         <Textarea

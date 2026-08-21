@@ -17,22 +17,26 @@ These are rated separately on purpose. Averaging them would let a genuine streng
 | Data isolation between deployments | **Ready by design**, gated on per-deployment configuration |
 | Analytics isolation | **Ready** — every integration defaults to off |
 | Multi-currency | **Ready** — one configured currency drives price, cart, checkout, order, payment, email, analytics, JSON-LD and feed |
-| International checkout | **Not ready** — the address and phone model is still Bangladesh-only |
-| Payment-provider portability | **Partial** — the provider interface exists; SSLCommerz is the only implementation |
+| International checkout | **Ready** — country presets drive the address and phone model |
+| Payment-provider portability | **Partial** — SSLCommerz is optional, but still the only online gateway implemented |
+| International tax | **Not ready** — no tax engine; prices are tax-inclusive by convention |
 
 ## Internationalization boundary
 
 Branding is fully white-label. **Commerce is not.** A client outside Bangladesh cannot take an order on this software today, and the following is what would have to change:
 
-- **Address model.** `addressSchema` requires a `district` drawn from `BD_DISTRICT_SET` and an `upazila` (Thana/Upazila). Both are Bangladeshi administrative divisions with no equivalent elsewhere, and both are hard requirements at checkout.
-- **Phone.** `bdPhoneSchema` accepts only `01XXXXXXXXX`, `+8801XXXXXXXXX` and `8801XXXXXXXXX`.
+- ~~**Address model.**~~ **Fixed.** `NEXT_PUBLIC_STORE_COUNTRY_CODE` selects a country preset. `BD` keeps the district → city → thana cascade validated against the district tables; anything else gets a generic address — free-text city, optional state/province/region, required postal code. The `district` and `upazila` columns carry region and sub-area for every country rather than being renamed, because orders snapshot the address as JSON at purchase time.
+- ~~**Phone.**~~ **Fixed.** Validation comes from the preset: Bangladeshi mobile formats on a `BD` store, E.164 elsewhere.
+- ~~**Payment is an architectural requirement.**~~ **Fixed.** Checkout offers only the methods the deployment has credentials for, and the server rejects any other. A clone with no gateway can still trade on cash on delivery.
 - ~~**Currency.**~~ **Fixed.** `@/lib/money` now derives the code, symbol and decimal places from `STORE_CONFIG`, and one configured currency flows through price, cart, checkout, order, payment, email, analytics, JSON-LD and the Merchant feed. Zero-decimal currencies (JPY, KRW, VND) are handled. The order row writes its currency explicitly rather than inheriting the `BDT` column default, which would otherwise have made payment verification reject every online payment on a non-BDT store. Known gap: symbols render as a prefix, so suffix currencies read `kr1,999.50` — unambiguous but not idiomatic.
-- **Payment.** SSLCommerz is the only gateway implementation. `modules/payments` defines a provider interface, so adding one is a contained change, but nothing else is written yet.
-- **Tax.** There is no tax engine. Prices are tax-inclusive by convention, which is not a safe assumption in VAT/GST or US sales-tax jurisdictions.
+What genuinely remains:
 
-Sell this as **white-label ecommerce software for Bangladesh**. Do not describe it as international until the address, phone and payment items above are addressed — a client who buys on an international claim discovers the limit at their first order, which is the worst possible moment.
+- **Only one online gateway exists.** SSLCommerz is now optional rather than required, but it is still the only implementation, and it settles for Bangladeshi merchants. An international clone can take cash on delivery and bank transfer today; taking cards abroad needs a second provider written against `modules/payments`. That is a contained change, not an architectural one.
+- **No tax engine.** Prices are tax-inclusive by convention, which is not a safe assumption in VAT/GST or US sales-tax jurisdictions. This is the largest genuine gap for an international sale.
+- **Address validation is permissive outside Bangladesh.** The generic preset checks shape, not correctness — it cannot tell you a US ZIP does not match its state. Deliberate: rejecting a valid foreign address costs a real sale, and we cannot enumerate the world's administrative divisions.
+- **Currency symbols render as a prefix**, so suffix currencies read `kr1,999.50`.
 
-Currency is no longer part of that list. A store can be configured for USD, EUR, JPY or anything else and the whole money path follows; what still blocks an international sale is that the customer cannot enter a non-Bangladeshi address or phone number at checkout.
+Positioning: **fully ready to sell for Bangladesh.** Sellable internationally for a store that can operate on cash on delivery or bank transfer, in a jurisdiction where tax-inclusive pricing is acceptable. Do not claim international card payments or tax compliance.
 
 ## Store identity environment
 
