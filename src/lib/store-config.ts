@@ -16,6 +16,12 @@ const schema = z.object({
   numberLocale: z.string().trim().min(2).max(20),
   locale: z.string().trim().min(2).max(20),
   defaultDescription: z.string().trim().min(20).max(320),
+  tax: z.object({
+    mode: z.enum(['none', 'inclusive', 'exclusive']),
+    rateBasisPoints: z.number().int().min(0).max(10_000),
+    label: z.string().trim().min(1).max(30),
+    appliesToShipping: z.boolean(),
+  }),
 })
 
 /**
@@ -167,6 +173,31 @@ export const STORE_CONFIG = Object.freeze(
         'STORE_NUMBER_LOCALE',
       ) || 'en-US',
     locale: process.env.STORE_LOCALE?.trim() || 'en-BD',
+    /**
+     * Defaults to 'none', which reproduces the previous behaviour exactly:
+     * total = subtotal + shipping, tax_amount 0. A store that wants to disclose
+     * tax opts in; no existing deployment's totals move because this setting
+     * arrived.
+     */
+    tax: {
+      mode: shared(process.env.NEXT_PUBLIC_STORE_TAX_MODE, process.env.STORE_TAX_MODE, 'STORE_TAX_MODE') || 'none',
+      rateBasisPoints: Number(
+        shared(
+          process.env.NEXT_PUBLIC_STORE_TAX_RATE_BASIS_POINTS,
+          process.env.STORE_TAX_RATE_BASIS_POINTS,
+          'STORE_TAX_RATE_BASIS_POINTS',
+        ) || 0,
+      ),
+      label:
+        shared(process.env.NEXT_PUBLIC_STORE_TAX_LABEL, process.env.STORE_TAX_LABEL, 'STORE_TAX_LABEL') ||
+        'Tax',
+      appliesToShipping:
+        (shared(
+          process.env.NEXT_PUBLIC_STORE_TAX_ON_SHIPPING,
+          process.env.STORE_TAX_ON_SHIPPING,
+          'STORE_TAX_ON_SHIPPING',
+        ) || 'false') === 'true',
+    },
     defaultDescription:
       process.env.STORE_DEFAULT_DESCRIPTION?.trim() ||
       `Shop at ${defaultName} with clear prices, convenient ordering and delivery options across ${defaultCountryName}.`,

@@ -1,90 +1,115 @@
-# Fresh Clone Acceptance Test — Commerce V1
+# Fresh-clone acceptance test
 
-Use this checklist only on isolated client/test infrastructure. Never point a clone test at the SirajiBD production database.
+Run this in a browser against the isolated Preview, in order, once. It is the
+only evidence that matters for the release decision — the unit suite proves the
+pieces, this proves the store.
 
-## A. Infrastructure and boot
+**Do not start until the Preview is pointed at an isolated database.** Every
+step below writes data. Against the shared `DATABASE_URL` they would write it
+into SirajiBD's live store.
 
-- [ ] Fresh database created.
-- [ ] Unique Better Auth secret configured.
-- [ ] Clone-specific app/auth URLs configured.
-- [ ] Store identity/canonical/country/currency configured.
-- [ ] Cloudinary/media credentials are clone-owned.
-- [ ] Email credentials/sender are clone-owned.
-- [ ] Payment credentials are clone-owned; SSLCommerz is sandbox.
-- [ ] Meta/Google are disabled unless clone-owned test configuration is intentionally being verified.
-- [ ] `pnpm db:migrate` completes from an empty database.
-- [ ] Application deploy/build completes.
+## Prerequisites — owner configuration
 
-## B. Admin and catalogue
+Scoped to Preview branch `agent/clone-ready-v1-finalization`:
 
-- [ ] First intended owner/admin can sign in.
-- [ ] Admin pages are protected from signed-out users.
-- [ ] Create a test category.
-- [ ] Upload a category image if required.
-- [ ] Create a product with truthful title/description.
-- [ ] Add at least one active variant/SKU with price and stock.
-- [ ] Upload product image.
-- [ ] Activate/include product for storefront/discovery as applicable.
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | isolated Neon clone database |
+| `DATABASE_URL_UNPOOLED` | same project, unpooled |
+| `BETTER_AUTH_SECRET` | **new** random secret — never Production's |
+| `BETTER_AUTH_URL` | the PR #27 Preview origin |
+| `NEXT_PUBLIC_APP_URL` | the PR #27 Preview origin |
+| `STORE_NAME` | `Commerce Clone Test` |
+| `STORE_BRAND_TEXT` | `Commerce Clone Test` |
+| `STORE_CANONICAL_URL` | the PR #27 Preview origin |
+| `NEXT_PUBLIC_STORE_COUNTRY_CODE` | a non-BD country, e.g. `US` |
+| `NEXT_PUBLIC_STORE_CURRENCY` | a non-BDT currency, e.g. `USD` |
+| `SSLCOMMERZ_SANDBOX` | `true` |
 
-## C. Storefront and cart
+Leave Meta and Google unset so analytics stays off. Then run migrations against
+the isolated database, and `pnpm preflight` with that environment — it should
+PASS before anyone opens a browser.
 
-- [ ] New product appears on the expected storefront/category page.
-- [ ] Product page shows correct title, price, stock and image.
-- [ ] Add-to-cart works.
-- [ ] Requested quantity cannot exceed stock.
-- [ ] Cart totals are correct.
+> `SSLCOMMERZ_SANDBOX` is currently a single value shared by Preview and
+> Production. Until it is split, setting it per-branch is what keeps a Preview
+> from taking real money. Preflight fails the build if it is `false` outside
+> production.
 
-## D. Checkout and order
+## A. Isolation
 
-Test at least one enabled payment path. SSLCommerz remains sandbox for this acceptance test.
+- [ ] An existing SirajiBD admin email cannot sign in
+- [ ] No SirajiBD products appear
+- [ ] No SirajiBD orders or customers appear
+- [ ] `/google-merchant-feed.xml` contains no SirajiBD identity and no `sirajibd.com`
+- [ ] Page metadata and canonical use the Preview origin
 
-- [ ] Checkout address validation works.
-- [ ] Shipping/delivery rate is correct.
-- [ ] Order can be placed.
-- [ ] Unpaid/failed payment does not become paid.
-- [ ] Failed SSLCommerz payment can be retried when SSLCommerz is enabled.
-- [ ] Bank-transfer fallback works when enabled.
-- [ ] COD works when enabled and is not counted as paid before collection.
-- [ ] Successful sandbox payment produces a confirmed paid order.
-- [ ] Stock changes correctly and does not oversell.
+## B. Fresh admin
 
-## E. Fulfilment and customer tracking
+- [ ] Register a brand-new user
+- [ ] That user cannot reach `/admin`
+- [ ] `pnpm admin:promote <email>` against the isolated database
+- [ ] Sign out, sign in, verify the second factor enrols
+- [ ] `/admin` now opens
+- [ ] A second, unpromoted user still cannot reach `/admin`
 
-- [ ] Order appears in Admin.
-- [ ] Admin can process fulfilment according to the configured workflow.
-- [ ] Shipment/courier/tracking details can be recorded when applicable.
-- [ ] Customer order page displays the correct fulfilment status.
-- [ ] Customer sees courier/tracking data when recorded.
-- [ ] Delivered state works correctly.
+## C. Catalogue
 
-## F. Analytics and consent
+- [ ] Create a category
+- [ ] Create a product with one variant/SKU
+- [ ] Set stock to 2
+- [ ] Upload an image
+- [ ] Publish
 
-- [ ] Analytics scripts do not load before required consent.
-- [ ] Meta remains off when disabled/unconfigured.
-- [ ] Google remains off when disabled/unconfigured.
-- [ ] When Meta is enabled, only a paid order emits Purchase and Pixel/CAPI use the same event ID.
-- [ ] Meta Purchase currency/value/items match the real order.
-- [ ] Reload dedup prevents duplicate Meta browser Purchase.
-- [ ] When Google is enabled, paid Purchase uses the real transaction/value/currency.
-- [ ] Reload dedup prevents duplicate Google Purchase.
-- [ ] COD/unpaid orders do not emit paid Purchase events.
+## D. Storefront and cart
 
-## G. SEO, feed and identity
+- [ ] Category and product are visible
+- [ ] Price renders in the configured currency **with the right symbol** — the
+      client bundle and the server must agree; a taka sign here means the
+      `NEXT_PUBLIC_` currency did not reach the browser
+- [ ] Add to cart
+- [ ] Quantity cannot exceed 2
 
-- [ ] Preview `/robots.txt` blocks indexing.
-- [ ] Production `/robots.txt` allows indexing only after go-live.
-- [ ] Canonicals use the clone production domain.
-- [ ] `/sitemap.xml` uses the clone production domain.
-- [ ] `/google-merchant-feed.xml` uses clone name/domain/currency and real products.
-- [ ] No SirajiBD contact, customer, order, analytics or payment credentials/data appear in the clone.
+## E. International checkout
 
-## H. Policies and communications
+- [ ] The address form shows city / region / postal code — **not** district and
+      thana
+- [ ] An E.164 phone number is accepted; a `+880`-only number is not required
+- [ ] A delivery option appears **without entering a region** (nationwide rate)
+- [ ] The tax line matches the configured mode: absent for `none`, shown and
+      added for `exclusive`, shown and *not* added for `inclusive`
+- [ ] Subtotal − discount + delivery + tax equals the displayed total
 
-- [ ] Returns policy is true for the client.
-- [ ] Shipping policy matches actual delivery configuration.
-- [ ] Privacy/Terms/Contact/About content is client-specific and truthful.
-- [ ] Transactional email sends from the client identity/domain.
+## F. Payment and order
 
-## Sign-off
+- [ ] Only the configured methods are offered — no SSLCommerz option unless
+      sandbox credentials are set
+- [ ] Place the order
+- [ ] Order total, currency, tax and shipping match what checkout displayed
+- [ ] Stock decrements from 2 to 1
+- [ ] No live gateway transaction occurred
 
-Record the tested release commit, Preview/deployment URL, database/project identifier (never credentials), tester, date, and any deviations. All critical items must pass before the clone is promoted to live credentials or used as the source for the `commerce-v1.0-clone-ready` release tag.
+## G. Fulfilment
+
+- [ ] The order appears in Admin
+- [ ] Mark fulfilled, add tracking
+- [ ] The customer order page reflects the status and tracking
+- [ ] The confirmation email shows the same totals and currency
+
+## H. Analytics
+
+- [ ] No Meta script loads, no PageView, no Purchase
+- [ ] No Google tag loads, no PageView, no Purchase
+- [ ] Nothing reached SirajiBD's Meta dataset or Google property
+
+## I. SEO, feed and domain
+
+- [ ] `/robots.txt` disallows crawling on Preview
+- [ ] `/sitemap.xml` contains only clone URLs
+- [ ] Canonical, OpenGraph, Twitter and JSON-LD use clone identity and currency
+- [ ] `/google-merchant-feed.xml` lists only the clone product, in the clone
+      currency, under the clone identity
+
+## Result
+
+Every box ticked is the condition for **READY FOR PRODUCTION MERGE APPROVAL**.
+Anything unticked is a blocker, not a note.

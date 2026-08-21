@@ -12,6 +12,7 @@ import { formatBdt } from '@/lib/money'
 import { countryPreset } from '@/lib/country-presets'
 import { ratesForDistrict } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
+import { calculateOrderTotals, showsTaxLine, taxLineLabel } from '@/lib/tax'
 
 const PRESET = countryPreset(STORE_CONFIG.countryCode)
 
@@ -120,6 +121,10 @@ export function CheckoutForm({
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]
   const shippingCost = selectedRate ? (selectedRate.isFree ? 0 : selectedRate.cost) : 0
+
+  // Same function the order transaction uses, so the figure shown here and the
+  // amount charged cannot be arrived at two different ways.
+  const totals = calculateOrderTotals({ subtotal, shippingCost }, STORE_CONFIG.tax)
 
   async function onSubmit(formData: FormData) {
     setErrors({})
@@ -423,9 +428,19 @@ export function CheckoutForm({
           </span>
         </div>
 
+        {showsTaxLine(STORE_CONFIG.tax, totals.taxAmount) ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-(--color-muted)">
+              {taxLineLabel(STORE_CONFIG.tax)}
+              {STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : null}
+            </span>
+            <span className="tabular-nums">{formatBdt(totals.taxAmount)}</span>
+          </div>
+        ) : null}
+
         <div className="flex justify-between border-t border-(--color-border) pt-3 text-base font-semibold">
           <span>Total</span>
-          <span className="tabular-nums">{formatBdt(subtotal + shippingCost)}</span>
+          <span className="tabular-nums">{formatBdt(totals.total)}</span>
         </div>
 
         {/* Shown because the figure above is computed in the browser. The

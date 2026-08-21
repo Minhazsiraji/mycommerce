@@ -16,5 +16,7 @@ export function configuredPaymentMethods(): CheckoutPaymentMethod[] {
   return availablePaymentMethods({
     sslcommerz: Boolean(env.SSLCOMMERZ_STORE_ID && env.SSLCOMMERZ_STORE_PASSWORD),
     bankTransfer: Boolean(env.BANK_ACCOUNT_NAME && env.BANK_ACCOUNT_NUMBER && env.BANK_NAME),
+    // Opt-out rather than opt-in: a store that says nothing keeps trading.
+    cod: process.env.STORE_COD_ENABLED?.trim() !== 'false',
   })
 }

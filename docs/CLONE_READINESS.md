@@ -19,7 +19,7 @@ These are rated separately on purpose. Averaging them would let a genuine streng
 | Multi-currency | **Ready** — one configured currency drives price, cart, checkout, order, payment, email, analytics, JSON-LD and feed |
 | International checkout | **Ready** — country presets drive the address and phone model |
 | Payment-provider portability | **Partial** — SSLCommerz is optional, but still the only online gateway implemented |
-| International tax | **Not ready** — no tax engine; prices are tax-inclusive by convention |
+| Tax policy | **Configurable** — none / inclusive / exclusive at one rate; not a jurisdiction-aware tax engine |
 
 ## Internationalization boundary
 
@@ -32,7 +32,7 @@ Branding is fully white-label. **Commerce is not.** A client outside Bangladesh 
 What genuinely remains:
 
 - **Only one online gateway exists.** SSLCommerz is now optional rather than required, but it is still the only implementation, and it settles for Bangladeshi merchants. An international clone can take cash on delivery and bank transfer today; taking cards abroad needs a second provider written against `modules/payments`. That is a contained change, not an architectural one.
-- **No tax engine.** Prices are tax-inclusive by convention, which is not a safe assumption in VAT/GST or US sales-tax jurisdictions. This is the largest genuine gap for an international sale.
+- **Tax is one configured rate, not a tax engine.** `NEXT_PUBLIC_STORE_TAX_MODE` supports `none`, `inclusive` and `exclusive` with a configured rate, and the amount is calculated in integer minor units, recorded on the order and shown on checkout, the order page, Admin and the confirmation email. What it does *not* do is look up a customer's jurisdiction, handle nexus, product tax categories, exemptions or reverse charge. Clients remain responsible for their own local tax compliance. A store with genuinely per-jurisdiction rates needs a tax provider integration this does not have.
 - **Address validation is permissive outside Bangladesh.** The generic preset checks shape, not correctness — it cannot tell you a US ZIP does not match its state. Deliberate: rejecting a valid foreign address costs a real sale, and we cannot enumerate the world's administrative divisions.
 - **Currency symbols render as a prefix**, so suffix currencies read `kr1,999.50`.
 
@@ -114,6 +114,30 @@ It also fails on a hard-coded store **name**, bare host, business email address,
 **The gate is itself tested.** `src/lib/clone-audit-rules.test.ts` feeds each rule a deliberately-broken fixture and asserts it fails, including a case proving the `store-config.ts` exemption has not simply disabled the rule. A gate observed only in the passing state is not evidence of anything.
 
 Browser storage keys are now store-neutral (`commerce_analytics_consent`, `commerce_meta_*`, `commerce:*` events). The pre-rename names are still read: a stored consent choice is a privacy decision, and losing one would re-prompt a visitor or, worse, read a previous refusal as "unset" and resume tracking. `migrateLegacyConsent` copies the old cookie across on first visit and clears it; the legacy purchase key is still checked before firing so a tab left open across the deploy cannot report a second Purchase. Covered by `src/modules/meta/consent-migration.test.ts`. The legacy reads can be deleted once the one-year cookie has expired for everyone, some time after 2027-08.
+
+## Deployment preflight
+
+```bash
+pnpm preflight
+```
+
+`clone:audit` reads the source and asks whether this codebase could be sold.
+Preflight reads the environment and asks whether *this deployment* is coherent —
+a different question. A store can pass the audit and still be configured to
+display one currency while charging another, to take live card payments from a
+Preview build, or to offer a customer no way to pay at all.
+
+It fails on: missing production identity; a `STORE_*` value set without its
+`NEXT_PUBLIC_` twin, or the two disagreeing; a currency or country that is not a
+valid ISO code; no available payment method; live SSLCommerz without
+credentials; **live SSLCommerz outside production**; a non-production deployment
+pointed at the original store's domain; and invalid tax configuration. It warns
+on production left in sandbox, a tax mode and rate that cancel out, and a Google
+tag configured on Preview.
+
+Like the clone audit, the rules are tested against fixtures
+(`src/lib/preflight-rules.test.ts`) so the gate is known to be capable of
+failing.
 
 GitHub CI also runs the complete Drizzle migration chain against a brand-new PostgreSQL 18 database and verifies key commerce/integration tables exist. This is the clean-install migration gate; it prevents an application release whose migrations only work against the historical SirajiBD database.
 

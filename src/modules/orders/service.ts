@@ -102,6 +102,7 @@ export async function placeOrder(input: PlaceOrderInput) {
           total: placed.total,
           subtotal: placed.subtotal,
           shippingCost: placed.shippingCost,
+          taxAmount: placed.taxAmount,
           items: placed.items,
         }),
       )
@@ -232,6 +233,7 @@ export async function notifyOrderPaid(orderId: string) {
       total: order.total,
       subtotal: order.subtotal,
       shippingCost: order.shippingCost,
+      taxAmount: order.taxAmount,
       items: order.items,
     }),
   )

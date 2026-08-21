@@ -1,6 +1,8 @@
 import 'server-only'
 
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
+import { taxLineLabel } from '@/lib/tax'
 
 import { escapeHtml, sendMail } from './mailer'
 
@@ -22,6 +24,7 @@ type OrderSummary = {
   total: number
   subtotal: number
   shippingCost: number
+  taxAmount: number
   items: OrderLine[]
   recipient: string
 }
@@ -74,6 +77,14 @@ function itemsTable(order: OrderSummary) {
         <td style="font-size:14px;color:#666">Delivery</td>
         <td style="font-size:14px;text-align:right">${order.shippingCost === 0 ? 'Free' : formatBdt(order.shippingCost)}</td>
       </tr>
+      ${
+        order.taxAmount > 0
+          ? `<tr>
+        <td style="font-size:14px;color:#666">${escapeHtml(taxLineLabel(STORE_CONFIG.tax))}${STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : ''}</td>
+        <td style="font-size:14px;text-align:right">${formatBdt(order.taxAmount)}</td>
+      </tr>`
+          : ''
+      }
       <tr>
         <td style="font-size:15px;font-weight:600;padding-top:4px">Total</td>
         <td style="font-size:15px;font-weight:600;text-align:right;padding-top:4px">${formatBdt(order.total)}</td>

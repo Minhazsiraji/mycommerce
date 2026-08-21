@@ -1,6 +1,8 @@
 import 'server-only'
 
+import { countryPreset } from '@/lib/country-presets'
 import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { STORE_CONFIG } from '@/lib/store-config'
 
 import * as repo from './repository'
 import type { ShippingRate } from './schema'
@@ -37,9 +39,17 @@ function quote(rate: ShippingRate, subtotal: number): QuotedRate {
 }
 
 /**
+ * Whether an address must name a region before it can be quoted.
+ *
+ * Matches the checkout form's own rule. Where they disagree the customer sees a
+ * delivery option and then cannot order with it, so both read the same preset.
+ */
+const REGION_REQUIRED = countryPreset(STORE_CONFIG.countryCode).fields.region === 'required'
+
+/**
  * Options for a destination.
  *
- * A district-specific rate wins; the catch-all is used only where no specific
+ * A region-specific rate wins; the catch-all is used only where no specific
  * rate exists. Returning an empty list means the store has configured nothing —
  * checkout must treat that as a configuration error rather than free delivery.
  */
@@ -49,7 +59,9 @@ export async function quoteRates(input: {
 }): Promise<QuotedRate[]> {
   const rates = await repo.listActiveRates()
 
-  return ratesForDistrict(rates, input.district).map((rate) => quote(rate, input.subtotal))
+  return ratesForDistrict(rates, input.district, { regionRequired: REGION_REQUIRED }).map((rate) =>
+    quote(rate, input.subtotal),
+  )
 }
 
 /**
@@ -68,7 +80,11 @@ export async function resolveRate(input: {
   const rate = activeRates.find((candidate) => candidate.id === input.rateId)
 
   if (!rate) throw new ShippingError('That delivery option is no longer available.')
-  if (!ratesForDistrict(activeRates, input.district).some((candidate) => candidate.id === rate.id)) {
+  if (
+    !ratesForDistrict(activeRates, input.district, { regionRequired: REGION_REQUIRED }).some(
+      (candidate) => candidate.id === rate.id,
+    )
+  ) {
     throw new ShippingError('That delivery option does not cover this address.')
   }
 

@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
 import { STORE_CONFIG } from '@/lib/store-config'
+import { taxLineLabel } from '@/lib/tax'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
@@ -241,6 +242,17 @@ async function OrderDetail({
               {order.shippingCost === 0 ? 'Free' : formatBdt(order.shippingCost)}
             </dd>
           </div>
+          {/* Driven by the stored amount, not the current setting: a historical
+              order must keep explaining the total it was actually charged. */}
+          {order.taxAmount > 0 ? (
+            <div className="flex justify-between">
+              <dt className="text-(--color-muted)">
+                {taxLineLabel(STORE_CONFIG.tax)}
+                {STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : null}
+              </dt>
+              <dd className="tabular-nums">{formatBdt(order.taxAmount)}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between font-semibold">
             <dt>Total</dt>
             <dd className="tabular-nums">{formatBdt(order.total)}</dd>
