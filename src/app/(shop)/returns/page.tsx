@@ -4,7 +4,14 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
-import { findPolicyPage, PolicyOverride } from '@/modules/policies'
+import {
+  DEFAULT_POLICY_SETTINGS,
+  findPolicyPage,
+  getPolicySettings,
+  PolicyOverride,
+  refundProcessingText,
+  returnWindowText,
+} from '@/modules/policies'
 import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
@@ -18,16 +25,26 @@ export default async function ReturnsPage() {
   const authored = await findPolicyPage('returns').catch(() => null)
   if (authored) return <PolicyOverride page={authored} />
 
+  const settings = await getPolicySettings().catch(() => ({ ...DEFAULT_POLICY_SETTINGS }))
+  const window = returnWindowText(settings)
+  const refundTime = refundProcessingText(settings)
+
   return (
     <PolicyPage
       title="Returns & Refunds"
       summary={`We want return and refund decisions to be predictable. This policy explains the standard ${STORE_CONFIG.name} process for eligible orders delivered in ${STORE_CONFIG.countryName}.`}
       sections={[
         {
-          title: '7-day return window',
+          title: window ? `${window} return window` : 'Return window',
           body: (
             <>
-              <p>You may request a return within 7 calendar days after the order is delivered.</p>
+              {/* Unset says so rather than inventing a period on the store's
+                  behalf. Vague and true beats specific and false. */}
+              <p>
+                {window
+                  ? `You may request a return within ${window} after the order is delivered.`
+                  : 'The return window that applies to your order is confirmed when you contact us. Please get in touch as soon as possible after delivery.'}
+              </p>
               <p>The item should be unused, unworn, unwashed and in substantially the same condition in which it was delivered, with its original packaging, tags, accessories, manuals and included items where applicable.</p>
             </>
           ),
@@ -45,7 +62,11 @@ export default async function ReturnsPage() {
           title: 'Change-of-mind returns',
           body: (
             <>
-              <p>Eligible unused items may also be returned within the 7-day window when you simply change your mind.</p>
+              <p>
+                {window
+                  ? `Eligible unused items may also be returned within the ${window} window when you simply change your mind.`
+                  : 'Eligible unused items may also be returned within the stated window when you simply change your mind.'}
+              </p>
               <p>For a change-of-mind return, the customer is responsible for the return delivery cost. The original delivery charge is not refundable unless the return is due to a {STORE_CONFIG.name} or fulfilment error.</p>
             </>
           ),
@@ -82,7 +103,13 @@ export default async function ReturnsPage() {
           title: 'Refund timing and method',
           body: (
             <>
-              <p>After we receive and inspect an approved return, we aim to initiate the refund within 5–7 business days. Banks, card networks and payment providers may need additional time to make the funds visible to you.</p>
+              <p>
+                {refundTime
+                  ? `After we receive and inspect an approved return, we aim to initiate the refund within ${refundTime}.`
+                  : 'After we receive and inspect an approved return, we initiate the refund as soon as we reasonably can and will tell you when it has been sent.'}{' '}
+                Banks, card networks and payment providers may need additional time to make the funds
+                visible to you.
+              </p>
               <p>Where practical, refunds are sent back through the original payment method. For cash-on-delivery or cases where the original route cannot receive a refund, we may use a verified bank account or supported mobile financial service after confirming the recipient details.</p>
             </>
           ),

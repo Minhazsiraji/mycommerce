@@ -49,6 +49,31 @@ describe.each(POLICY_PAGES)('the bundled %s template', (page) => {
   })
 })
 
+describe('a client-authored page still wins', () => {
+  it.each(['terms', 'privacy', 'returns', 'shipping'])(
+    '%s returns the override before rendering anything bundled',
+    (page) => {
+      // The override has to short-circuit. If the template rendered first, or
+      // the two were merged, a client who rewrote their Terms would still be
+      // publishing some of ours.
+      const code = source(page)
+      const overrideAt = code.indexOf('return <PolicyOverride')
+      const templateAt = code.indexOf('<PolicyPage')
+
+      expect(overrideAt).toBeGreaterThan(-1)
+      expect(overrideAt).toBeLessThan(templateAt)
+    },
+  )
+
+  it('reads the configured periods only on the bundled Returns path', () => {
+    const code = source('returns')
+    // The call, not the import — the import is necessarily at the top.
+    expect(code.indexOf('return <PolicyOverride')).toBeLessThan(
+      code.indexOf('await getPolicySettings('),
+    )
+  })
+})
+
 describe('what the template still commits the store to', () => {
   /**
    * These are business decisions the template guesses at. They are deliberately
@@ -56,16 +81,19 @@ describe('what the template still commits the store to', () => {
    * the reason `STORE_POLICIES_REVIEWED` exists, and this test records exactly
    * what a store owner is agreeing to when they set it.
    */
-  it('states a return window and a refund timescale a client must confirm', () => {
+  it('states no return window or refund timescale of its own', () => {
+    // These were the last two: business terms the software was promising on
+    // behalf of stores that had never chosen them. They come from Admin now,
+    // and an unconfigured store says the period is confirmed on contact.
     const returns = shippedText(source('returns'))
 
-    expect(returns).toMatch(/7 calendar days/)
-    expect(returns).toMatch(/5–7 business days/)
+    expect(returns).not.toMatch(/\d+ calendar days/)
+    expect(returns).not.toMatch(/\d+–\d+ business days/)
   })
 
-  it('keeps those commitments in one page, so review has a clear scope', () => {
-    for (const page of ['terms', 'privacy', 'shipping']) {
-      expect(shippedText(source(page))).not.toMatch(/7 calendar days/)
+  it('quotes no fixed number of days anywhere in the bundled policies', () => {
+    for (const page of POLICY_PAGES) {
+      expect(shippedText(source(page))).not.toMatch(/within \d+ (calendar|business|working) days/)
     }
   })
 })

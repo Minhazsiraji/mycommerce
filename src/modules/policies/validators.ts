@@ -34,6 +34,42 @@ export const policyPageInputSchema = z.object({
 export type PolicyPageInput = z.output<typeof policyPageInputSchema>
 
 /**
+ * Empty means "not stated", not zero — a zero-day return window is a real
+ * policy someone might set, so it cannot double as the absent value.
+ */
+const optionalDays = z
+  .union([z.number(), z.string(), z.null()])
+  // Optional at the key level too: the Admin form omits a field it has no value
+  // for, and an omitted period means the same as a cleared one.
+  .optional()
+  .transform((value) => {
+    if (value === null || value === undefined || value === '') return null
+    return typeof value === 'number' ? value : Number(value)
+  })
+  .refine((value) => value === null || (Number.isInteger(value) && value >= 0 && value <= 365), {
+    message: 'Enter a whole number of days between 0 and 365, or leave it empty.',
+  })
+
+export const policySettingsInputSchema = z
+  .object({
+    returnWindowDays: optionalDays,
+    refundProcessingMinDays: optionalDays,
+    refundProcessingMaxDays: optionalDays,
+  })
+  .superRefine((value, context) => {
+    const { refundProcessingMinDays: min, refundProcessingMaxDays: max } = value
+    if (min !== null && max !== null && min > max) {
+      context.addIssue({
+        code: 'custom',
+        path: ['refundProcessingMaxDays'],
+        message: 'The longest refund time cannot be shorter than the shortest.',
+      })
+    }
+  })
+
+export type PolicySettingsInput = z.output<typeof policySettingsInputSchema>
+
+/**
  * Splits authored text into paragraphs for rendering.
  *
  * Deliberately not a markdown parser: this text is rendered on a page every

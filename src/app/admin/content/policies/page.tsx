@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import { connection } from 'next/server'
 
 import { requireRole } from '@/modules/accounts'
-import { listPolicyPages, POLICY_SLUGS } from '@/modules/policies'
+import { getPolicySettings, listPolicyPages, POLICY_SLUGS } from '@/modules/policies'
 import { PolicyEditor } from '@/modules/policies/components/policy-editor'
+import { PolicySettingsForm } from '@/modules/policies/components/policy-settings-form'
 
 export const metadata: Metadata = { title: 'Policy pages' }
 
@@ -11,7 +12,7 @@ export default async function PolicyPagesAdmin() {
   await requireRole('admin')
   await connection()
 
-  const authored = await listPolicyPages()
+  const [authored, settings] = await Promise.all([listPolicyPages(), getPolicySettings()])
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,6 +25,8 @@ export default async function PolicyPagesAdmin() {
           where you sell. Publishing the template unchanged is your decision to make knowingly.
         </p>
       </div>
+
+      <PolicySettingsForm settings={settings} />
 
       {POLICY_SLUGS.map((slug) => (
         <PolicyEditor

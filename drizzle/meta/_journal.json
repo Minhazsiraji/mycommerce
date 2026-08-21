@@ -183,6 +183,13 @@
       "when": 1787315950431,
       "tag": "0025_pink_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787318472423,
+      "tag": "0026_jittery_black_queen",
+      "breakpoints": true
     }
   ]
 }

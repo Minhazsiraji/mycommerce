@@ -2,6 +2,8 @@
 
 Status: **V1 release candidate** on the clone-finalization branch. Do not label or release as `commerce-v1.0-clone-ready` until the automated clean-install gate, Preview acceptance test, and explicit owner release approval all pass.
 
+> **Merge prerequisite — policy periods.** The Returns page no longer hardcodes a 7-day return window or a 5–7 business-day refund time; both come from **Admin → Content → Policy pages → Return and refund periods**. Until SirajiBD sets `7` / `5` / `7` there, its Returns page will say the period is confirmed on contact rather than stating a number. Set them before or immediately after merge.
+>
 > **Merge prerequisite.** SirajiBD Production currently sets no `STORE_*` variables at all — it runs entirely on what used to be hard-coded defaults. Those defaults are now generic, and production refuses to boot without identity. **Set `STORE_NAME`, `STORE_BRAND_TEXT`, `STORE_BRAND_ACCENT` and `STORE_CANONICAL_URL` on the Production environment before merging**, or the next production deploy fails. It fails loudly and the previous deployment keeps serving, which is the intended behaviour — but it is still a deploy you have to plan.
 
 MyCommerce is a white-label single-store commerce product. SirajiBD is Store #1 running on it — not the software's identity. There is no built-in business to inherit: every deployment, SirajiBD included, configures its own name, domain and integrations, and a production deployment that configures neither `STORE_NAME` nor `STORE_CANONICAL_URL` fails to build rather than serving a placeholder. Each clone uses isolated client-owned infrastructure and credentials. This is not a shared multi-tenant SaaS.

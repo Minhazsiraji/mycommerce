@@ -7,7 +7,13 @@ import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 
 import { deletePolicyPage, upsertPolicyPage } from './repository'
-import { POLICY_SLUGS, policyPageInputSchema, type PolicySlug } from './validators'
+import { upsertPolicySettings } from './settings-repository'
+import {
+  POLICY_SLUGS,
+  policyPageInputSchema,
+  policySettingsInputSchema,
+  type PolicySlug,
+} from './validators'
 
 export async function savePolicyPage(input: unknown): Promise<ActionResult<null>> {
   const admin = await requireRole('admin')
@@ -20,6 +26,23 @@ export async function savePolicyPage(input: unknown): Promise<ActionResult<null>
     action: 'policy.update',
     entityType: 'policy_page',
     entityId: parsed.data.slug,
+  })
+
+  refresh()
+  return ok(null)
+}
+
+export async function savePolicySettings(input: unknown): Promise<ActionResult<null>> {
+  const admin = await requireRole('admin')
+
+  const parsed = policySettingsInputSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  await upsertPolicySettings(parsed.data)
+  await recordAudit(admin, {
+    action: 'policy.settings.update',
+    entityType: 'policy_settings',
+    entityId: 'default',
   })
 
   refresh()
