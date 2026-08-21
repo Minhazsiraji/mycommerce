@@ -18,6 +18,7 @@ const healthy = {
   SSLCOMMERZ_STORE_ID: 'id',
   SSLCOMMERZ_STORE_PASSWORD: 'pw',
   SSLCOMMERZ_SANDBOX: 'false',
+  STORE_POLICIES_REVIEWED: 'true',
 }
 
 const errorsFor = (env: Record<string, string | undefined>) => preflight(env).errors.join(' | ')
@@ -34,6 +35,7 @@ describe('a coherent deployment passes', () => {
         VERCEL_ENV: 'production',
         STORE_NAME: 'Client Store',
         STORE_CANONICAL_URL: 'https://client.example',
+        STORE_POLICIES_REVIEWED: 'true',
       }).errors,
     ).toEqual([])
   })
@@ -103,6 +105,7 @@ describe('a store nobody can buy from', () => {
         VERCEL_ENV: 'production',
         STORE_NAME: 'Client Store',
         STORE_CANONICAL_URL: 'https://client.example',
+        STORE_POLICIES_REVIEWED: 'true',
         STORE_COD_ENABLED: 'false',
         BANK_ACCOUNT_NAME: 'Client Ltd',
         BANK_ACCOUNT_NUMBER: '1234',
@@ -146,6 +149,26 @@ describe('identity leakage', () => {
 
   it('leaves the original production deployment alone', () => {
     expect(preflight(healthy).errors).toEqual([])
+  })
+})
+
+describe('policy review', () => {
+  it('refuses production until someone confirms the policies were reviewed', () => {
+    // A script cannot tell whether the published Terms describe this business.
+    // Requiring an explicit acknowledgement is the honest version of the check.
+    expect(errorsFor({ ...healthy, STORE_POLICIES_REVIEWED: '' })).toMatch(
+      /STORE_POLICIES_REVIEWED/,
+    )
+    expect(errorsFor({ ...healthy, STORE_POLICIES_REVIEWED: 'later' })).toMatch(
+      /STORE_POLICIES_REVIEWED/,
+    )
+  })
+
+  it('does not block a Preview or a local build', () => {
+    expect(
+      preflight({ VERCEL_ENV: 'preview', STORE_NAME: 'Clone', STORE_CANONICAL_URL: 'https://p.example' })
+        .errors,
+    ).toEqual([])
   })
 })
 

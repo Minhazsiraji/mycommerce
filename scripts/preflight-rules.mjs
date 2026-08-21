@@ -122,6 +122,19 @@ export function preflight(env) {
     warnings.push('A tax rate is configured but the mode is "none", so it is ignored')
   }
 
+  /**
+   * Policy review is a human judgement, not something a script can inspect —
+   * whether the published Terms are true of this business is not visible from
+   * the environment. So production requires an explicit attestation instead of
+   * a guess. Editing the pages is done in Admin; this is the acknowledgement
+   * that someone did.
+   */
+  if (isProduction && value('STORE_POLICIES_REVIEWED') !== 'true') {
+    errors.push(
+      'STORE_POLICIES_REVIEWED is not "true". Review Terms, Privacy and Returns in Admin against your own business and jurisdiction, then set it to confirm.',
+    )
+  }
+
   if (isPreview && value('NEXT_PUBLIC_STORE_GOOGLE_TAG_ID')) {
     warnings.push('Preview has a Google tag configured; Preview traffic will be reported')
   }

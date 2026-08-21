@@ -38,7 +38,8 @@ export const payments = pgTable(
     providerRef: text('provider_ref'),
 
     amount: integer('amount').notNull(),
-    currency: char('currency', { length: 3 }).notNull().default('BDT'),
+    /** No default — written explicitly, to match the order it belongs to. */
+  currency: char('currency', { length: 3 }).notNull(),
     status: text('status').notNull().default('pending'),
 
     /** Full provider response, kept for disputes and reconciliation. */

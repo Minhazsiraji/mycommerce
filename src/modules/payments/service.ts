@@ -8,7 +8,10 @@ import { getVisibleOrder, notifyOrderPaid } from '@/modules/orders'
 import { orders } from '@/lib/db/schema'
 
 import { payments, webhookEvents } from './schema'
-import { createSession, validatePayment } from './sslcommerz'
+import { isOnlineGateway, providerFor } from './provider'
+// Registers the gateways this deployment supports. Importing for the side
+// effect is deliberate: the core must not name a provider.
+import './providers'
 
 export class PaymentError extends Error {}
 
@@ -40,14 +43,16 @@ export async function startGatewayPayment(
 
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
-  if (order.paymentMethod !== 'sslcommerz') {
-    throw new PaymentError('This order is being paid by bank transfer.')
+
+  const provider = providerFor(order.paymentMethod)
+  if (!provider) {
+    throw new PaymentError('This order is not being paid through an online gateway.')
   }
   if (!order.stockHoldExpiresAt || order.stockHoldExpiresAt <= new Date()) {
     throw new PaymentError('This payment window expired. Please place the order again.')
   }
 
-  const { redirectUrl } = await createSession({
+  const { redirectUrl } = await provider.createSession({
     orderNumber: order.orderNumber,
     amount: order.total,
     customer: {
@@ -72,13 +77,17 @@ export async function startGatewayPayment(
  * permanently ignored retry.
  */
 export async function handleGatewayNotification(
+  providerId: string,
   valId: string,
 ): Promise<'ok' | 'late-cancelled' | 'duplicate'> {
   assertValueId(valId)
 
+  const provider = providerFor(providerId)
+  if (!provider) throw new PaymentError(`Unknown payment provider: ${providerId}`)
+
   // Verify before claiming the event. A provider timeout here must remain
   // retryable; recording the id first would make every later retry a no-op.
-  const result = await validatePayment(valId)
+  const result = await provider.validatePayment(valId)
   if (!result.valid) throw new PaymentError('Payment did not validate.')
 
   const order = await db.query.orders.findFirst({
@@ -104,7 +113,7 @@ export async function handleGatewayNotification(
     // the commercial state change. A rollback removes both or neither.
     const inserted = await tx
       .insert(webhookEvents)
-      .values({ provider: 'sslcommerz', eventId: valId, payload: result.raw })
+      .values({ provider: providerId, eventId: valId, payload: result.raw })
       .onConflictDoNothing()
       .returning({ id: webhookEvents.id })
 
@@ -132,11 +141,11 @@ export async function handleGatewayNotification(
     const [attempt] = await tx
       .select({ id: payments.id })
       .from(payments)
-      .where(and(eq(payments.orderId, order.id), eq(payments.provider, 'sslcommerz')))
+      .where(and(eq(payments.orderId, order.id), eq(payments.provider, providerId)))
       .orderBy(desc(payments.createdAt))
       .limit(1)
 
-    if (!attempt) throw new Error(`Missing SSLCommerz payment attempt for ${order.orderNumber}`)
+    if (!attempt) throw new Error(`Missing ${providerId} payment attempt for ${order.orderNumber}`)
 
     await tx
       .update(payments)
@@ -180,7 +189,7 @@ export async function switchToBankTransfer(orderNumber: string) {
 
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
-  if (order.paymentMethod !== 'sslcommerz') {
+  if (!isOnlineGateway(order.paymentMethod)) {
     throw new PaymentError('This order is already using bank transfer.')
   }
   if (!order.stockHoldExpiresAt || order.stockHoldExpiresAt <= new Date()) {
@@ -200,7 +209,9 @@ export async function switchToBankTransfer(orderNumber: string) {
         and(
           eq(orders.id, order.id),
           eq(orders.status, 'pending'),
-          eq(orders.paymentMethod, 'sslcommerz'),
+          // Any online gateway, not one named provider: the predicate has to
+          // keep matching when a second gateway is registered.
+          eq(orders.paymentMethod, order.paymentMethod),
           inArray(orders.paymentStatus, ['unpaid', 'failed']),
           gt(orders.stockHoldExpiresAt, new Date()),
         ),

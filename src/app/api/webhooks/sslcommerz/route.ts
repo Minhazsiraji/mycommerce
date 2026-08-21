@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       return Response.json({ received: true }, { status: 200 })
     }
 
-    const result = await handleGatewayNotification(valId)
+    const result = await handleGatewayNotification('sslcommerz', valId)
     return Response.json({ received: true, result }, { status: 200 })
   } catch (error) {
     if (error instanceof CallbackPayloadTooLarge) {

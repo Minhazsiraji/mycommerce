@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 import { formatBdt } from '@/lib/money'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { getCachedDeliverySummary } from '@/modules/shipping'
@@ -15,6 +16,8 @@ export const metadata: Metadata = {
 
 export default async function ShippingPage() {
   await connection()
+  const authored = await findPolicyPage('shipping').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
 
   const result = await getCachedDeliverySummary().catch(() => ({ freeOver: null, estimate: null }))
   const estimate = result.estimate

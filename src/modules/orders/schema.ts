@@ -74,7 +74,13 @@ export const orders = pgTable(
     taxAmount: integer('tax_amount').notNull().default(0),
     discountAmount: integer('discount_amount').notNull().default(0),
     total: integer('total').notNull(),
-    currency: char('currency', { length: 3 }).notNull().default('BDT'),
+    /**
+   * No default. A client-specific default is a white-label defect and a real
+   * hazard: payment verification rejects a gateway result whose currency
+   * disagrees with the order, so a silent 'BDT' would fail every payment on a
+   * store configured otherwise. The application writes this explicitly.
+   */
+  currency: char('currency', { length: 3 }).notNull(),
 
     /**
      * Snapshots, not foreign keys. Customers edit and delete saved addresses,

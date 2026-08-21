@@ -213,6 +213,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
       provider: args.paymentMethod,
       // Must equal orders.total exactly: payment verification matches the two.
       amount: totals.total,
+      currency: CURRENCY,
       status: initialPayment.paymentAttemptStatus,
     })
 

@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { connection } from 'next/server'
+
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
@@ -10,7 +13,11 @@ export const metadata: Metadata = {
   alternates: { canonical: '/returns' },
 }
 
-export default function ReturnsPage() {
+export default async function ReturnsPage() {
+  await connection()
+  const authored = await findPolicyPage('returns').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
+
   return (
     <PolicyPage
       title="Returns & Refunds"

@@ -2,28 +2,187 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {"idx":0,"version":"7","when":1785765271268,"tag":"0000_windy_skrulls","breakpoints":true},
-    {"idx":1,"version":"7","when":1785774868354,"tag":"0001_long_nightmare","breakpoints":true},
-    {"idx":2,"version":"7","when":1785842141231,"tag":"0002_blushing_catseye","breakpoints":true},
-    {"idx":3,"version":"7","when":1785861503198,"tag":"0003_absurd_starhawk","breakpoints":true},
-    {"idx":4,"version":"7","when":1785941857454,"tag":"0004_lying_stellaris","breakpoints":true},
-    {"idx":5,"version":"7","when":1785947113508,"tag":"0005_tranquil_sage","breakpoints":true},
-    {"idx":6,"version":"7","when":1785979831222,"tag":"0006_outstanding_carnage","breakpoints":true},
-    {"idx":7,"version":"7","when":1785983384128,"tag":"0007_bright_sandman","breakpoints":true},
-    {"idx":8,"version":"7","when":1786002661600,"tag":"0008_lively_carlie_cooper","breakpoints":true},
-    {"idx":9,"version":"7","when":1786002698071,"tag":"0009_magical_sunfire","breakpoints":true},
-    {"idx":10,"version":"7","when":1786002754381,"tag":"0010_restore_product_search_index","breakpoints":true},
-    {"idx":11,"version":"7","when":1786003354992,"tag":"0011_enable_trigram_search","breakpoints":true},
-    {"idx":12,"version":"7","when":1786415707386,"tag":"0012_friendly_champions","breakpoints":true},
-    {"idx":13,"version":"7","when":1786433247656,"tag":"0013_warm_the_liberteens","breakpoints":true},
-    {"idx":14,"version":"7","when":1786876484304,"tag":"0014_hot_freak","breakpoints":true},
-    {"idx":15,"version":"7","when":1786940697880,"tag":"0015_homepage_settings","breakpoints":true},
-    {"idx":16,"version":"7","when":1786962314368,"tag":"0016_footer_settings","breakpoints":true},
-    {"idx":17,"version":"7","when":1786969070046,"tag":"0017_regular_manta","breakpoints":true},
-    {"idx":18,"version":"7","when":1787004300000,"tag":"0018_fill_active_product_descriptions","breakpoints":true},
-    {"idx":19,"version":"7","when":1787020000000,"tag":"0019_meta_integration_settings","breakpoints":true},
-    {"idx":20,"version":"7","when":1787032400000,"tag":"0020_repair_meta_integration_settings","breakpoints":true},
-    {"idx":21,"version":"7","when":1787041260000,"tag":"0021_verify_meta_integration_settings","breakpoints":true},
-    {"idx":22,"version":"7","when":1787115600000,"tag":"0022_google_integration_settings","breakpoints":true}
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785765271268,
+      "tag": "0000_windy_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785774868354,
+      "tag": "0001_long_nightmare",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785842141231,
+      "tag": "0002_blushing_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785861503198,
+      "tag": "0003_absurd_starhawk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785941857454,
+      "tag": "0004_lying_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785947113508,
+      "tag": "0005_tranquil_sage",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785979831222,
+      "tag": "0006_outstanding_carnage",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785983384128,
+      "tag": "0007_bright_sandman",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786002661600,
+      "tag": "0008_lively_carlie_cooper",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786002698071,
+      "tag": "0009_magical_sunfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786002754381,
+      "tag": "0010_restore_product_search_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786003354992,
+      "tag": "0011_enable_trigram_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786415707386,
+      "tag": "0012_friendly_champions",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786433247656,
+      "tag": "0013_warm_the_liberteens",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786876484304,
+      "tag": "0014_hot_freak",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786940697880,
+      "tag": "0015_homepage_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786962314368,
+      "tag": "0016_footer_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786969070046,
+      "tag": "0017_regular_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787004300000,
+      "tag": "0018_fill_active_product_descriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787020000000,
+      "tag": "0019_meta_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787032400000,
+      "tag": "0020_repair_meta_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787041260000,
+      "tag": "0021_verify_meta_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787115600000,
+      "tag": "0022_google_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1787314362561,
+      "tag": "0023_organic_kronos",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787315602069,
+      "tag": "0024_black_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1787315950431,
+      "tag": "0025_pink_ravenous",
+      "breakpoints": true
+    }
   ]
 }

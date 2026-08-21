@@ -97,6 +97,26 @@ assert(envRuntime.includes('META_CAPI_ACCESS_TOKEN'), 'Meta CAPI must be deploym
 const sourceRoot = path.join(root, 'src')
 const allowedSirajiDefaultFile = path.normalize(path.join(sourceRoot, 'lib', 'store-config.ts'))
 
+/**
+ * Client-specific values must not sit in the schema as column defaults.
+ *
+ * `orders.currency DEFAULT 'BDT'` was the dangerous one: the application looked
+ * correct because it wrote currency explicitly on one path, while the payment
+ * row it inserted alongside quietly took the default — so a non-BDT store would
+ * have recorded a BDT payment against a non-BDT order and failed verification.
+ * `storefront_settings` was the embarrassing one: it shipped the original
+ * store's wordmark and copyright as every clone's starting homepage copy.
+ */
+const CLIENT_DEFAULT = /\.default\(\s*['"`](?:BDT|BD|Siraji[^'"`]*|৳|\+?880[^'"`]*|[^'"`]*sirajibd[^'"`]*)['"`]\s*\)/i
+
+for (const file of fs.globSync('src/**/schema.ts', { cwd: root })) {
+  const content = read(file)
+  const offending = content.split('\n').filter((line) => CLIENT_DEFAULT.test(line))
+  for (const line of offending) {
+    failures.push(`Client-specific column default in ${file}: ${line.trim()}`)
+  }
+}
+
 function walk(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name)

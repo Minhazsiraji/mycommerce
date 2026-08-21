@@ -11,6 +11,7 @@ import { taxLineLabel } from '@/lib/tax'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
+import { isOnlineGateway } from '@/modules/payments'
 import { MetaPurchasePayload } from '@/modules/meta/components/meta-purchase-payload'
 import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
@@ -184,7 +185,7 @@ async function OrderDetail({
             branch: env.BANK_BRANCH ?? null,
           }}
         />
-      ) : order.paymentMethod === 'sslcommerz' &&
+      ) : isOnlineGateway(order.paymentMethod) &&
         !confirmingPayment &&
         (order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') ? (
         <PayNowPanel

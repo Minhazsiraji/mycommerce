@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { connection } from 'next/server'
+
 import { PolicyPage } from '@/components/storefront/policy-page'
 import { STORE_CONFIG, STORE_HOST } from '@/lib/store-config'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions',
@@ -10,7 +13,14 @@ export const metadata: Metadata = {
   alternates: { canonical: '/terms' },
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  // A client-authored policy replaces the bundled template entirely. The text
+  // below is a starting point written for one retailer, not a legal position
+  // this software can hold on anyone else's behalf.
+  await connection()
+  const authored = await findPolicyPage('terms').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
+
   return (
     <PolicyPage
       title="Terms & Conditions"

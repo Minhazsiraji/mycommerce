@@ -7,6 +7,7 @@ import { formatBdt } from '@/lib/money'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { taxLineLabel } from '@/lib/tax'
 import { getOrderById, listShipments } from '@/modules/orders'
+import { isOnlineGateway } from '@/modules/payments'
 import { OrderAdminActions } from '@/modules/orders/components/order-admin-actions'
 import { OrderNotes } from '@/modules/orders/components/order-notes'
 import { OrderParcels } from '@/modules/orders/components/order-parcels'
@@ -129,7 +130,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             ) : null}
           </section>
 
-          {order.paymentMethod === 'sslcommerz' && order.paymentStatus !== 'paid' ? (
+          {isOnlineGateway(order.paymentMethod) && order.paymentStatus !== 'paid' ? (
             <GatewayPaymentRecheck orderNumber={order.orderNumber} />
           ) : null}
 

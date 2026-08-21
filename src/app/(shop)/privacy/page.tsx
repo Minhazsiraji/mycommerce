@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { connection } from 'next/server'
+
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
@@ -10,7 +13,11 @@ export const metadata: Metadata = {
   alternates: { canonical: '/privacy' },
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  await connection()
+  const authored = await findPolicyPage('privacy').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
+
   return (
     <PolicyPage
       title="Privacy Policy"
