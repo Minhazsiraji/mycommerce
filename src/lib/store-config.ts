@@ -76,9 +76,54 @@ function required(key: 'STORE_NAME' | 'STORE_CANONICAL_URL', fallback: string): 
   return fallback
 }
 
+/**
+ * Values the browser renders as well as the server.
+ *
+ * Next only inlines `NEXT_PUBLIC_*` into client bundles, so a currency set only
+ * as STORE_CURRENCY is visible to the server and `undefined` in the browser —
+ * which meant a store configured for USD served USD from the server and fell
+ * back to ৳ in every client-rendered price. Verified by building with
+ * STORE_CURRENCY=USD and finding ৳ still in the static chunks.
+ *
+ * Each is referenced as a literal member expression because `process.env[key]`
+ * is not inlined either. Where both names are set and disagree we throw: a
+ * split between what the page shows and what the customer is charged must never
+ * be something you have to notice.
+ */
+function shared(
+  publicRaw: string | undefined,
+  privateRaw: string | undefined,
+  name: string,
+): string | undefined {
+  const isPublic = publicRaw?.trim()
+  const isPrivate = privateRaw?.trim()
+
+  if (isPublic && isPrivate && isPublic.toLowerCase() !== isPrivate.toLowerCase()) {
+    throw new Error(
+      `NEXT_PUBLIC_${name} is "${isPublic}" but ${name} is "${isPrivate}". These must match — the first is what the browser renders, the second is what the server uses.`,
+    )
+  }
+
+  /**
+   * Setting only the private name is the dangerous case, because it looks like
+   * it worked: the server honours it and every client-rendered price silently
+   * keeps the default. Refuse rather than ship a storefront that disagrees with
+   * itself about what the customer is paying.
+   */
+  if (isPrivate && !isPublic) {
+    throw new Error(
+      `${name} is set but NEXT_PUBLIC_${name} is not. The browser never sees ${name}, so prices would render with the default currency. Set NEXT_PUBLIC_${name}.`,
+    )
+  }
+
+  return isPublic
+}
+
 const defaultName = required('STORE_NAME', FALLBACK_NAME)
 const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || FALLBACK_COUNTRY
-const defaultCurrency = (process.env.STORE_CURRENCY?.trim() || 'BDT').toUpperCase()
+const defaultCurrency = (
+  shared(process.env.NEXT_PUBLIC_STORE_CURRENCY, process.env.STORE_CURRENCY, 'STORE_CURRENCY') || 'BDT'
+).toUpperCase()
 
 export const STORE_CONFIG = Object.freeze(
   schema.parse({
@@ -86,14 +131,28 @@ export const STORE_CONFIG = Object.freeze(
     brandText: process.env.STORE_BRAND_TEXT?.trim() || defaultName,
     brandAccent: process.env.STORE_BRAND_ACCENT?.trim() || '',
     canonicalUrl: required('STORE_CANONICAL_URL', 'http://localhost:3000'),
-    countryCode: process.env.STORE_COUNTRY_CODE?.trim() || 'BD',
+    countryCode:
+      shared(
+        process.env.NEXT_PUBLIC_STORE_COUNTRY_CODE,
+        process.env.STORE_COUNTRY_CODE,
+        'STORE_COUNTRY_CODE',
+      ) || 'BD',
     countryName: defaultCountryName,
     currency: defaultCurrency,
     currencySymbol:
-      process.env.STORE_CURRENCY_SYMBOL?.trim() || CURRENCY_SYMBOLS[defaultCurrency] || defaultCurrency,
+      shared(
+        process.env.NEXT_PUBLIC_STORE_CURRENCY_SYMBOL,
+        process.env.STORE_CURRENCY_SYMBOL,
+        'STORE_CURRENCY_SYMBOL',
+      ) ||
+      CURRENCY_SYMBOLS[defaultCurrency] ||
+      defaultCurrency,
     currencyMinorUnits: Number(
-      process.env.STORE_CURRENCY_MINOR_UNITS?.trim() ||
-        (ZERO_DECIMAL_CURRENCIES.has(defaultCurrency) ? 0 : 2),
+      shared(
+        process.env.NEXT_PUBLIC_STORE_CURRENCY_MINOR_UNITS,
+        process.env.STORE_CURRENCY_MINOR_UNITS,
+        'STORE_CURRENCY_MINOR_UNITS',
+      ) || (ZERO_DECIMAL_CURRENCIES.has(defaultCurrency) ? 0 : 2),
     ),
     /**
      * Digit grouping only. Kept separate from `locale` and defaulted to en-US
@@ -101,7 +160,12 @@ export const STORE_CONFIG = Object.freeze(
      * the live storefront's price rendering is not a side effect this config
      * change is allowed to have.
      */
-    numberLocale: process.env.STORE_NUMBER_LOCALE?.trim() || 'en-US',
+    numberLocale:
+      shared(
+        process.env.NEXT_PUBLIC_STORE_NUMBER_LOCALE,
+        process.env.STORE_NUMBER_LOCALE,
+        'STORE_NUMBER_LOCALE',
+      ) || 'en-US',
     locale: process.env.STORE_LOCALE?.trim() || 'en-BD',
     defaultDescription:
       process.env.STORE_DEFAULT_DESCRIPTION?.trim() ||

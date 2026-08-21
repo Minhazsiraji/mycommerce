@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
+import { countryPreset } from '@/lib/country-presets'
 import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { STORE_CONFIG } from '@/lib/store-config'
+
+const PRESET = countryPreset(STORE_CONFIG.countryCode)
 import {
   BD_DISTRICTS,
   bdAreasFor,
@@ -73,8 +77,12 @@ export function CheckoutForm({
   )
   const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod')
 
+  const isBdModel = PRESET.addressModel === 'bd-administrative'
+
   const cities = useMemo(() => bdCitiesFor(district), [district])
   const areas = useMemo(() => bdAreasFor(district, city), [district, city])
+
+  const regionRequired = PRESET.fields.region === 'required'
 
   /**
    * Filtered client-side from rates already sent, rather than re-fetching on
@@ -83,11 +91,11 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    return ratesForDistrict(rates, district).map((rate) => ({
+    return ratesForDistrict(rates, district, { regionRequired }).map((rate) => ({
       ...rate,
       isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
     }))
-  }, [rates, district, subtotal])
+  }, [rates, district, subtotal, regionRequired])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]
@@ -105,12 +113,14 @@ export function CheckoutForm({
           phone: String(formData.get('phone') ?? ''),
           line1: String(formData.get('line1') ?? ''),
           line2: String(formData.get('line2') ?? ''),
-          city,
-          district,
-          upazila,
+          // The Bangladeshi model drives its three fields from linked selects,
+          // so their values live in state; the generic model is plain inputs.
+          city: isBdModel ? city : String(formData.get('city') ?? ''),
+          district: isBdModel ? district : String(formData.get('district') ?? ''),
+          upazila: isBdModel ? upazila : '',
           union: String(formData.get('union') ?? ''),
           postalCode: String(formData.get('postalCode') ?? ''),
-          country: 'BD',
+          country: STORE_CONFIG.countryCode,
         },
         shippingRateId: selectedRate?.id ?? '',
         paymentMethod,
@@ -192,8 +202,37 @@ export function CheckoutForm({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {!isBdModel ? (
+              <>
+                <Input
+                  label={PRESET.labels.city}
+                  name="city"
+                  autoComplete="address-level2"
+                  defaultValue={defaults.city}
+                  required
+                  error={field('city')}
+                />
+                <Input
+                  label={`${PRESET.labels.region}${PRESET.fields.region === 'optional' ? ' (optional)' : ''}`}
+                  name="district"
+                  autoComplete="address-level1"
+                  defaultValue={defaults.district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                  error={field('district')}
+                />
+                <Input
+                  label={PRESET.labels.postalCode}
+                  name="postalCode"
+                  autoComplete="postal-code"
+                  defaultValue={defaults.postalCode}
+                  required={PRESET.fields.postalCode === 'required'}
+                  error={field('postalCode')}
+                />
+              </>
+            ) : (
+            <>
             <Select
-              label="District"
+              label={PRESET.labels.region}
               name="district"
               value={district}
               onChange={(event) => {
@@ -231,7 +270,7 @@ export function CheckoutForm({
               ))}
             </Select>
             <Select
-              label="Thana / Upazila"
+              label={PRESET.labels.area}
               name="upazila"
               autoComplete="address-level3"
               value={upazila}
@@ -254,13 +293,15 @@ export function CheckoutForm({
               error={field('union')}
             />
             <Input
-              label="Postcode (optional)"
+              label={`${PRESET.labels.postalCode} (optional)`}
               name="postalCode"
               inputMode="numeric"
               autoComplete="postal-code"
               defaultValue={defaults.postalCode}
               error={field('postalCode')}
             />
+            </>
+            )}
           </div>
         </section>
 
@@ -269,9 +310,9 @@ export function CheckoutForm({
 
           {available.length === 0 ? (
             <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-sm text-(--color-danger)">
-              {district
-                ? 'No delivery option covers that district yet.'
-                : 'Choose a district to see delivery options.'}
+              {district || !regionRequired
+                ? `No delivery option covers that ${PRESET.labels.region.toLowerCase()} yet.`
+                : `Choose a ${PRESET.labels.region.toLowerCase()} to see delivery options.`}
             </p>
           ) : (
             <div className="flex flex-col gap-2">

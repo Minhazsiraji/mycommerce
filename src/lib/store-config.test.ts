@@ -53,6 +53,54 @@ describe('a production deployment must configure its own identity', () => {
   })
 })
 
+describe('values the browser also renders', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it.each([
+    'STORE_CURRENCY',
+    'STORE_COUNTRY_CODE',
+    'STORE_CURRENCY_SYMBOL',
+    'STORE_NUMBER_LOCALE',
+  ])('refuses %s without its NEXT_PUBLIC_ twin', async (name) => {
+    // Next inlines only NEXT_PUBLIC_*, so the private name alone gives a server
+    // that honours it and client-rendered prices that silently do not.
+    vi.resetModules()
+    vi.stubEnv(name, name.includes('LOCALE') ? 'en-GB' : 'USD')
+
+    await expect(import('./store-config')).rejects.toThrow(`NEXT_PUBLIC_${name}`)
+  })
+
+  it('refuses a public and private pair that disagree', async () => {
+    vi.resetModules()
+    vi.stubEnv('NEXT_PUBLIC_STORE_CURRENCY', 'USD')
+    vi.stubEnv('STORE_CURRENCY', 'EUR')
+
+    await expect(import('./store-config')).rejects.toThrow(/USD.*EUR|EUR.*USD/)
+  })
+
+  it('accepts a matching pair', async () => {
+    vi.resetModules()
+    vi.stubEnv('NEXT_PUBLIC_STORE_CURRENCY', 'USD')
+    vi.stubEnv('STORE_CURRENCY', 'USD')
+
+    const { STORE_CONFIG: config } = await import('./store-config')
+    expect(config.currency).toBe('USD')
+  })
+
+  it('takes the public name on its own', async () => {
+    vi.resetModules()
+    vi.stubEnv('NEXT_PUBLIC_STORE_CURRENCY', 'JPY')
+
+    const { STORE_CONFIG: config } = await import('./store-config')
+    expect(config.currency).toBe('JPY')
+    expect(config.currencyMinorUnits).toBe(0)
+    expect(config.currencySymbol).toBe('¥')
+  })
+})
+
 describe('identity derived for prose and downloads', () => {
   it('names the host without the scheme, for policy sentences', () => {
     expect(STORE_HOST).toBe(new URL(STORE_CONFIG.canonicalUrl).host)
