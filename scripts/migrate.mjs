@@ -13,10 +13,29 @@ import ws from 'ws'
 loadEnv({ path: '.env.local' })
 loadEnv({ path: '.env' })
 
-const databaseUrl = process.env.DATABASE_URL
+/**
+ * Same precedence as the running application — see the note on
+ * APP_DATABASE_URL in src/lib/env.ts. Migrating one database while the app
+ * queries another is worse than not migrating at all: the deploy goes green and
+ * the data is wrong.
+ */
+const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL
 
 if (!databaseUrl) {
-  console.error('[migrate] DATABASE_URL is not set')
+  console.error('[migrate] neither APP_DATABASE_URL nor DATABASE_URL is set')
+  process.exit(1)
+}
+
+// Names the target without printing credentials, so a deploy log shows which
+// database was actually migrated.
+try {
+  const target = new URL(databaseUrl)
+  console.log(
+    `[migrate] target database "${target.pathname.replace(/^\//, '')}" on ${target.hostname.split('.').slice(1).join('.')}` +
+      `${process.env.APP_DATABASE_URL ? ' (via APP_DATABASE_URL)' : ' (via DATABASE_URL)'}`,
+  )
+} catch {
+  console.error('[migrate] database URL is not parseable')
   process.exit(1)
 }
 
