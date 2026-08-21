@@ -96,7 +96,7 @@ export default async function ReturnsPage() {
         {
           title: 'Your legal rights',
           body: (
-            <p>This policy is our standard commercial policy. Nothing in it is intended to exclude or limit rights or remedies that cannot lawfully be excluded under applicable Bangladesh consumer-protection or digital-commerce rules.</p>
+            <p>This policy is our standard commercial policy. Nothing in it is intended to exclude or limit rights or remedies that cannot lawfully be excluded under the consumer-protection or digital-commerce rules that apply in {STORE_CONFIG.countryName}.</p>
           ),
         },
       ]}

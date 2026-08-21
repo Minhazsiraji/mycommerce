@@ -86,7 +86,7 @@ export default async function TermsPage() {
         {
           title: 'Service availability and responsibility',
           body: (
-            <p>We work to keep the store reliable and secure, but online services can experience maintenance, network failures or third-party disruptions. Nothing in these terms excludes responsibility or customer rights that cannot lawfully be excluded. Any limitation applied under these terms is subject to applicable Bangladesh law.</p>
+            <p>We work to keep the store reliable and secure, but online services can experience maintenance, network failures or third-party disruptions. Nothing in these terms excludes responsibility or customer rights that cannot lawfully be excluded. Any limitation applied under these terms is subject to applicable law in {STORE_CONFIG.countryName}.</p>
           ),
         },
         {
@@ -99,7 +99,7 @@ export default async function TermsPage() {
           title: 'Applicable law and resolving concerns',
           body: (
             <>
-              <p>These terms are intended to operate under the laws and applicable digital-commerce and consumer-protection rules of Bangladesh.</p>
+              <p>These terms are intended to operate under the laws and applicable digital-commerce and consumer-protection rules of {STORE_CONFIG.countryName}.</p>
               <p>If you have a concern, contact us first through the <Link className="underline" href="/contact">Contact Us</Link> page so we can try to resolve it. Nothing in these terms prevents a customer from using rights or complaint channels available under applicable law.</p>
             </>
           ),

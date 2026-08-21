@@ -100,7 +100,7 @@ export default function ContactPage() {
         {
           title: 'Consumer rights',
           body: (
-            <p>We encourage customers to contact {STORE_CONFIG.name} first so we can investigate and resolve a concern. This does not prevent a customer from using complaint or consumer-protection channels available under applicable Bangladesh law.</p>
+            <p>We encourage customers to contact {STORE_CONFIG.name} first so we can investigate and resolve a concern. This does not prevent a customer from using complaint or consumer-protection channels available under the law of {STORE_CONFIG.countryName}.</p>
           ),
         },
       ]}

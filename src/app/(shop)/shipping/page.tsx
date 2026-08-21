@@ -35,7 +35,7 @@ export default async function ShippingPage() {
         {
           title: 'Delivery coverage',
           body: (
-            <p>We currently offer delivery to supported addresses in Bangladesh. Available delivery options are determined from the delivery address you enter at checkout. If no active delivery option covers an address, checkout will tell you before the order is placed.</p>
+            <p>We currently offer delivery to supported addresses in {STORE_CONFIG.countryName}. Available delivery options are determined from the delivery address you enter at checkout. If no active delivery option covers an address, checkout will tell you before the order is placed.</p>
           ),
         },
         {

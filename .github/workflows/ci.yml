@@ -87,19 +87,167 @@ jobs:
       - name: Verify clean-install schema
         run: |
           psql -h localhost -U postgres -d mycommerce_clone_test -v ON_ERROR_STOP=1 <<'SQL'
-          SELECT to_regclass('public.users') AS users_table;
-          SELECT to_regclass('public.products') AS products_table;
-          SELECT to_regclass('public.orders') AS orders_table;
-          SELECT to_regclass('public.meta_integration_settings') AS meta_table;
-          SELECT to_regclass('public.google_integration_settings') AS google_table;
           DO $$
           BEGIN
             IF to_regclass('public.users') IS NULL
               OR to_regclass('public.products') IS NULL
               OR to_regclass('public.orders') IS NULL
               OR to_regclass('public.meta_integration_settings') IS NULL
-              OR to_regclass('public.google_integration_settings') IS NULL THEN
+              OR to_regclass('public.google_integration_settings') IS NULL
+              OR to_regclass('public.policy_pages') IS NULL THEN
               RAISE EXCEPTION 'fresh clone schema verification failed';
             END IF;
           END $$;
+
+          -- A new customer's database must carry no trace of the original store.
+          -- A column default is the easiest place for one to survive unnoticed,
+          -- because nothing fails: orders simply record the wrong currency.
+          DO $$
+          DECLARE offending text;
+          BEGIN
+            SELECT string_agg(format('%s.%s = %s', table_name, column_name, column_default), ', ')
+              INTO offending
+              FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND column_default IS NOT NULL
+               AND (column_default ILIKE '%BDT%'
+                 OR column_default ILIKE '%Siraji%'
+                 OR (table_name = 'addresses' AND column_name = 'country'));
+
+            IF offending IS NOT NULL THEN
+              RAISE EXCEPTION 'client-specific column defaults survived into a fresh install: %', offending;
+            END IF;
+          END $$;
           SQL
+
+  upgrade-existing-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mycommerce_upgrade_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mycommerce_upgrade_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Merging this branch upgrades a database that already has orders in it,
+      # not an empty one. The fresh-install gate cannot catch a migration that
+      # works on nothing and destroys something.
+      - name: Build the pre-0023 schema
+        run: |
+          set -euo pipefail
+          for migration in $(find drizzle -maxdepth 1 -type f -name '[0-9][0-9][0-9][0-9]_*.sql' | sort); do
+            case "$(basename "${migration}")" in
+              0023_*|0024_*|0025_*) continue ;;
+            esac
+            echo "Applying ${migration}"
+            psql -h localhost -U postgres -d mycommerce_upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
+          done
+
+      - name: Seed rows that must survive the upgrade
+        run: |
+          psql -h localhost -U postgres -d mycommerce_upgrade_test -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO orders (
+            order_number, email, phone, status, payment_status, fulfillment_status,
+            subtotal, shipping_cost, total, shipping_address, payment_method
+          ) VALUES (
+            'MC-UPGRADE-0001', 'existing@example.com', '+8801712345678',
+            'confirmed', 'paid', 'unfulfilled',
+            130000, 6000, 136000, '{"recipient":"Existing Customer"}'::jsonb, 'sslcommerz'
+          );
+
+          INSERT INTO payments (order_id, provider, amount, status)
+          SELECT id, 'sslcommerz', 136000, 'succeeded' FROM orders WHERE order_number = 'MC-UPGRADE-0001';
+          SQL
+
+      - name: Apply the new migrations
+        run: |
+          set -euo pipefail
+          for migration in drizzle/0023_*.sql drizzle/0024_*.sql drizzle/0025_*.sql; do
+            echo "Applying ${migration}"
+            psql -h localhost -U postgres -d mycommerce_upgrade_test -v ON_ERROR_STOP=1 -f "${migration}"
+          done
+
+      - name: Verify existing data survived and defaults are gone
+        run: |
+          psql -h localhost -U postgres -d mycommerce_upgrade_test -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE order_currency text; payment_currency text; order_total integer;
+          BEGIN
+            SELECT o.currency, o.total, p.currency
+              INTO order_currency, order_total, payment_currency
+              FROM orders o JOIN payments p ON p.order_id = o.id
+             WHERE o.order_number = 'MC-UPGRADE-0001';
+
+            -- The rows predate the change and kept the values they were written
+            -- with. Dropping a default must not rewrite history.
+            IF order_currency IS DISTINCT FROM 'BDT' OR payment_currency IS DISTINCT FROM 'BDT' THEN
+              RAISE EXCEPTION 'existing order currency changed during upgrade: order=% payment=%',
+                order_currency, payment_currency;
+            END IF;
+
+            IF order_total IS DISTINCT FROM 136000 THEN
+              RAISE EXCEPTION 'existing order total changed during upgrade: %', order_total;
+            END IF;
+
+            IF to_regclass('public.policy_pages') IS NULL THEN
+              RAISE EXCEPTION 'policy_pages was not created by the upgrade';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+               WHERE table_name = 'storefront_settings' AND column_name = 'logo_url'
+            ) THEN
+              RAISE EXCEPTION 'brand asset columns were not added by the upgrade';
+            END IF;
+          END $$;
+
+          DO $$
+          DECLARE offending text;
+          BEGIN
+            SELECT string_agg(format('%s.%s', table_name, column_name), ', ')
+              INTO offending
+              FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND column_default IS NOT NULL
+               AND (column_default ILIKE '%BDT%' OR column_default ILIKE '%Siraji%');
+
+            IF offending IS NOT NULL THEN
+              RAISE EXCEPTION 'client-specific defaults survived the upgrade: %', offending;
+            END IF;
+          END $$;
+          SQL
+
+      - name: An insert without an explicit currency must now fail
+        run: |
+          set -euo pipefail
+          # The whole point of dropping the default: a code path that forgets to
+          # write currency should break loudly in CI, not quietly record BDT.
+          if psql -h localhost -U postgres -d mycommerce_upgrade_test -v ON_ERROR_STOP=1 -c "
+            INSERT INTO orders (
+              order_number, email, phone, status, payment_status, fulfillment_status,
+              subtotal, shipping_cost, total, shipping_address, payment_method
+            ) VALUES (
+              'MC-NO-CURRENCY', 'x@example.com', '+8801712345678',
+              'pending', 'unpaid', 'unfulfilled',
+              100, 0, 100, '{}'::jsonb, 'cod'
+            );" 2>/dev/null; then
+            echo 'An order was created without an explicit currency — the default is still in place.'
+            exit 1
+          fi
+          echo 'Confirmed: currency must be supplied explicitly.'

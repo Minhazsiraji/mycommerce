@@ -35,9 +35,9 @@ export default function AboutPage() {
           ),
         },
         {
-          title: 'Bangladesh-first commerce',
+          title: `${STORE_CONFIG.countryName}-first commerce`,
           body: (
-            <p>The store is configured for customers and delivery addresses in Bangladesh, with prices and checkout choices designed for the local shopping journey. Delivery coverage and current estimates are published on the <Link className="underline" href="/shipping">Shipping & Delivery</Link> page.</p>
+            <p>The store is configured for customers and delivery addresses in {STORE_CONFIG.countryName}, with prices and checkout choices designed for the local shopping journey. Delivery coverage and current estimates are published on the <Link className="underline" href="/shipping">Shipping & Delivery</Link> page.</p>
           ),
         },
         {
