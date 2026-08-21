@@ -3,6 +3,7 @@ import 'server-only'
 import { asc, isNull } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
+import { CURRENCY, toDecimalString } from '@/lib/money'
 import { getSiteUrl } from '@/lib/site-metadata'
 import { storage } from '@/lib/storage'
 import { productImages, products, productVariants } from './schema'
@@ -62,8 +63,8 @@ export async function buildDiscoveryCsv() {
         new URL(`/p/${product.slug}`, site).href,
         product.images[0] ? storage.url(product.images[0].r2Key, { width: 1200, height: 1200, fit: 'cover' }) : '',
         variant.stock > 0 ? 'in_stock' : 'out_of_stock',
-        (variant.price / 100).toFixed(2),
-        'BDT',
+        toDecimalString(variant.price),
+        CURRENCY,
         product.brand,
         product.condition,
         variant.barcode,

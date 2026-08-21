@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { env } from '@/lib/env'
-import { toDecimalString } from '@/lib/money'
+import { CURRENCY, toDecimalString } from '@/lib/money'
 import type { AddressSnapshot } from '@/modules/orders'
 
 /**
@@ -62,10 +62,13 @@ export async function createSession(input: SessionInput): Promise<{ redirectUrl:
   const body = new URLSearchParams({
     store_id: storeId,
     store_passwd: storePassword,
-    // Decimal BDT at the provider boundary; poisha everywhere inside.
+    // Decimal at the provider boundary; minor units everywhere inside.
     // Must be the ungrouped form — a thousands separator is rejected outright.
     total_amount: toDecimalString(input.amount),
-    currency: 'BDT',
+    // Follows store configuration so the charged currency cannot drift from the
+    // one displayed and reported. SSLCommerz settles BDT for Bangladeshi
+    // merchants; a store configured otherwise needs a provider that supports it.
+    currency: CURRENCY,
     tran_id: input.orderNumber,
 
     success_url: `${input.baseUrl}/api/webhooks/sslcommerz/return?status=success${returnOrder}`,

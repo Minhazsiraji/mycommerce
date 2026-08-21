@@ -10,9 +10,40 @@ const schema = z.object({
   countryCode: z.string().trim().length(2).transform((value) => value.toUpperCase()),
   countryName: z.string().trim().min(1).max(80),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
+  currencySymbol: z.string().trim().min(1).max(8),
+  /** Decimal places the currency subdivides into: 2 for BDT/USD, 0 for JPY. */
+  currencyMinorUnits: z.number().int().min(0).max(4),
+  numberLocale: z.string().trim().min(2).max(20),
   locale: z.string().trim().min(2).max(20),
   defaultDescription: z.string().trim().min(20).max(320),
 })
+
+/**
+ * Symbols for the currencies we can actually render correctly. Anything else
+ * falls back to the ISO code, which is always unambiguous and never wrong —
+ * "1,999.50 SEK" reads worse than "1 999,50 kr" but cannot mislead a customer
+ * about what they are paying.
+ */
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  AED: 'د.إ',
+  AUD: 'A$',
+  BDT: '৳',
+  CAD: 'C$',
+  EUR: '€',
+  GBP: '£',
+  INR: '₹',
+  JPY: '¥',
+  LKR: 'Rs',
+  MYR: 'RM',
+  NPR: 'Rs',
+  PKR: '₨',
+  SAR: '﷼',
+  SGD: 'S$',
+  USD: '$',
+}
+
+/** Currencies with no minor unit. Everything else we support subdivides by 100. */
+const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK', 'XAF', 'XOF'])
 
 /**
  * The built-in identity is deliberately generic.
@@ -47,6 +78,7 @@ function required(key: 'STORE_NAME' | 'STORE_CANONICAL_URL', fallback: string): 
 
 const defaultName = required('STORE_NAME', FALLBACK_NAME)
 const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || FALLBACK_COUNTRY
+const defaultCurrency = (process.env.STORE_CURRENCY?.trim() || 'BDT').toUpperCase()
 
 export const STORE_CONFIG = Object.freeze(
   schema.parse({
@@ -56,7 +88,20 @@ export const STORE_CONFIG = Object.freeze(
     canonicalUrl: required('STORE_CANONICAL_URL', 'http://localhost:3000'),
     countryCode: process.env.STORE_COUNTRY_CODE?.trim() || 'BD',
     countryName: defaultCountryName,
-    currency: process.env.STORE_CURRENCY?.trim() || 'BDT',
+    currency: defaultCurrency,
+    currencySymbol:
+      process.env.STORE_CURRENCY_SYMBOL?.trim() || CURRENCY_SYMBOLS[defaultCurrency] || defaultCurrency,
+    currencyMinorUnits: Number(
+      process.env.STORE_CURRENCY_MINOR_UNITS?.trim() ||
+        (ZERO_DECIMAL_CURRENCIES.has(defaultCurrency) ? 0 : 2),
+    ),
+    /**
+     * Digit grouping only. Kept separate from `locale` and defaulted to en-US
+     * because en-BD and en-IN group in lakh/crore ("12,34,567"), and switching
+     * the live storefront's price rendering is not a side effect this config
+     * change is allowed to have.
+     */
+    numberLocale: process.env.STORE_NUMBER_LOCALE?.trim() || 'en-US',
     locale: process.env.STORE_LOCALE?.trim() || 'en-BD',
     defaultDescription:
       process.env.STORE_DEFAULT_DESCRIPTION?.trim() ||

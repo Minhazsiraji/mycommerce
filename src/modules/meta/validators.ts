@@ -49,7 +49,8 @@ export type MetaCustomData = {
   content_name?: string
   content_type?: 'product'
   contents?: MetaContent[]
-  currency?: 'BDT'
+  /** ISO 4217, whatever the store is configured for — not a fixed 'BDT'. */
+  currency?: string
   num_items?: number
   search_string?: string
   value?: number

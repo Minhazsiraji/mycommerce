@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+import { CURRENCY } from '@/lib/money'
+
 import { trackInitiateCheckout, trackViewContent } from '../actions'
 import { newBrowserEventId, readMetaConsent, trackBrowserEvent } from './client'
 import { META_CONSENT_EVENT, META_PIXEL_READY_EVENT } from '../consent'
@@ -42,7 +44,7 @@ export function ViewContentTracker({
     content_name: contentName,
     content_type: 'product',
     contents: [{ id: variantId, quantity: 1, item_price: value }],
-    currency: 'BDT',
+    currency: CURRENCY,
     value,
   }
 

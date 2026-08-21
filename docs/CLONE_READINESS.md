@@ -16,8 +16,8 @@ These are rated separately on purpose. Averaging them would let a genuine streng
 | Bangladesh commerce, end to end | **Ready** — the path this software was built for |
 | Data isolation between deployments | **Ready by design**, gated on per-deployment configuration |
 | Analytics isolation | **Ready** — every integration defaults to off |
-| International checkout | **Not ready** — see the boundary below |
-| Multi-currency | **Not ready** — see the boundary below |
+| Multi-currency | **Ready** — one configured currency drives price, cart, checkout, order, payment, email, analytics, JSON-LD and feed |
+| International checkout | **Not ready** — the address and phone model is still Bangladesh-only |
 | Payment-provider portability | **Partial** — the provider interface exists; SSLCommerz is the only implementation |
 
 ## Internationalization boundary
@@ -26,11 +26,13 @@ Branding is fully white-label. **Commerce is not.** A client outside Bangladesh 
 
 - **Address model.** `addressSchema` requires a `district` drawn from `BD_DISTRICT_SET` and an `upazila` (Thana/Upazila). Both are Bangladeshi administrative divisions with no equivalent elsewhere, and both are hard requirements at checkout.
 - **Phone.** `bdPhoneSchema` accepts only `01XXXXXXXXX`, `+8801XXXXXXXXX` and `8801XXXXXXXXX`.
-- **Currency.** `src/lib/money.ts` exports `CURRENCY = 'BDT'` as a compile-time constant, formats with `৳`, and parses `৳`/`Tk`/`BDT` prefixes. `STORE_CURRENCY` reaches SEO metadata and the Merchant feed but **does not** reach money formatting or the payment boundary — setting it alone would produce a feed that disagrees with the prices on the page.
+- ~~**Currency.**~~ **Fixed.** `@/lib/money` now derives the code, symbol and decimal places from `STORE_CONFIG`, and one configured currency flows through price, cart, checkout, order, payment, email, analytics, JSON-LD and the Merchant feed. Zero-decimal currencies (JPY, KRW, VND) are handled. The order row writes its currency explicitly rather than inheriting the `BDT` column default, which would otherwise have made payment verification reject every online payment on a non-BDT store. Known gap: symbols render as a prefix, so suffix currencies read `kr1,999.50` — unambiguous but not idiomatic.
 - **Payment.** SSLCommerz is the only gateway implementation. `modules/payments` defines a provider interface, so adding one is a contained change, but nothing else is written yet.
 - **Tax.** There is no tax engine. Prices are tax-inclusive by convention, which is not a safe assumption in VAT/GST or US sales-tax jurisdictions.
 
-Sell this as **white-label ecommerce software for Bangladesh**. Do not describe it as international until the address, phone, currency and payment items above are addressed — a client who buys on an international claim discovers the limit at their first order, which is the worst possible moment.
+Sell this as **white-label ecommerce software for Bangladesh**. Do not describe it as international until the address, phone and payment items above are addressed — a client who buys on an international claim discovers the limit at their first order, which is the worst possible moment.
+
+Currency is no longer part of that list. A store can be configured for USD, EUR, JPY or anything else and the whole money path follows; what still blocks an international sale is that the customer cannot enter a non-Bangladeshi address or phone number at checkout.
 
 ## Store identity environment
 

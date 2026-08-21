@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto'
 import { and, count, desc, eq, lt, ne, or, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
+import { CURRENCY } from '@/lib/money'
 import {
   cartItems,
   carts,
@@ -144,6 +145,14 @@ export async function placeOrder(args: PlaceOrderArgs) {
         subtotal,
         shippingCost: args.shipping.cost,
         total,
+        /**
+         * Written explicitly rather than left to the column default. The default
+         * is 'BDT', and payments/service.ts rejects a gateway result whose
+         * currency does not match the order's — so on a store configured for any
+         * other currency, relying on the default would fail every online payment
+         * after the customer had already been charged.
+         */
+        currency: CURRENCY,
         shippingAddress: args.address,
         paymentMethod: args.paymentMethod,
         notes: args.notes,

@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatBdt, formatBdtPlain } from '@/lib/money'
+import { CURRENCY_SYMBOL, formatBdt, formatBdtPlain } from '@/lib/money'
 
 import { createShippingRate, deleteShippingRate, updateShippingRate } from '../actions'
 
@@ -135,7 +135,7 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
             error={errors.name}
           />
           <Input
-            label="Delivery charge (৳)"
+            label={`Delivery charge (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="60"
             value={draft.cost}
@@ -154,7 +154,7 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Input
-            label="Free delivery over (৳)"
+            label={`Free delivery over (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="Optional"
             value={draft.freeOverSubtotal}

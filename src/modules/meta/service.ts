@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers'
 import { after } from 'next/server'
 
 import { clientEnv, env } from '@/lib/env'
+import { CURRENCY } from '@/lib/money'
 import type { CartLine } from '@/modules/cart'
 
 import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
@@ -171,7 +172,7 @@ export async function trackViewContent(eventId: string, variantId: string) {
       content_name: variant.productTitle,
       content_type: 'product',
       contents: [{ id: variant.id, quantity: 1, item_price: minorToMetaValue(variant.price) }],
-      currency: 'BDT',
+      currency: CURRENCY,
       value: minorToMetaValue(variant.price),
     },
     '/p',
@@ -197,7 +198,7 @@ export async function trackAddToCart(input: {
           item_price: minorToMetaValue(input.variant.price),
         },
       ],
-      currency: 'BDT',
+      currency: CURRENCY,
       value: minorToMetaValue(input.variant.price * input.quantity),
     },
     '/cart',
@@ -219,7 +220,7 @@ export async function trackInitiateCheckout(
         quantity: line.quantity,
         item_price: minorToMetaValue(line.unitPrice),
       })),
-      currency: 'BDT',
+      currency: CURRENCY,
       num_items: cart.itemCount,
       value: minorToMetaValue(cart.subtotal),
     },
