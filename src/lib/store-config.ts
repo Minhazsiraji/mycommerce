@@ -61,7 +61,6 @@ const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK', 'XAF
  * looks unconfigured instead of looking like someone else.
  */
 const FALLBACK_NAME = 'Commerce'
-const FALLBACK_COUNTRY = 'Bangladesh'
 
 /**
  * A live storefront must never fall back. Silently serving "Commerce" and a
@@ -69,7 +68,10 @@ const FALLBACK_COUNTRY = 'Bangladesh'
  * sitemap URL and Merchant feed entry before anyone noticed; a failed deploy
  * leaves the previous good build serving. Loud beats silent.
  */
-function required(key: 'STORE_NAME' | 'STORE_CANONICAL_URL', fallback: string): string {
+function required(
+  key: 'STORE_NAME' | 'STORE_CANONICAL_URL' | 'STORE_COUNTRY_NAME',
+  fallback: string,
+): string {
   const value = process.env[key]?.trim()
   if (value) return value
 
@@ -126,7 +128,27 @@ function shared(
 }
 
 const defaultName = required('STORE_NAME', FALLBACK_NAME)
-const defaultCountryName = process.env.STORE_COUNTRY_NAME?.trim() || FALLBACK_COUNTRY
+const defaultCountryCode = (
+  shared(
+    process.env.NEXT_PUBLIC_STORE_COUNTRY_CODE,
+    process.env.STORE_COUNTRY_CODE,
+    'STORE_COUNTRY_CODE',
+  ) || 'BD'
+).toUpperCase()
+
+/**
+ * No "Bangladesh" fallback.
+ *
+ * This value is printed in the Terms, the Privacy policy, the Returns policy
+ * and the About page. Defaulting it meant an unconfigured clone told its
+ * customers which country's law governed their purchase, and got it wrong. The
+ * original store reaches "Bangladesh" by setting STORE_COUNTRY_NAME in its own
+ * production configuration, exactly as any client does.
+ *
+ * Outside production it falls back to the country code, which is neutral and
+ * true rather than a guess at a jurisdiction.
+ */
+const defaultCountryName = required('STORE_COUNTRY_NAME', defaultCountryCode)
 const defaultCurrency = (
   shared(process.env.NEXT_PUBLIC_STORE_CURRENCY, process.env.STORE_CURRENCY, 'STORE_CURRENCY') || 'BDT'
 ).toUpperCase()
@@ -137,12 +159,7 @@ export const STORE_CONFIG = Object.freeze(
     brandText: process.env.STORE_BRAND_TEXT?.trim() || defaultName,
     brandAccent: process.env.STORE_BRAND_ACCENT?.trim() || '',
     canonicalUrl: required('STORE_CANONICAL_URL', 'http://localhost:3000'),
-    countryCode:
-      shared(
-        process.env.NEXT_PUBLIC_STORE_COUNTRY_CODE,
-        process.env.STORE_COUNTRY_CODE,
-        'STORE_COUNTRY_CODE',
-      ) || 'BD',
+    countryCode: defaultCountryCode,
     countryName: defaultCountryName,
     currency: defaultCurrency,
     currencySymbol:

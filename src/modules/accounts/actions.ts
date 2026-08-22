@@ -28,6 +28,52 @@ const revokeSchema = z.object({
  * sees them. Keyed per user rather than per IP: the account is what is under
  * attack, and a shared office IP should not lock everyone out.
  */
+const resendVerificationSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address').max(254),
+})
+
+/**
+ * The way out of an unverifiable account.
+ *
+ * `requireEmailVerification` is on, so an account whose first verification
+ * email never arrived cannot sign in and cannot ask for another — the customer
+ * is simply stuck, and nothing in the UI says otherwise. A lost email, an
+ * expired link, a mail provider having a bad afternoon: all of them ended here.
+ *
+ * Delegates to Better Auth's own endpoint rather than touching the token or the
+ * user row, so the expiry, single-use and hashing rules stay exactly where they
+ * are defined.
+ */
+export async function resendVerificationEmail(input: unknown): Promise<ActionResult<null>> {
+  const parsed = resendVerificationSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  const { email } = parsed.data
+
+  /**
+   * Keyed on the address, so one mailbox cannot be flooded by someone who knows
+   * it, and a shared IP does not lock out a whole office. Three an hour is more
+   * than a real person needs and far less than a mail bomb requires.
+   */
+  const limit = await rateLimit('resend-verification', 3, 3600, email)
+  if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
+
+  /**
+   * One response for every outcome — sent, already verified, no such account,
+   * provider refused. Anything else turns this form into a membership oracle,
+   * and it is reachable without a password.
+   *
+   * A provider failure is deliberately not surfaced as an error either: telling
+   * an anonymous caller that mail delivery is broken tells them nothing useful
+   * and tells an attacker that the address exists.
+   */
+  await data.requestVerificationEmail(email).catch((error) => {
+    console.error('[accounts] verification resend failed', error)
+  })
+
+  return ok(null)
+}
+
 async function reauth(userId: string, password: string): Promise<ActionResult<null>> {
   const limit = await rateLimit('reauth', 5, 900, userId)
   if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))

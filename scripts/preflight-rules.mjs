@@ -47,6 +47,28 @@ export function preflight(env) {
   if (isProduction && !canonical) {
     errors.push('STORE_CANONICAL_URL is required for a production deployment')
   }
+  if (isProduction && !value('STORE_COUNTRY_NAME')) {
+    // Printed in Terms, Privacy, Returns and About as the governing
+    // jurisdiction. There is no safe value to guess.
+    errors.push('STORE_COUNTRY_NAME is required for a production deployment')
+  }
+
+  /**
+   * The combination that silently breaks sign-up.
+   *
+   * With a mail key but no sender, the app falls back to a placeholder address
+   * whose domain is not verified with the provider. Every message is rejected,
+   * every new account is created unverified, and nothing surfaces it — an
+   * isolated preview lost its first user exactly this way.
+   */
+  if (value('RESEND_API_KEY') && !value('EMAIL_FROM')) {
+    errors.push(
+      'RESEND_API_KEY is set but EMAIL_FROM is not. Mail would be sent from a placeholder address and rejected by the provider, leaving new accounts unable to verify.',
+    )
+  }
+  if (isProduction && !value('RESEND_API_KEY')) {
+    errors.push('RESEND_API_KEY is required in production; without it no customer can verify an email address')
+  }
 
   for (const shared of SHARED) {
     const pub = value(`NEXT_PUBLIC_${shared}`)

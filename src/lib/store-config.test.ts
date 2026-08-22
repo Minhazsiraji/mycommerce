@@ -22,24 +22,44 @@ describe('a production deployment must configure its own identity', () => {
     vi.resetModules()
   })
 
-  it.each(['STORE_NAME', 'STORE_CANONICAL_URL'])('refuses to boot without %s', async (missing) => {
+  const productionIdentity = {
+    STORE_NAME: 'Client Store',
+    STORE_CANONICAL_URL: 'https://client.example',
+    STORE_COUNTRY_NAME: 'United States',
+  }
+
+  it.each(Object.keys(productionIdentity))('refuses to boot without %s', async (missing) => {
     vi.resetModules()
     vi.stubEnv('VERCEL_ENV', 'production')
-    vi.stubEnv('STORE_NAME', missing === 'STORE_NAME' ? '' : 'Client Store')
-    vi.stubEnv('STORE_CANONICAL_URL', missing === 'STORE_CANONICAL_URL' ? '' : 'https://client.example')
+    for (const [key, value] of Object.entries(productionIdentity)) {
+      vi.stubEnv(key, key === missing ? '' : value)
+    }
 
     await expect(import('./store-config')).rejects.toThrow(missing)
   })
 
-  it('boots when both are configured', async () => {
+  it('boots when all of them are configured', async () => {
     vi.resetModules()
     vi.stubEnv('VERCEL_ENV', 'production')
-    vi.stubEnv('STORE_NAME', 'Client Store')
-    vi.stubEnv('STORE_CANONICAL_URL', 'https://client.example')
+    for (const [key, value] of Object.entries(productionIdentity)) vi.stubEnv(key, value)
 
     const { STORE_CONFIG: configured } = await import('./store-config')
     expect(configured.name).toBe('Client Store')
     expect(configured.canonicalUrl).toBe('https://client.example')
+    expect(configured.countryName).toBe('United States')
+  })
+
+  it('never falls back to a specific country', async () => {
+    // This defaulted to "Bangladesh", which the Terms, Privacy and Returns
+    // pages then printed as the jurisdiction governing a clone's customers.
+    vi.resetModules()
+    vi.stubEnv('VERCEL_ENV', '')
+    vi.stubEnv('STORE_COUNTRY_NAME', '')
+    vi.stubEnv('NEXT_PUBLIC_STORE_COUNTRY_CODE', 'US')
+
+    const { STORE_CONFIG: local } = await import('./store-config')
+    expect(local.countryName).not.toMatch(/Bangladesh/i)
+    expect(local.countryName).toBe('US')
   })
 
   it('falls back quietly outside production, so local work needs no setup', async () => {

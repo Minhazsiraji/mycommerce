@@ -19,6 +19,20 @@ const healthy = {
   SSLCOMMERZ_STORE_PASSWORD: 'pw',
   SSLCOMMERZ_SANDBOX: 'false',
   STORE_POLICIES_REVIEWED: 'true',
+  STORE_COUNTRY_NAME: 'Bangladesh',
+  RESEND_API_KEY: 'test-key',
+  EMAIL_FROM: 'SirajiBD <noreply@sirajibd.com>',
+}
+
+/** The minimum a production deployment must configure to boot at all. */
+const productionBase = {
+  VERCEL_ENV: 'production',
+  STORE_NAME: 'Client Store',
+  STORE_CANONICAL_URL: 'https://client.example',
+  STORE_COUNTRY_NAME: 'United States',
+  STORE_POLICIES_REVIEWED: 'true',
+  RESEND_API_KEY: 'test-key',
+  EMAIL_FROM: 'Client Store <hello@client.example>',
 }
 
 const errorsFor = (env: Record<string, string | undefined>) => preflight(env).errors.join(' | ')
@@ -31,12 +45,7 @@ describe('a coherent deployment passes', () => {
   it('accepts a bare clone with nothing but cash on delivery', () => {
     // The floor: a store can open before it has a gateway.
     expect(
-      preflight({
-        VERCEL_ENV: 'production',
-        STORE_NAME: 'Client Store',
-        STORE_CANONICAL_URL: 'https://client.example',
-        STORE_POLICIES_REVIEWED: 'true',
-      }).errors,
+      preflight(productionBase).errors,
     ).toEqual([])
   })
 })
@@ -102,10 +111,7 @@ describe('a store nobody can buy from', () => {
   it('passes when COD is off but bank details exist', () => {
     expect(
       preflight({
-        VERCEL_ENV: 'production',
-        STORE_NAME: 'Client Store',
-        STORE_CANONICAL_URL: 'https://client.example',
-        STORE_POLICIES_REVIEWED: 'true',
+        ...productionBase,
         STORE_COD_ENABLED: 'false',
         BANK_ACCOUNT_NAME: 'Client Ltd',
         BANK_ACCOUNT_NUMBER: '1234',
@@ -149,6 +155,30 @@ describe('identity leakage', () => {
 
   it('leaves the original production deployment alone', () => {
     expect(preflight(healthy).errors).toEqual([])
+  })
+})
+
+describe('email delivery', () => {
+  it('refuses a mail key with no sender configured', () => {
+    // The exact combination that stranded the first isolated-clone user: mail
+    // goes out from a placeholder domain the provider will not accept.
+    expect(errorsFor({ ...healthy, EMAIL_FROM: '' })).toMatch(/EMAIL_FROM/)
+  })
+
+  it('refuses production with no mail account at all', () => {
+    expect(errorsFor({ ...healthy, RESEND_API_KEY: '', EMAIL_FROM: '' })).toMatch(/RESEND_API_KEY/)
+  })
+
+  it('leaves a preview without mail alone', () => {
+    // A preview may legitimately log mail instead of sending it.
+    expect(preflight({ VERCEL_ENV: 'preview', STORE_NAME: 'Clone' }).errors).toEqual([])
+  })
+})
+
+describe('country identity', () => {
+  it('refuses production without a country name', () => {
+    // Printed as the governing jurisdiction on four customer-facing pages.
+    expect(errorsFor({ ...healthy, STORE_COUNTRY_NAME: '' })).toMatch(/STORE_COUNTRY_NAME/)
   })
 })
 
