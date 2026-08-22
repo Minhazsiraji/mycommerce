@@ -15,9 +15,11 @@
 import { neonConfig, Pool } from '@neondatabase/serverless'
 import ws from 'ws'
 
+import { resolveDatabaseUrl } from './database-url.mjs'
+
 if (!globalThis.WebSocket) neonConfig.webSocketConstructor = ws
 
-const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL
+const { url: databaseUrl, source } = resolveDatabaseUrl()
 
 if (!databaseUrl) {
   console.error('[db-identity] neither APP_DATABASE_URL nor DATABASE_URL is set')
@@ -25,7 +27,7 @@ if (!databaseUrl) {
 }
 
 const target = new URL(databaseUrl)
-console.log('source variable  :', process.env.APP_DATABASE_URL ? 'APP_DATABASE_URL' : 'DATABASE_URL')
+console.log('source variable  :', source)
 console.log('database name    :', target.pathname.replace(/^\//, '').split('?')[0])
 console.log('host suffix      :', target.hostname.split('.').slice(1).join('.'))
 

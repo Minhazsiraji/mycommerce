@@ -6,10 +6,19 @@
  *
  *   node --env-file=.env.local scripts/make-admin.mjs you@example.com
  *
+ * Targets APP_DATABASE_URL when set, falling back to DATABASE_URL — the same
+ * precedence the application and the migration runner use. Granting admin on
+ * one database while the deployment reads another is the specific way this
+ * script could do real damage: it would look like it worked, the promoted
+ * account would still be a customer, and the row it did change would be in
+ * whichever database DATABASE_URL happens to point at.
+ *
  * The account must already exist; register through the site first.
  */
 import { neonConfig, Pool } from '@neondatabase/serverless'
 import ws from 'ws'
+
+import { describeDatabase, resolveDatabaseUrl } from './database-url.mjs'
 
 const email = process.argv[2]
 
@@ -18,14 +27,25 @@ if (!email) {
   process.exit(1)
 }
 
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is not set. Pass --env-file=.env.local')
+const { url: databaseUrl, source } = resolveDatabaseUrl()
+
+if (!databaseUrl) {
+  console.error('Neither APP_DATABASE_URL nor DATABASE_URL is set. Pass --env-file=.env.local')
   process.exit(1)
 }
 
+// Names the target so an operator can see which store they are about to grant
+// admin on. Never the URL itself.
+const target = describeDatabase(databaseUrl)
+if (!target) {
+  console.error('The database URL is not parseable')
+  process.exit(1)
+}
+console.log(`[make-admin] database ${target} (via ${source})`)
+
 if (!globalThis.WebSocket) neonConfig.webSocketConstructor = ws
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = new Pool({ connectionString: databaseUrl })
 
 try {
   const { rows } = await pool.query(

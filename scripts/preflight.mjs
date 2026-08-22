@@ -4,6 +4,11 @@
  *
  *   node --env-file=.env.local scripts/preflight.mjs
  *
+ * Runs first in `vercel-build`, ahead of migrations and the build itself.
+ * Ordering is the point: a misconfigured deployment should fail while it is
+ * still only a failed build, not after it has migrated a database and gone
+ * live with, say, no way for any customer to verify an email address.
+ *
  * Prints variable names and, where it helps, offending values that are already
  * public (currency, country, canonical URL). Never prints a secret.
  */

@@ -85,7 +85,7 @@ describe('when the provider refuses', () => {
 })
 
 describe('without a mail account configured', () => {
-  it('logs instead of sending, so local and preview work', async () => {
+  it('logs instead of sending in development and tests only', async () => {
     state.apiKey = undefined
     const info = vi.spyOn(console, 'info').mockImplementation(() => {})
 
@@ -103,6 +103,22 @@ describe('without a mail account configured', () => {
     await expect(
       sendMail({ to: 'a@example.com', subject: 'Hi', html: '<p>Hi</p>' }),
     ).rejects.toThrow(/RESEND_API_KEY/)
+  })
+
+  it('does not become a way to read verification links out of a preview', async () => {
+    // A Vercel preview runs in production mode, so dropping the key throws
+    // there too. Recorded as a test because it was briefly recommended as an
+    // acceptance workaround, and it would not have worked.
+    state.apiKey = undefined
+    state.nodeEnv = 'production'
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    await expect(
+      sendVerificationEmail('a@example.com', 'https://client.example/verify?token=secret'),
+    ).rejects.toThrow()
+    expect(info).not.toHaveBeenCalled()
+
+    info.mockRestore()
   })
 })
 
