@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
+import { CURRENCY } from '@/lib/money'
+
 import { addToCart } from '../actions'
 import { newBrowserEventId, trackBrowserEvent } from '@/modules/meta/components/client'
 
@@ -53,7 +55,7 @@ export function AddToCartButton({
           content_name: contentName,
           content_type: 'product',
           contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
-          currency: 'BDT',
+          currency: CURRENCY,
           value: unitPrice,
         },
         eventId,

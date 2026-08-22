@@ -2,6 +2,7 @@ import 'server-only'
 
 import { eq } from 'drizzle-orm'
 
+import { safeBrandAssetUrl } from '@/lib/brand-asset'
 import { db } from '@/lib/db'
 
 import {
@@ -38,6 +39,11 @@ export async function getStorefrontSettings(): Promise<StorefrontSettingsValues>
     footerBrandAccent: row.footerBrandAccent,
     footerDescription: row.footerDescription,
     footerCopyright: row.footerCopyright,
+    // Sanitised on read as well as on write: a value stored before the
+    // validation existed, or written by anything other than the Admin form,
+    // must not reach an img or link tag unchecked.
+    logoUrl: safeBrandAssetUrl(row.logoUrl),
+    faviconUrl: safeBrandAssetUrl(row.faviconUrl),
   }
 }
 

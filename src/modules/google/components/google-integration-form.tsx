@@ -62,7 +62,7 @@ export function GoogleIntegrationForm({ initial, status }: Props) {
         <div className="mb-5">
           <h2 className="text-lg font-semibold">Google tracking configuration</h2>
           <p className="mt-1 max-w-3xl text-sm text-(--color-muted)">
-            Keep Google measurement store-specific. Admin values override the optional Vercel fallback, so a cloned store never needs SirajiBD&apos;s Google destination in source code.
+            Keep Google measurement store-specific. Admin values override the optional Vercel fallback, so a cloned store never needs another store&apos;s Google destination in source code.
           </p>
         </div>
 

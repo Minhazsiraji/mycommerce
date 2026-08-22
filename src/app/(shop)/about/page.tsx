@@ -2,23 +2,24 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
-  title: 'About SirajiBD',
-  description: 'Learn about SirajiBD, a Bangladesh-focused online store built around clear product information, practical ordering and customer support.',
+  title: `About ${STORE_CONFIG.name}`,
+  description: `Learn about ${STORE_CONFIG.name}, a ${STORE_CONFIG.countryName}-focused online store built around clear product information, practical ordering and customer support.`,
   alternates: { canonical: '/about' },
 }
 
 export default function AboutPage() {
   return (
     <PolicyPage
-      title="About SirajiBD"
-      summary="SirajiBD is a Bangladesh-focused online store designed to make everyday shopping clear, practical and easy to understand from product discovery through delivery."
+      title={`About ${STORE_CONFIG.name}`}
+      summary={`${STORE_CONFIG.name} is a ${STORE_CONFIG.countryName}-focused online store designed to make everyday shopping clear, practical and easy to understand from product discovery through delivery.`}
       sections={[
         {
           title: 'What we sell',
           body: (
-            <p>SirajiBD offers practical products across categories such as accessories, apparel, electronics and footwear. The active catalogue, prices, availability and product details shown on the store are the current offer presented to customers.</p>
+            <p>{STORE_CONFIG.name} offers practical products across categories such as accessories, apparel, electronics and footwear. The active catalogue, prices, availability and product details shown on the store are the current offer presented to customers.</p>
           ),
         },
         {
@@ -34,9 +35,9 @@ export default function AboutPage() {
           ),
         },
         {
-          title: 'Bangladesh-first commerce',
+          title: `${STORE_CONFIG.countryName}-first commerce`,
           body: (
-            <p>The store is configured for customers and delivery addresses in Bangladesh, with prices and checkout choices designed for the local shopping journey. Delivery coverage and current estimates are published on the <Link className="underline" href="/shipping">Shipping & Delivery</Link> page.</p>
+            <p>The store is configured for customers and delivery addresses in {STORE_CONFIG.countryName}, with prices and checkout choices designed for the local shopping journey. Delivery coverage and current estimates are published on the <Link className="underline" href="/shipping">Shipping & Delivery</Link> page.</p>
           ),
         },
         {

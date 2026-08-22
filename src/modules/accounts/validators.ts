@@ -5,6 +5,12 @@ import {
   canonicalBdArea,
   canonicalBdCity,
 } from '@/lib/bd-locations'
+import { countryPreset } from '@/lib/country-presets'
+import { STORE_CONFIG } from '@/lib/store-config'
+
+const PRESET = countryPreset(STORE_CONFIG.countryCode)
+
+export const ADDRESS_PRESET = PRESET
 
 /**
  * Client-safe validators, shared by forms and server code.
@@ -49,40 +55,62 @@ export const resetPasswordSchema = z.object({
 })
 
 /**
- * A delivery address.
+ * A delivery address, shaped by the store's country preset.
  *
- * Phone is required and validated against Bangladeshi mobile formats, because
- * couriers here call before delivering — an order without a reachable number is
- * an order that does not arrive. Accepts 01XXXXXXXXX, +8801XXXXXXXXX and
- * 8801XXXXXXXXX, since customers type all three.
+ * Phone is always required, because couriers call before delivering — an order
+ * without a reachable number is an order that does not arrive. What counts as
+ * valid comes from the preset, so a Bangladeshi store keeps its mobile-format
+ * rules and an international store is not forced to pretend it has a district.
  */
-export const bdPhoneSchema = z
+export const phoneSchema = z
   .string()
   .trim()
   .transform((value) => value.replace(/[\s-]/g, ''))
-  .refine((value) => /^(?:\+?880|0)1[3-9]\d{8}$/.test(value), {
-    message: 'Enter a valid mobile number, e.g. 01712345678',
-  })
+  .refine((value) => PRESET.phone.pattern.test(value), { message: PRESET.phone.message })
   // Stored in one canonical form so support can search for a number and find it.
-  .transform((value) => (value.startsWith('0') ? `+88${value}` : `+${value.replace(/^\+/, '')}`))
+  .transform(PRESET.phone.normalize)
+
+/** Kept: the Meta module and existing call sites import this name. */
+export const bdPhoneSchema = phoneSchema
+
+const isBdModel = PRESET.addressModel === 'bd-administrative'
+
+/**
+ * The `district` and `upazila` columns carry the region and sub-area for every
+ * country, rather than being renamed. Orders snapshot the whole address as JSON
+ * at purchase time, so a rename would leave historical orders describing fields
+ * that no longer exist — a migration that buys nothing a comment cannot.
+ */
+const regionSchema = isBdModel
+  ? z.string().trim().refine((value) => BD_DISTRICT_SET.has(value), 'Choose a valid Bangladesh district')
+  : z.string().trim().max(80).default('')
+
+const areaSchema = isBdModel
+  ? z.string().trim().min(2, `Choose a ${PRESET.labels.area}`).max(80)
+  : z.string().trim().max(80).default('')
+
+const postalCodeSchema =
+  PRESET.fields.postalCode === 'required'
+    ? z.string().trim().min(1, `Enter a ${PRESET.labels.postalCode}`).max(12)
+    : z.string().trim().max(12).optional()
 
 export const addressInputSchema = z
   .object({
     recipient: z.string().trim().min(1, 'Required').max(80),
-    phone: bdPhoneSchema,
+    phone: phoneSchema,
     line1: z.string().trim().min(1, 'Required').max(160),
     line2: z.string().trim().max(160).optional(),
     city: z.string().trim().min(2, 'Choose a city or town').max(80),
-    district: z
-      .string()
-      .trim()
-      .refine((value) => BD_DISTRICT_SET.has(value), 'Choose a valid Bangladesh district'),
-    upazila: z.string().trim().min(2, 'Choose a Thana or Upazila').max(80),
+    district: regionSchema,
+    upazila: areaSchema,
     union: z.string().trim().max(80).optional(),
-    postalCode: z.string().trim().max(12).optional(),
-    country: z.string().trim().length(2).default('BD'),
+    postalCode: postalCodeSchema,
+    country: z.string().trim().length(2).default(STORE_CONFIG.countryCode),
   })
   .superRefine((value, context) => {
+    // The cascade only exists in the Bangladeshi model. Elsewhere there is no
+    // authoritative list to check a city or area against.
+    if (!isBdModel) return
     if (!BD_DISTRICT_SET.has(value.district)) return
 
     const city = canonicalBdCity(value.district, value.city)

@@ -1,19 +1,27 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { connection } from 'next/server'
+
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
+import { STORE_CONFIG } from '@/lib/store-config'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'Learn how SirajiBD handles account, order, delivery, payment, cookie and analytics information.',
+  description: `Learn how ${STORE_CONFIG.name} handles account, order, delivery, payment, cookie and analytics information.`,
   alternates: { canonical: '/privacy' },
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  await connection()
+  const authored = await findPolicyPage('privacy').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
+
   return (
     <PolicyPage
       title="Privacy Policy"
-      summary="This policy explains what information SirajiBD uses to operate the store, fulfil orders, keep accounts secure and measure the shopping experience."
+      summary={`This policy explains what information ${STORE_CONFIG.name} uses to operate the store, fulfil orders, keep accounts secure and measure the shopping experience.`}
       sections={[
         {
           title: 'Information we collect',
@@ -34,7 +42,7 @@ export default function PrivacyPage() {
               <li>To provide the storefront, cart, account and checkout.</li>
               <li>To process, deliver, track, cancel, return and refund orders.</li>
               <li>To send transactional messages and respond to customer-support requests.</li>
-              <li>To protect customers and SirajiBD against abuse, fraud and security incidents.</li>
+              <li>To protect customers and {STORE_CONFIG.name} against abuse, fraud and security incidents.</li>
               <li>To maintain records reasonably needed for accounting, dispute handling, compliance and service improvement.</li>
               <li>To measure shopping and advertising performance where the relevant analytics or integration is enabled and permitted.</li>
             </ul>
@@ -43,7 +51,7 @@ export default function PrivacyPage() {
         {
           title: 'Payments',
           body: (
-            <p>Depending on the payment option you choose, payment information may be processed by a payment gateway, bank or mobile financial service. Those providers process information under their own terms and privacy practices. SirajiBD keeps the transaction and payment-status information needed to manage the order, reconciliation, refunds and support.</p>
+            <p>Depending on the payment option you choose, payment information may be processed by a payment gateway, bank or mobile financial service. Those providers process information under their own terms and privacy practices. {STORE_CONFIG.name} keeps the transaction and payment-status information needed to manage the order, reconciliation, refunds and support.</p>
           ),
         },
         {
@@ -61,7 +69,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>Order confirmations, payment notices, delivery updates, return/refund messages, account-security notices and replies to support requests are transactional communications needed to provide or protect the service.</p>
-              <p>SirajiBD will not treat an order email address or phone number as blanket permission for unrelated promotional messaging. If optional marketing subscriptions are introduced, the signup purpose and available unsubscribe or opt-out method should be disclosed at the point of collection.</p>
+              <p>{STORE_CONFIG.name} will not treat an order email address or phone number as blanket permission for unrelated promotional messaging. If optional marketing subscriptions are introduced, the signup purpose and available unsubscribe or opt-out method should be disclosed at the point of collection.</p>
             </>
           ),
         },
@@ -80,7 +88,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>We keep information only for as long as reasonably needed for the purposes described above, including fulfilment, support, fraud prevention, accounting, disputes, legal obligations and backup recovery.</p>
-              <p>SirajiBD uses technical and organisational safeguards appropriate to the service, including HTTPS for the storefront and checkout. No internet service can guarantee absolute security, so customers should also protect their account credentials and devices.</p>
+              <p>{STORE_CONFIG.name} uses technical and organisational safeguards appropriate to the service, including HTTPS for the storefront and checkout. No internet service can guarantee absolute security, so customers should also protect their account credentials and devices.</p>
             </>
           ),
         },

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -18,7 +19,7 @@ export function StorefrontHeader({
 }: {
   categories: NavigationItem[]
   cart: React.ReactNode
-  brand: { name: string; text: string; accent: string }
+  brand: { name: string; text: string; accent: string; logoUrl?: string | null }
 }) {
   return (
     <>
@@ -39,8 +40,23 @@ export function StorefrontHeader({
               aria-label={`${brand.name} home`}
               className="mr-auto text-xl font-bold tracking-(--tracking-tight) text-(--text-primary) focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) lg:mr-0"
             >
-              {brand.text}
-              {brand.accent ? <span className="text-(--action-primary)">{brand.accent}</span> : null}
+              {brand.logoUrl ? (
+                <Image
+                  src={brand.logoUrl}
+                  alt={brand.name}
+                  width={160}
+                  height={40}
+                  priority
+                  className="h-8 w-auto"
+                />
+              ) : (
+                <>
+                  {brand.text}
+                  {brand.accent ? (
+                    <span className="text-(--action-primary)">{brand.accent}</span>
+                  ) : null}
+                </>
+              )}
             </Link>
 
             {categories.length > 0 ? (

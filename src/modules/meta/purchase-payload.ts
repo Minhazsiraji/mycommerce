@@ -9,6 +9,17 @@ export type MetaPurchasePayload = {
 }
 
 export function metaPurchaseStorageKey(eventId: string) {
+  return `commerce_meta_${eventId}`
+}
+
+/**
+ * Pre-rename key. Still consulted before firing: an order page open in a tab
+ * from before the rename would otherwise look un-fired and send a second
+ * Purchase for the same sale. Meta's event ID would dedupe it, but a duplicate
+ * that only the network deduplicates is one bad deploy away from double-counted
+ * revenue.
+ */
+export function legacyMetaPurchaseStorageKey(eventId: string) {
   return `sirajibd_meta_${eventId}`
 }
 

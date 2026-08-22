@@ -3,17 +3,21 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
 import { getCachedDeliverySummary } from '@/modules/shipping'
 
 export const metadata: Metadata = {
   title: 'Shipping & Delivery',
-  description: 'See SirajiBD delivery coverage, current delivery estimates, shipping charges and delivery guidance for Bangladesh.',
+  description: `See ${STORE_CONFIG.name} delivery coverage, current delivery estimates, shipping charges and delivery guidance for ${STORE_CONFIG.countryName}.`,
   alternates: { canonical: '/shipping' },
 }
 
 export default async function ShippingPage() {
   await connection()
+  const authored = await findPolicyPage('shipping').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
 
   const result = await getCachedDeliverySummary().catch(() => ({ freeOver: null, estimate: null }))
   const estimate = result.estimate
@@ -26,12 +30,12 @@ export default async function ShippingPage() {
   return (
     <PolicyPage
       title="Shipping & Delivery"
-      summary="SirajiBD delivers eligible orders within Bangladesh. Delivery options, charges and estimates are shown before you place an order."
+      summary={`${STORE_CONFIG.name} delivers eligible orders within ${STORE_CONFIG.countryName}. Delivery options, charges and estimates are shown before you place an order.`}
       sections={[
         {
           title: 'Delivery coverage',
           body: (
-            <p>We currently offer delivery to supported addresses in Bangladesh. Available delivery options are determined from the delivery address you enter at checkout. If no active delivery option covers an address, checkout will tell you before the order is placed.</p>
+            <p>We currently offer delivery to supported addresses in {STORE_CONFIG.countryName}. Available delivery options are determined from the delivery address you enter at checkout. If no active delivery option covers an address, checkout will tell you before the order is placed.</p>
           ),
         },
         {
@@ -80,7 +84,7 @@ export default async function ShippingPage() {
         {
           title: 'Keeping shipping information accurate',
           body: (
-            <p>Delivery settings can change as courier coverage, costs or service levels change. SirajiBD uses the active checkout delivery options as the source of truth for a new order, and this page reads the current store-level estimate so customer-facing information remains aligned.</p>
+            <p>Delivery settings can change as courier coverage, costs or service levels change. {STORE_CONFIG.name} uses the active checkout delivery options as the source of truth for a new order, and this page reads the current store-level estimate so customer-facing information remains aligned.</p>
           ),
         },
       ]}

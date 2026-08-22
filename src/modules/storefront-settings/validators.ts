@@ -1,5 +1,23 @@
 import { z } from 'zod'
 
+import { BRAND_ASSET_HOSTS, safeBrandAssetUrl } from '@/lib/brand-asset'
+
+/**
+ * Rejected rather than silently blanked: an admin who pastes a URL from the
+ * wrong host should be told, not left wondering why their logo never appears.
+ */
+const brandAsset = z
+  .string()
+  .max(500, 'Use 500 characters or fewer.')
+  // Absent, empty and null all mean "not configured" — the Admin form clears a
+  // field to '', the API may omit it entirely.
+  .nullish()
+  .transform((value) => value?.trim() || null)
+  .refine((value) => value === null || safeBrandAssetUrl(value) !== null, {
+    message: `Use an uploaded image on ${BRAND_ASSET_HOSTS.join(' or ')}, or a path such as /brand/logo.png.`,
+  })
+  .transform((value) => (value === null ? null : safeBrandAssetUrl(value)))
+
 const internalDestination = z
   .string()
   .trim()
@@ -62,6 +80,8 @@ export const storefrontSettingsInputSchema = z.object({
     .trim()
     .min(1, 'Enter copyright text.')
     .max(100, 'Use 100 characters or fewer.'),
+  logoUrl: brandAsset,
+  faviconUrl: brandAsset,
 })
 
 export type StorefrontSettingsInput = z.output<typeof storefrontSettingsInputSchema>

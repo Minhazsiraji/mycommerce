@@ -18,6 +18,8 @@ export * from '@/modules/fraud/schema'
 export * from '@/modules/meta/schema'
 export * from '@/modules/google/schema'
 export * from '@/modules/storefront-settings/schema'
+export * from '@/modules/policies/schema'
+export * from '@/modules/policies/settings-schema'
 
 // Infrastructure rather than a domain — see the note in lib/rate-limit.ts.
 export { rateLimits } from '@/lib/rate-limit-schema'

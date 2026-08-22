@@ -9,6 +9,7 @@ import { requireRole } from '@/modules/accounts'
 import { recordAudit } from '@/modules/admin'
 import { ShippingError } from '@/modules/shipping'
 
+import { configuredPaymentMethods } from './configured-payments'
 import * as service from './service'
 import { CheckoutError, OutOfStockError } from './service'
 import {
@@ -219,6 +220,16 @@ export async function placeOrder(
 ): Promise<ActionResult<{ orderNumber: string; paymentMethod: string }>> {
   const parsed = placeOrderSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
+
+  /**
+   * The schema knows every method the software supports; only this deployment
+   * knows which it can settle. Checked server-side because the form's list is a
+   * client value — accepting an unconfigured method would take an order the
+   * store has no way to collect on.
+   */
+  if (!configuredPaymentMethods().includes(parsed.data.paymentMethod)) {
+    return fail('validation', 'That payment method is not available.')
+  }
 
   /**
    * The most important limit in the application.

@@ -3,6 +3,17 @@
  * import `./actions` directly.
  */
 
+/**
+ * Registers the configured gateways. Imported here rather than only in
+ * `service.ts` so that any consumer of this module sees a populated registry —
+ * otherwise a page asking `isOnlineGateway` before the service happened to load
+ * would be told "no", and the customer's Pay Now button would silently vanish.
+ */
+import './providers'
+
+export { configuredGatewayIds, isOnlineGateway, providerFor } from './provider'
+export type { PaymentProvider as OnlinePaymentProvider } from './provider'
+
 export {
   confirmTransfer,
   rejectTransfer,

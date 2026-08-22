@@ -39,7 +39,7 @@ async function handle(request: Request) {
   if (status === 'success') {
     // Fast path: when SSLCommerz reposts val_id, validate it immediately.
     if (valId) {
-      await handleGatewayNotification(valId).catch((error) => {
+      await handleGatewayNotification('sslcommerz', valId).catch((error) => {
         console.error('[sslcommerz] success return validation failed', { orderNumber, error })
       })
     }

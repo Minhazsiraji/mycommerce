@@ -4,7 +4,12 @@ import { useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatBdt, formatBdtPlain } from '@/lib/money'
+import { countryPreset } from '@/lib/country-presets'
+import { CURRENCY_SYMBOL, formatBdt, formatBdtPlain } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
+
+/** "District" on a Bangladeshi store, "State, province or region" elsewhere. */
+const REGION_LABEL = countryPreset(STORE_CONFIG.countryCode).labels.region
 
 import { createShippingRate, deleteShippingRate, updateShippingRate } from '../actions'
 
@@ -116,8 +121,8 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
     <div className="flex flex-col gap-8">
       {!hasCatchAll ? (
         <p className="rounded-md bg-(--color-danger)/10 px-4 py-3 text-sm text-(--color-danger)">
-          No option covers “everywhere else”. Add one with the districts field left empty, or
-          customers outside your listed districts cannot check out.
+          No option covers “everywhere else”. Add one with the coverage field left empty, or
+          customers outside your listed areas cannot check out.
         </p>
       ) : null}
 
@@ -129,13 +134,13 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Name"
-            placeholder="Inside Dhaka"
+            placeholder="Standard delivery"
             value={draft.name}
             onChange={(e) => set({ name: e.target.value })}
             error={errors.name}
           />
           <Input
-            label="Delivery charge (৳)"
+            label={`Delivery charge (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="60"
             value={draft.cost}
@@ -145,8 +150,8 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
         </div>
 
         <Input
-          label="Districts covered"
-          placeholder="Dhaka, Gazipur, Narayanganj — leave empty for everywhere else"
+          label={`${REGION_LABEL}s covered`}
+          placeholder={`Leave empty for nationwide delivery, or list ${REGION_LABEL.toLowerCase()}s separated by commas`}
           value={draft.districts}
           onChange={(e) => set({ districts: e.target.value })}
           error={errors.districts}
@@ -154,7 +159,7 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Input
-            label="Free delivery over (৳)"
+            label={`Free delivery over (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="Optional"
             value={draft.freeOverSubtotal}
@@ -224,6 +229,7 @@ export function ShippingManager({ rates }: { rates: ManagedRate[] }) {
                 </span>
                 <span className="text-xs text-(--color-muted)">
                   {rate.districts.length ? rate.districts.join(', ') : 'Everywhere else'} ·{' '}
+
                   {rate.estimatedDaysMin}–{rate.estimatedDaysMax} days
                   {rate.freeOverSubtotal != null
                     ? ` · free over ${formatBdt(rate.freeOverSubtotal)}`

@@ -25,7 +25,7 @@ export default async function GoogleIntegrationPage() {
         <p className="text-sm font-medium text-(--color-muted)">Integrations</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Google</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-(--color-muted)">
-          Manage the Google tag and purchase measurement for this store without hard-coding SirajiBD or any client identity into the application. Existing Vercel configuration can remain as a fallback until Admin-managed settings take over.
+          Manage the Google tag and purchase measurement for this store without hard-coding any store identity into the application. Existing Vercel configuration can remain as a fallback until Admin-managed settings take over.
         </p>
       </div>
 

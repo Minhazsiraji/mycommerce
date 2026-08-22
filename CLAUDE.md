@@ -23,7 +23,7 @@ Not multi-vendor. Do not add vendor/seller/commission/payout concepts.
 | Storage | Cloudinary (R2 blocked on payment — see below) |
 | Email | Resend |
 | Payments | Cash on delivery + SSLCommerz (cards, bKash, Nagad, Rocket, net banking) + manual bank transfer |
-| Currency | BDT only, stored as integer poisha |
+| Currency | Configured per deployment (`STORE_CURRENCY`), stored as integer minor units |
 | Hosting | Vercel, Cloudflare in front for CDN/WAF |
 | Tests | Vitest (unit), Playwright (e2e) |
 
@@ -90,6 +90,11 @@ Violating any of these is a bug, regardless of what a task asks for.
 1. **Money is integer minor units.** Never a float. `199900` is ৳1,999.00 in poisha.
    Currency code travels with every amount. Decimal conversion happens only at the
    payment provider boundary.
+   **One currency, one source.** `@/lib/money` derives the code, symbol and number
+   of decimals from `STORE_CONFIG`. Never write a currency literal — not in an
+   analytics payload, a feed, a form label, or a gateway request. The order row
+   sets `currency` explicitly, because the column default is `BDT` and payment
+   verification rejects a gateway result that disagrees with the order.
 2. **Never trust a client-supplied price, total, or discount.** Recompute every figure
    server-side from the database at checkout. The client sends variant IDs and
    quantities; nothing else about money.

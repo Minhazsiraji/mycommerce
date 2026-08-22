@@ -6,9 +6,12 @@ import { Suspense } from 'react'
 
 import { env } from '@/lib/env'
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
+import { taxLineLabel } from '@/lib/tax'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
+import { isOnlineGateway } from '@/modules/payments'
 import { MetaPurchasePayload } from '@/modules/meta/components/meta-purchase-payload'
 import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
@@ -67,7 +70,7 @@ function fulfilmentCopy(status: string, paymentMethod: string) {
   if (status === 'delivered') {
     return {
       title: 'Order delivered',
-      body: 'This order has been marked delivered. Thank you for shopping with SirajiBD.',
+      body: `This order has been marked delivered. Thank you for shopping with ${STORE_CONFIG.name}.`,
     }
   }
   return null
@@ -182,7 +185,7 @@ async function OrderDetail({
             branch: env.BANK_BRANCH ?? null,
           }}
         />
-      ) : order.paymentMethod === 'sslcommerz' &&
+      ) : isOnlineGateway(order.paymentMethod) &&
         !confirmingPayment &&
         (order.paymentStatus === 'unpaid' || order.paymentStatus === 'failed') ? (
         <PayNowPanel
@@ -240,6 +243,17 @@ async function OrderDetail({
               {order.shippingCost === 0 ? 'Free' : formatBdt(order.shippingCost)}
             </dd>
           </div>
+          {/* Driven by the stored amount, not the current setting: a historical
+              order must keep explaining the total it was actually charged. */}
+          {order.taxAmount > 0 ? (
+            <div className="flex justify-between">
+              <dt className="text-(--color-muted)">
+                {taxLineLabel(STORE_CONFIG.tax)}
+                {STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : null}
+              </dt>
+              <dd className="tabular-nums">{formatBdt(order.taxAmount)}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between font-semibold">
             <dt>Total</dt>
             <dd className="tabular-nums">{formatBdt(order.total)}</dd>

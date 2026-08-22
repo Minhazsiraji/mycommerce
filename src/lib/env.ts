@@ -11,6 +11,21 @@ import { z } from 'zod'
 const serverSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
+
+  /**
+   * Overrides DATABASE_URL when set.
+   *
+   * `DATABASE_URL` is owned by the Vercel–Neon integration on this project. The
+   * integration provisions a Neon *branch* of the existing store's project for
+   * each preview branch — a copy-on-write clone, complete with that store's
+   * products, orders and user accounts — and rewrites the variable on redeploy,
+   * so a manually-entered connection string does not survive.
+   *
+   * A name the integration does not manage is the only reliable way to point a
+   * deployment at a genuinely separate database. Unset everywhere else, so
+   * production and local development are unaffected.
+   */
+  APP_DATABASE_URL: z.string().url().optional(),
   BETTER_AUTH_SECRET: z.string().min(32, 'must be at least 32 characters'),
   BETTER_AUTH_URL: z.string().url(),
   RESEND_API_KEY: z.string().optional(),
@@ -111,6 +126,16 @@ function load<T extends z.ZodTypeAny>(schema: T, source: unknown, label: string)
 }
 
 export const env = load(serverSchema, process.env, 'server')
+
+/**
+ * The one database every part of the application talks to.
+ *
+ * Runtime, migrations and Drizzle Kit all resolve through this same precedence,
+ * because a deployment whose migrations run against one database and whose
+ * queries run against another is the failure this exists to prevent — it looks
+ * like it worked right up until the data is wrong.
+ */
+export const databaseUrl = env.APP_DATABASE_URL ?? env.DATABASE_URL
 
 /** Referenced explicitly so Next can inline the public values at build time. */
 export const clientEnv = load(

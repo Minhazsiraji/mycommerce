@@ -26,12 +26,16 @@ type Draft = {
   footerBrandAccent: string
   footerDescription: string
   footerCopyright: string
+  logoUrl: string
+  faviconUrl: string
 }
 
 const toDraft = (settings: StorefrontSettingsValues): Draft => ({
   ...settings,
   announcementDeliveryText: settings.announcementDeliveryText ?? '',
   announcementOfferText: settings.announcementOfferText ?? '',
+  logoUrl: settings.logoUrl ?? '',
+  faviconUrl: settings.faviconUrl ?? '',
 })
 
 function VisibilityToggle({
@@ -188,19 +192,40 @@ export function HomepageSettingsForm({ settings }: { settings: StorefrontSetting
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Hero brand text"
-            placeholder="Siraji"
+            placeholder="Your store"
             value={draft.heroBrandText}
             onChange={(event) => set({ heroBrandText: event.target.value })}
             error={errors.heroBrandText}
           />
           <Input
             label="Highlighted brand text"
-            placeholder="BD"
+            placeholder="Optional"
             value={draft.heroBrandAccent}
             onChange={(event) => set({ heroBrandAccent: event.target.value })}
             error={errors.heroBrandAccent}
           />
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Logo image URL (optional)"
+            placeholder="Leave empty to use the brand text above"
+            value={draft.logoUrl}
+            onChange={(event) => set({ logoUrl: event.target.value })}
+            error={errors.logoUrl}
+          />
+          <Input
+            label="Site icon URL (optional)"
+            placeholder="Leave empty for the default icon"
+            value={draft.faviconUrl}
+            onChange={(event) => set({ faviconUrl: event.target.value })}
+            error={errors.faviconUrl}
+          />
+        </div>
+        <p className="text-xs text-(--color-muted)">
+          Upload the image through Products &rarr; media first, then paste its URL here. Only images
+          on the store&apos;s own media host are accepted.
+        </p>
       </section>
 
       <section className="flex flex-col gap-5 rounded-lg border border-(--color-border) p-5">

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { formatBdtPlain } from '@/lib/money'
+import { CURRENCY_SYMBOL, formatBdtPlain } from '@/lib/money'
 
 import { createProduct, updateProduct } from '../actions'
 import { slugify } from '../validators'
@@ -323,7 +323,7 @@ export function ProductForm({
               error={variantError(0, 'sku')}
             />
             <Input
-              label="Price (৳)"
+              label={`Price (${CURRENCY_SYMBOL})`}
               inputMode="decimal"
               value={rows[0]?.price ?? ''}
               onChange={(e) => setRow(0, { price: e.target.value })}
@@ -331,7 +331,7 @@ export function ProductForm({
               error={variantError(0, 'price')}
             />
             <Input
-              label="Compare-at price (৳)"
+              label={`Compare-at price (${CURRENCY_SYMBOL})`}
               inputMode="decimal"
               placeholder="Optional"
               value={rows[0]?.compareAtPrice ?? ''}
@@ -391,7 +391,7 @@ export function ProductForm({
                   error={variantError(i, 'sku')}
                 />
                 <Input
-                  label="Price (৳)"
+                  label={`Price (${CURRENCY_SYMBOL})`}
                   inputMode="decimal"
                   value={row.price}
                   onChange={(e) => setRow(i, { price: e.target.value })}

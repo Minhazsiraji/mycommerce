@@ -6,7 +6,10 @@ import { defineConfig } from 'drizzle-kit'
 loadEnv({ path: '.env.local' })
 loadEnv({ path: '.env' })
 
-if (!process.env.DATABASE_URL) {
+// Same precedence as the app and the migration runner — see src/lib/env.ts.
+const databaseUrl = process.env.APP_DATABASE_URL || process.env.DATABASE_URL
+
+if (!databaseUrl) {
   throw new Error('DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.')
 }
 
@@ -16,7 +19,7 @@ export default defineConfig({
   dialect: 'postgresql',
   casing: 'snake_case',
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl,
   },
   strict: true,
   verbose: true,

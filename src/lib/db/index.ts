@@ -2,7 +2,7 @@ import { neonConfig, Pool } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-serverless'
 import ws from 'ws'
 
-import { env } from '@/lib/env'
+import { databaseUrl } from '@/lib/env'
 
 import * as schema from './schema'
 
@@ -25,7 +25,7 @@ if (!globalThis.WebSocket) {
   neonConfig.webSocketConstructor = ws
 }
 
-const pool = new Pool({ connectionString: env.DATABASE_URL })
+const pool = new Pool({ connectionString: databaseUrl })
 
 export const db = drizzle(pool, {
   schema,
