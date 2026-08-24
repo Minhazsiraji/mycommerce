@@ -1,6 +1,5 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { CURRENCY } from '@/lib/money'
@@ -30,7 +29,6 @@ export function AddToCartButton({
   contentName: string
   unitPrice: number
 }) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [state, setState] = useState<'idle' | 'added'>('idle')
   const [error, setError] = useState<string>()
@@ -60,8 +58,9 @@ export function AddToCartButton({
         },
         eventId,
       )
-      // Refreshes the header badge, which is a separate server component.
-      router.refresh()
+      // The server action already calls next/cache refresh(), which synchronizes
+      // the header badge. Calling router.refresh() here forced a second route
+      // refresh after the mutation and made Add to cart feel slower than needed.
       setTimeout(() => setState('idle'), 2000)
     })
   }
