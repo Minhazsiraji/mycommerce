@@ -8,7 +8,7 @@ import { requireSession } from '@/modules/accounts'
 import { trackAddToCart } from '@/modules/meta'
 
 import * as service from './service'
-import { CartError, type CartView } from './service'
+import { CartError } from './service'
 import { addToCartSchema, removeLineSchema, updateLineSchema } from './validators'
 
 /**
@@ -29,7 +29,16 @@ function toResult(error: unknown): ActionResult<never> {
   throw error
 }
 
-export async function addToCart(input: unknown): Promise<ActionResult<CartView>> {
+/**
+ * Cart mutations return only acknowledgement.
+ *
+ * The UI never consumes a freshly re-read CartView from these actions: the cart
+ * page is optimistic and the product page only needs success/failure. Re-reading
+ * the entire cart after every write added a second database round trip before
+ * the button could settle. `refresh()` remains the authoritative sync mechanism
+ * for server-rendered consumers such as the header badge.
+ */
+export async function addToCart(input: unknown): Promise<ActionResult<null>> {
   const parsed = addToCartSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
@@ -46,33 +55,33 @@ export async function addToCart(input: unknown): Promise<ActionResult<CartView>>
       )
     }
     refreshClient()
-    return ok(await service.readCart())
+    return ok(null)
   } catch (error) {
     return toResult(error)
   }
 }
 
-export async function updateLineQuantity(input: unknown): Promise<ActionResult<CartView>> {
+export async function updateLineQuantity(input: unknown): Promise<ActionResult<null>> {
   const parsed = updateLineSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     await service.updateLineQuantity(parsed.data.lineId, parsed.data.quantity)
     refreshClient()
-    return ok(await service.readCart())
+    return ok(null)
   } catch (error) {
     return toResult(error)
   }
 }
 
-export async function removeLine(input: unknown): Promise<ActionResult<CartView>> {
+export async function removeLine(input: unknown): Promise<ActionResult<null>> {
   const parsed = removeLineSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
   try {
     await service.removeLine(parsed.data.lineId)
     refreshClient()
-    return ok(await service.readCart())
+    return ok(null)
   } catch (error) {
     return toResult(error)
   }
