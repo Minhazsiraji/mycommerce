@@ -12,17 +12,40 @@ import { safeRedirect } from '@/lib/safe-redirect'
 // From actions.ts, not the module barrel: this is a client component, and the
 // barrel also exports server-only reads.
 import { mergeGuestCart } from '@/modules/cart/actions'
+import { resendVerificationEmail } from '../actions'
 import { signIn, signUp } from '../auth-client'
 import { loginSchema, registerSchema } from '../validators'
 
 type Mode = 'login' | 'register'
 type Errors = Partial<Record<'name' | 'email' | 'password' | 'form', string>>
 
+/**
+ * Says nothing about whether the address has an account, or whether that
+ * account was already verified. The same sentence for every outcome is the
+ * whole point — this form takes an email and needs no password.
+ */
+export const RESEND_CONFIRMATION =
+  "If an account exists and still needs verification, we've sent a new verification email."
+
 export function AuthForm({ mode, next }: { mode: Mode; next?: string | undefined }) {
   const router = useRouter()
   const [errors, setErrors] = useState<Errors>({})
   const [pending, setPending] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [unverified, setUnverified] = useState<string | null>(null)
+  const [resent, setResent] = useState(false)
+
+  async function onResend(email: string) {
+    setPending(true)
+    try {
+      // The response is the same whatever happened server-side, so there is
+      // nothing here to branch on — and nothing for an onlooker to learn.
+      await resendVerificationEmail({ email })
+      setResent(true)
+    } finally {
+      setPending(false)
+    }
+  }
 
   async function onSubmit(formData: FormData) {
     setErrors({})
@@ -78,12 +101,15 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string | undefined
       if (error) {
         // Deliberately identical for "no such user" and "wrong password" — a
         // distinguishable message turns the login form into an account oracle.
-        setErrors({
-          form:
-            error.status === 403
-              ? 'Verify your email address before signing in.'
-              : 'That email and password combination is not correct.',
-        })
+        if (error.status === 403) {
+          // 403 means the password was accepted and only verification is owed,
+          // so offering a resend here reveals nothing the caller did not prove.
+          setUnverified(data.email)
+          setErrors({ form: 'Verify your email address before signing in.' })
+          return
+        }
+
+        setErrors({ form: 'That email and password combination is not correct.' })
         return
       }
 
@@ -107,9 +133,56 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string | undefined
           We sent a verification link to <span className="text-(--color-fg)">{sentTo}</span>. Open it
           to finish setting up your account, then sign in.
         </p>
+        {/* The first email can be lost, delayed or refused by the provider. Say
+            so here rather than leaving the customer to conclude the account is
+            broken. */}
+        {resent ? (
+          <p className="text-sm text-(--color-success)">{RESEND_CONFIRMATION}</p>
+        ) : (
+          <p className="text-sm text-(--color-muted)">
+            Nothing arrived?{' '}
+            <button
+              type="button"
+              onClick={() => onResend(sentTo)}
+              disabled={pending}
+              className="underline underline-offset-4 disabled:opacity-60"
+            >
+              Send it again
+            </button>
+          </p>
+        )}
         <Link href="/login" className="text-sm underline underline-offset-4">
           Back to sign in
         </Link>
+      </div>
+    )
+  }
+
+  if (unverified) {
+    return (
+      <div className="flex flex-col gap-3">
+        <h1 className="text-xl font-semibold">Verify your email</h1>
+        <p className="text-sm leading-relaxed text-(--color-muted)">
+          This account still needs its email address confirmed before you can sign in.
+        </p>
+        {resent ? (
+          <p className="text-sm text-(--color-success)">{RESEND_CONFIRMATION}</p>
+        ) : (
+          <Button type="button" onClick={() => onResend(unverified)} disabled={pending}>
+            {pending ? 'Sending…' : 'Send a new verification email'}
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setUnverified(null)
+            setResent(false)
+            setErrors({})
+          }}
+          className="text-sm underline underline-offset-4"
+        >
+          Back to sign in
+        </button>
       </div>
     )
   }

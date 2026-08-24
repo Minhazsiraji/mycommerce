@@ -9,7 +9,27 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
+import { countryPreset } from '@/lib/country-presets'
 import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { STORE_CONFIG } from '@/lib/store-config'
+import { calculateOrderTotals, showsTaxLine, taxLineLabel } from '@/lib/tax'
+
+const PRESET = countryPreset(STORE_CONFIG.countryCode)
+
+const PAYMENT_LABELS: Record<CheckoutPaymentMethod, { title: string; detail: string }> = {
+  cod: {
+    title: 'Cash on delivery',
+    detail: 'Pay the courier when your order arrives.',
+  },
+  bank_transfer: {
+    title: 'Bank transfer',
+    detail: 'Transfer to our account, then send us the reference. We confirm within a day.',
+  },
+  sslcommerz: {
+    title: 'Card, bKash, Nagad or Rocket',
+    detail: 'Pay securely through SSLCommerz.',
+  },
+}
 import {
   BD_DISTRICTS,
   bdAreasFor,
@@ -53,12 +73,15 @@ export function CheckoutForm({
   rates,
   defaults,
   signedIn,
+  paymentMethods,
 }: {
   subtotal: number
   tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
+  /** Only what this deployment has credentials for; the server checks again. */
+  paymentMethods: CheckoutPaymentMethod[]
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -71,10 +94,16 @@ export function CheckoutForm({
   const [upazila, setUpazila] = useState(
     canonicalBdArea(defaults.district, initialCity, defaults.upazila),
   )
-  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod')
+  const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>(
+    paymentMethods[0] ?? 'cod',
+  )
+
+  const isBdModel = PRESET.addressModel === 'bd-administrative'
 
   const cities = useMemo(() => bdCitiesFor(district), [district])
   const areas = useMemo(() => bdAreasFor(district, city), [district, city])
+
+  const regionRequired = PRESET.fields.region === 'required'
 
   /**
    * Filtered client-side from rates already sent, rather than re-fetching on
@@ -83,15 +112,19 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    return ratesForDistrict(rates, district).map((rate) => ({
+    return ratesForDistrict(rates, district, { regionRequired }).map((rate) => ({
       ...rate,
       isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
     }))
-  }, [rates, district, subtotal])
+  }, [rates, district, subtotal, regionRequired])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]
   const shippingCost = selectedRate ? (selectedRate.isFree ? 0 : selectedRate.cost) : 0
+
+  // Same function the order transaction uses, so the figure shown here and the
+  // amount charged cannot be arrived at two different ways.
+  const totals = calculateOrderTotals({ subtotal, shippingCost }, STORE_CONFIG.tax)
 
   async function onSubmit(formData: FormData) {
     setErrors({})
@@ -105,12 +138,14 @@ export function CheckoutForm({
           phone: String(formData.get('phone') ?? ''),
           line1: String(formData.get('line1') ?? ''),
           line2: String(formData.get('line2') ?? ''),
-          city,
-          district,
-          upazila,
+          // The Bangladeshi model drives its three fields from linked selects,
+          // so their values live in state; the generic model is plain inputs.
+          city: isBdModel ? city : String(formData.get('city') ?? ''),
+          district: isBdModel ? district : String(formData.get('district') ?? ''),
+          upazila: isBdModel ? upazila : '',
           union: String(formData.get('union') ?? ''),
           postalCode: String(formData.get('postalCode') ?? ''),
-          country: 'BD',
+          country: STORE_CONFIG.countryCode,
         },
         shippingRateId: selectedRate?.id ?? '',
         paymentMethod,
@@ -192,8 +227,37 @@ export function CheckoutForm({
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {!isBdModel ? (
+              <>
+                <Input
+                  label={PRESET.labels.city}
+                  name="city"
+                  autoComplete="address-level2"
+                  defaultValue={defaults.city}
+                  required
+                  error={field('city')}
+                />
+                <Input
+                  label={`${PRESET.labels.region}${PRESET.fields.region === 'optional' ? ' (optional)' : ''}`}
+                  name="district"
+                  autoComplete="address-level1"
+                  defaultValue={defaults.district}
+                  onChange={(event) => setDistrict(event.target.value)}
+                  error={field('district')}
+                />
+                <Input
+                  label={PRESET.labels.postalCode}
+                  name="postalCode"
+                  autoComplete="postal-code"
+                  defaultValue={defaults.postalCode}
+                  required={PRESET.fields.postalCode === 'required'}
+                  error={field('postalCode')}
+                />
+              </>
+            ) : (
+            <>
             <Select
-              label="District"
+              label={PRESET.labels.region}
               name="district"
               value={district}
               onChange={(event) => {
@@ -231,7 +295,7 @@ export function CheckoutForm({
               ))}
             </Select>
             <Select
-              label="Thana / Upazila"
+              label={PRESET.labels.area}
               name="upazila"
               autoComplete="address-level3"
               value={upazila}
@@ -254,13 +318,15 @@ export function CheckoutForm({
               error={field('union')}
             />
             <Input
-              label="Postcode (optional)"
+              label={`${PRESET.labels.postalCode} (optional)`}
               name="postalCode"
               inputMode="numeric"
               autoComplete="postal-code"
               defaultValue={defaults.postalCode}
               error={field('postalCode')}
             />
+            </>
+            )}
           </div>
         </section>
 
@@ -269,9 +335,9 @@ export function CheckoutForm({
 
           {available.length === 0 ? (
             <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-sm text-(--color-danger)">
-              {district
-                ? 'No delivery option covers that district yet.'
-                : 'Choose a district to see delivery options.'}
+              {district || !regionRequired
+                ? `No delivery option covers that ${PRESET.labels.region.toLowerCase()} yet.`
+                : `Choose a ${PRESET.labels.region.toLowerCase()} to see delivery options.`}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -312,71 +378,30 @@ export function CheckoutForm({
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-(--color-muted)">Payment</h2>
 
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'cod'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'cod'}
-              onChange={() => setPaymentMethod('cod')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Cash on delivery</span>
-              <span className="block text-xs text-(--color-muted)">
-                Pay the courier when your order arrives.
+          {paymentMethods.map((method) => (
+            <label
+              key={method}
+              className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
+                paymentMethod === method
+                  ? 'border-(--color-accent) bg-(--color-accent)/5'
+                  : 'border-(--color-border)'
+              }`}
+            >
+              <input
+                type="radio"
+                name="payment"
+                checked={paymentMethod === method}
+                onChange={() => setPaymentMethod(method)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="font-medium">{PAYMENT_LABELS[method].title}</span>
+                <span className="block text-xs text-(--color-muted)">
+                  {PAYMENT_LABELS[method].detail}
+                </span>
               </span>
-            </span>
-          </label>
-
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'bank_transfer'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'bank_transfer'}
-              onChange={() => setPaymentMethod('bank_transfer')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Bank transfer</span>
-              <span className="block text-xs text-(--color-muted)">
-                Transfer to our account, then send us the reference. We confirm within a day.
-              </span>
-            </span>
-          </label>
-
-          <label
-            className={`storefront-card-soft flex cursor-pointer items-start gap-3 p-4 text-sm ${
-              paymentMethod === 'sslcommerz'
-                ? 'border-(--color-accent) bg-(--color-accent)/5'
-                : 'border-(--color-border)'
-            }`}
-          >
-            <input
-              type="radio"
-              name="payment"
-              checked={paymentMethod === 'sslcommerz'}
-              onChange={() => setPaymentMethod('sslcommerz')}
-              className="mt-0.5"
-            />
-            <span>
-              <span className="font-medium">Card, bKash, Nagad or Rocket</span>
-              <span className="block text-xs text-(--color-muted)">
-                Pay securely through SSLCommerz.
-              </span>
-            </span>
-          </label>
+            </label>
+          ))}
         </section>
 
         <Textarea
@@ -403,9 +428,19 @@ export function CheckoutForm({
           </span>
         </div>
 
+        {showsTaxLine(STORE_CONFIG.tax, totals.taxAmount) ? (
+          <div className="flex justify-between text-sm">
+            <span className="text-(--color-muted)">
+              {taxLineLabel(STORE_CONFIG.tax)}
+              {STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : null}
+            </span>
+            <span className="tabular-nums">{formatBdt(totals.taxAmount)}</span>
+          </div>
+        ) : null}
+
         <div className="flex justify-between border-t border-(--color-border) pt-3 text-base font-semibold">
           <span>Total</span>
-          <span className="tabular-nums">{formatBdt(subtotal + shippingCost)}</span>
+          <span className="tabular-nums">{formatBdt(totals.total)}</span>
         </div>
 
         {/* Shown because the figure above is computed in the browser. The

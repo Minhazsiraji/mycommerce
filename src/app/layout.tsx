@@ -25,6 +25,11 @@ export const metadata: Metadata = {
     template: `%s | ${STORE_CONFIG.name}`,
   },
   description: siteDescription,
+  /**
+   * Resolved by a route rather than Next's `app/icon.svg` convention, so a store
+   * configures its own icon in Admin instead of replacing a file in our source.
+   */
+  icons: { icon: '/brand/icon' },
   alternates: { canonical: '/' },
   robots: {
     index: isIndexableEnvironment(),

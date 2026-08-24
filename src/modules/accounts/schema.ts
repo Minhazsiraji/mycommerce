@@ -143,7 +143,8 @@ export const addresses = pgTable(
     upazila: text('upazila').notNull().default(''),
     union: text('union'),
     postalCode: text('postal_code'),
-    country: text('country').notNull().default('BD'),
+    /** No default — the address validator supplies the configured country. */
+  country: text('country').notNull(),
     isDefault: boolean('is_default').notNull().default(false),
     /** Soft delete, so historical references stay resolvable. */
     archivedAt: timestamp('archived_at'),

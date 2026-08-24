@@ -1,7 +1,11 @@
 import 'server-only'
 
+import { eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
+
+import { db, schema } from '@/lib/db'
+import { env } from '@/lib/env'
 
 import { auth, type AuthSession } from './auth'
 import type { Role } from './schema'
@@ -28,6 +32,46 @@ export async function requireSession(): Promise<AuthSession> {
 export const TWO_FACTOR_SETUP_PATH = '/account/security'
 
 /**
+ * Promote only the explicitly configured, verified store-owner account.
+ *
+ * A freshly cloned store starts every signup as `customer` because `role` is
+ * deliberately `input: false` in Better Auth. That prevents privilege
+ * escalation, but it also means a new store needs one trusted bootstrap path.
+ * `STORE_ADMIN_EMAIL` is that path: the server compares it to the verified
+ * signed-in account and performs the role update itself. No request body can
+ * choose or influence the role.
+ *
+ * Returning the promoted role in the current session avoids forcing the owner
+ * to sign out and back in before the normal admin/2FA guard can continue.
+ */
+async function bootstrapConfiguredAdmin(session: AuthSession): Promise<AuthSession> {
+  const configuredAdmin = env.STORE_ADMIN_EMAIL?.trim().toLowerCase()
+  const sessionEmail = session.user.email.trim().toLowerCase()
+
+  if (
+    !configuredAdmin ||
+    !session.user.emailVerified ||
+    session.user.role === 'admin' ||
+    sessionEmail !== configuredAdmin
+  ) {
+    return session
+  }
+
+  await db
+    .update(schema.users)
+    .set({ role: 'admin', updatedAt: new Date() })
+    .where(eq(schema.users.id, session.user.id))
+
+  return {
+    ...session,
+    user: {
+      ...session.user,
+      role: 'admin',
+    },
+  }
+}
+
+/**
  * Admin access requires a second factor.
  *
  * This is the enforcement Better Auth cannot do for us — the plugin knows how to
@@ -41,11 +85,14 @@ export const TWO_FACTOR_SETUP_PATH = '/account/security'
  * reach the setup page and nothing else.
  */
 export async function requireRole(role: Role): Promise<AuthSession> {
-  const session = await getSession()
+  const rawSession = await getSession()
+  if (!rawSession) notFound()
+
+  const session = role === 'admin' ? await bootstrapConfiguredAdmin(rawSession) : rawSession
 
   // 404 rather than 403 or a redirect: an unauthorised visitor should not be able
   // to confirm that an admin route exists at all.
-  if (!session || session.user.role !== role) notFound()
+  if (session.user.role !== role) notFound()
 
   if (role === 'admin' && !session.user.twoFactorEnabled) {
     redirect(`${TWO_FACTOR_SETUP_PATH}?required=admin`)

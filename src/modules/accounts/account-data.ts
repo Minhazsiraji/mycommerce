@@ -89,6 +89,21 @@ export async function revokeOtherSessions(userId: string, currentToken: string):
  * both irreversible in their own way, so both re-prove the password rather than
  * trusting the cookie.
  */
+/**
+ * Asks Better Auth to issue a fresh verification email.
+ *
+ * Deliberately a thin pass-through. Issuing the token ourselves would mean
+ * reimplementing its expiry, single-use and hashing rules in a second place,
+ * and a verification token is exactly the wrong thing to have two
+ * implementations of.
+ *
+ * Throws on an unknown address, an already-verified account or a mail-provider
+ * failure. The caller swallows all three on purpose — see the note there.
+ */
+export async function requestVerificationEmail(email: string): Promise<void> {
+  await auth.api.sendVerificationEmail({ body: { email } })
+}
+
 export async function verifyPassword(userId: string, password: string): Promise<boolean> {
   const credential = await db.query.accounts.findFirst({
     where: eq(accounts.userId, userId),

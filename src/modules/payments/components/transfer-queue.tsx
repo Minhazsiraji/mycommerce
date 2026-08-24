@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatBdt } from '@/lib/money'
+import { CURRENCY_SYMBOL, formatBdt } from '@/lib/money'
 
 import { confirmTransfer, rejectTransfer } from '../actions'
 
@@ -81,7 +81,7 @@ function TransferRow({ transfer }: { transfer: PendingTransfer }) {
       <div className="flex flex-wrap items-end gap-3 border-t border-(--color-border) pt-4">
         <div className="w-44">
           <Input
-            label="Amount on statement (৳)"
+            label={`Amount on statement (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="e.g. 2560"
             value={amount}

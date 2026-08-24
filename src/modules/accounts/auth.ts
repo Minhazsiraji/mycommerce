@@ -55,7 +55,18 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: false,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendVerificationEmail(user.email, url)
+      /**
+       * A failed send must not abort the signup: the account is already
+       * created, and throwing here leaves the customer with a broken response
+       * and no idea an account exists. It is logged instead — without the
+       * address or the link — and the customer is offered a resend.
+       *
+       * The usual cause is a deployment whose EMAIL_FROM domain is not verified
+       * with the mail provider, which is silent until someone reads this line.
+       */
+      await sendVerificationEmail(user.email, url).catch((error) => {
+        console.error('[accounts] verification email failed to send at signup', error)
+      })
     },
   },
 

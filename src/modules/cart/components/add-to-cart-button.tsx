@@ -1,17 +1,17 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
+import { CURRENCY } from '@/lib/money'
+
 import { addToCart } from '../actions'
+import { CART_INCREMENT_EVENT } from './cart-badge-client'
 import { newBrowserEventId, trackBrowserEvent } from '@/modules/meta/components/client'
 
 /**
- * Deliberately not optimistic.
- *
- * An optimistic "Added" that later turns out to have failed on stock is worse
- * than a brief spinner — the customer walks to checkout believing they have the
- * item. The server's answer is the only one shown.
+ * Deliberately not optimistic about persistence: "Added" is shown only after
+ * the server accepts the stock/write. Once that authoritative write succeeds,
+ * the tiny cart badge is updated locally instead of refreshing the whole route.
  */
 export function AddToCartButton({
   variantId,
@@ -28,7 +28,6 @@ export function AddToCartButton({
   contentName: string
   unitPrice: number
 }) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [state, setState] = useState<'idle' | 'added'>('idle')
   const [error, setError] = useState<string>()
@@ -46,6 +45,8 @@ export function AddToCartButton({
       }
 
       setState('added')
+      window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
+
       trackBrowserEvent(
         'AddToCart',
         {
@@ -53,13 +54,12 @@ export function AddToCartButton({
           content_name: contentName,
           content_type: 'product',
           contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
-          currency: 'BDT',
+          currency: CURRENCY,
           value: unitPrice,
         },
         eventId,
       )
-      // Refreshes the header badge, which is a separate server component.
-      router.refresh()
+
       setTimeout(() => setState('idle'), 2000)
     })
   }

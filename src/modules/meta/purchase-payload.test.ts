@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  legacyMetaPurchaseStorageKey,
   metaPurchaseStorageKey,
   parseMetaPurchasePayload,
 } from './purchase-payload'
@@ -24,7 +25,17 @@ describe('Meta purchase payload', () => {
     expect(parseMetaPurchasePayload(JSON.stringify({ eventId: '', data: {} }))).toBeNull()
   })
 
-  it('uses the same stable dedup namespace as the previous browser tracker', () => {
-    expect(metaPurchaseStorageKey('purchase:abc')).toBe('sirajibd_meta_purchase:abc')
+  it('uses a store-neutral dedup namespace', () => {
+    expect(metaPurchaseStorageKey('purchase:abc')).toBe('commerce_meta_purchase:abc')
+    expect(metaPurchaseStorageKey('purchase:abc')).not.toMatch(/sirajibd/i)
+  })
+
+  it('can still recognise a key written before the rename', () => {
+    // An order page left open across the deploy must not fire a second
+    // Purchase for a sale the browser already reported.
+    expect(legacyMetaPurchaseStorageKey('purchase:abc')).toBe('sirajibd_meta_purchase:abc')
+    expect(legacyMetaPurchaseStorageKey('purchase:abc')).not.toBe(
+      metaPurchaseStorageKey('purchase:abc'),
+    )
   })
 })

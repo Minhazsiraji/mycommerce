@@ -2,6 +2,7 @@ import { connection } from 'next/server'
 
 import { HomepageHero } from '@/components/storefront/homepage-hero'
 import { SectionHeader } from '@/components/storefront/section-header'
+import { STORE_CONFIG } from '@/lib/store-config'
 import { getCachedActiveProducts, getCachedCategories } from '@/modules/catalog'
 import { CategoryCard } from '@/modules/catalog/components/category-card'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
@@ -110,18 +111,18 @@ export default async function HomePage() {
       ) : null}
 
       <section
-        aria-labelledby="shopping-in-bangladesh-title"
+        aria-labelledby="everyday-shopping-title"
         className="storefront-card px-6 py-8 sm:px-8 sm:py-10"
       >
         <div className="max-w-3xl space-y-4">
-          <h2 id="shopping-in-bangladesh-title" className="text-2xl font-semibold tracking-tight">
-            Everyday shopping made simpler in Bangladesh
+          <h2 id="everyday-shopping-title" className="text-2xl font-semibold tracking-tight">
+            Everyday shopping made simpler in {STORE_CONFIG.countryName}
           </h2>
           <p className="leading-7 text-(--text-secondary)">
-            SirajiBD brings footwear, apparel, electronics and everyday accessories together in one clear storefront. Browse focused categories, compare straightforward prices and open each product page for current availability before you order.
+            {STORE_CONFIG.name} brings footwear, apparel, electronics and everyday accessories together in one clear storefront. Browse focused categories, compare straightforward prices and open each product page for current availability before you order.
           </p>
           <p className="leading-7 text-(--text-secondary)">
-            The store is designed for customers in Bangladesh with a simple path from product discovery to checkout and delivery selection. New products can be added over time without changing the way you browse, search or shop across the core categories.
+            The store is designed for customers in {STORE_CONFIG.countryName} with a simple path from product discovery to checkout and delivery selection. New products can be added over time without changing the way you browse, search or shop across the core categories.
           </p>
         </div>
       </section>

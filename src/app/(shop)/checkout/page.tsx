@@ -3,8 +3,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 
+import { CURRENCY } from '@/lib/money'
 import { getSession, listAddresses } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
+import { configuredPaymentMethods } from '@/modules/orders'
 import { CheckoutForm } from '@/modules/orders/components/checkout-form'
 import { minorToMetaValue } from '@/modules/meta'
 import { listActiveRates } from '@/modules/shipping'
@@ -45,6 +47,7 @@ export default async function CheckoutPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Checkout</h1>
 
       <CheckoutForm
+        paymentMethods={configuredPaymentMethods()}
         subtotal={cart.subtotal}
         tracking={{
           content_ids: cart.lines.map((line) => line.variantId),
@@ -54,7 +57,7 @@ export default async function CheckoutPage() {
             quantity: line.quantity,
             item_price: minorToMetaValue(line.unitPrice),
           })),
-          currency: 'BDT',
+          currency: CURRENCY,
           num_items: cart.itemCount,
           value: minorToMetaValue(cart.subtotal),
         }}

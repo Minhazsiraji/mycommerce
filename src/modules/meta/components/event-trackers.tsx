@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 
+import { CURRENCY } from '@/lib/money'
+
 import { trackInitiateCheckout, trackViewContent } from '../actions'
 import { newBrowserEventId, readMetaConsent, trackBrowserEvent } from './client'
-import { META_CONSENT_EVENT } from '../consent'
+import { META_CONSENT_EVENT, META_PIXEL_READY_EVENT } from '../consent'
+import { legacyMetaPurchaseStorageKey, metaPurchaseStorageKey } from '../purchase-payload'
 import type { MetaCustomData } from '../validators'
 
 function useConsentedEvent(send: () => boolean, key: string) {
@@ -18,10 +21,10 @@ function useConsentedEvent(send: () => boolean, key: string) {
 
     attempt()
     window.addEventListener(META_CONSENT_EVENT, attempt)
-    window.addEventListener('sirajibd:pixel-ready', attempt)
+    window.addEventListener(META_PIXEL_READY_EVENT, attempt)
     return () => {
       window.removeEventListener(META_CONSENT_EVENT, attempt)
-      window.removeEventListener('sirajibd:pixel-ready', attempt)
+      window.removeEventListener(META_PIXEL_READY_EVENT, attempt)
     }
   }, [key, send])
 }
@@ -41,7 +44,7 @@ export function ViewContentTracker({
     content_name: contentName,
     content_type: 'product',
     contents: [{ id: variantId, quantity: 1, item_price: value }],
-    currency: 'BDT',
+    currency: CURRENCY,
     value,
   }
 
@@ -68,9 +71,10 @@ export function InitiateCheckoutTracker({ data }: { data: MetaCustomData }) {
 
 export function PurchaseTracker({ eventId, data }: { eventId: string; data: MetaCustomData }) {
   useConsentedEvent(() => {
-    const storageKey = `sirajibd_meta_${eventId}`
+    const storageKey = metaPurchaseStorageKey(eventId)
     try {
       if (localStorage.getItem(storageKey)) return true
+      if (localStorage.getItem(legacyMetaPurchaseStorageKey(eventId))) return true
     } catch {
       // Storage can be unavailable in hardened/private browsers; Meta's stable
       // event id still deduplicates a repeat.

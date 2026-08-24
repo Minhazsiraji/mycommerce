@@ -1,3 +1,4 @@
+import { STORE_CONFIG, STORE_SLUG } from '@/lib/store-config'
 import { analyticsFiltersSchema, csvRow, getAnalytics } from '@/modules/analytics'
 import { requireRole } from '@/modules/accounts'
 
@@ -7,7 +8,7 @@ export async function GET(request: Request) {
   const filters = analyticsFiltersSchema.parse(Object.fromEntries(url.searchParams))
   const data = await getAnalytics(filters)
   const lines = [
-    csvRow(['SirajiBD sales analytics']),
+    csvRow([`${STORE_CONFIG.name} sales analytics`]),
     csvRow(['Period', filters.preset]),
     csvRow(['Paid sales (BDT)', (data.current.sales / 100).toFixed(2)]),
     csvRow(['Paid orders', data.current.salesOrders]),
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   return new Response(`\uFEFF${lines.join('\r\n')}`, {
     headers: {
       'content-type': 'text/csv; charset=utf-8',
-      'content-disposition': `attachment; filename="sirajibd-analytics-${new Date().toISOString().slice(0, 10)}.csv"`,
+      'content-disposition': `attachment; filename="${STORE_SLUG}-analytics-${new Date().toISOString().slice(0, 10)}.csv"`,
       'cache-control': 'private, no-store',
     },
   })

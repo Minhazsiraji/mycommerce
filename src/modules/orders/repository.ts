@@ -5,6 +5,9 @@ import { randomBytes } from 'node:crypto'
 import { and, count, desc, eq, lt, ne, or, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
+import { CURRENCY } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
+import { calculateOrderTotals } from '@/lib/tax'
 import {
   cartItems,
   carts,
@@ -127,8 +130,13 @@ export async function placeOrder(args: PlaceOrderArgs) {
       if (result.rowCount === 0) throw new OutOfStockError(line.productTitle)
     }
 
-    const subtotal = lines.reduce((total, line) => total + line.price * line.quantity, 0)
-    const total = subtotal + args.shipping.cost
+    const totals = calculateOrderTotals(
+      {
+        subtotal: lines.reduce((sum, line) => sum + line.price * line.quantity, 0),
+        shippingCost: args.shipping.cost,
+      },
+      STORE_CONFIG.tax,
+    )
 
     const [order] = await tx
       .insert(orders)
@@ -141,9 +149,25 @@ export async function placeOrder(args: PlaceOrderArgs) {
         status: initialPayment.orderStatus,
         paymentStatus: initialPayment.paymentStatus,
         fulfillmentStatus: 'unfulfilled',
-        subtotal,
-        shippingCost: args.shipping.cost,
-        total,
+        subtotal: totals.subtotal,
+        shippingCost: totals.shippingCost,
+        /**
+         * Recorded even in inclusive mode, where it does not change the total.
+         * An order has to stay explainable years later, and "the total contained
+         * this much tax" is not something you can recompute afterwards once the
+         * configured rate has changed.
+         */
+        taxAmount: totals.taxAmount,
+        discountAmount: totals.discountAmount,
+        total: totals.total,
+        /**
+         * Written explicitly rather than left to the column default. The default
+         * is 'BDT', and payments/service.ts rejects a gateway result whose
+         * currency does not match the order's — so on a store configured for any
+         * other currency, relying on the default would fail every online payment
+         * after the customer had already been charged.
+         */
+        currency: CURRENCY,
         shippingAddress: args.address,
         paymentMethod: args.paymentMethod,
         notes: args.notes,
@@ -187,7 +211,9 @@ export async function placeOrder(args: PlaceOrderArgs) {
     await tx.insert(payments).values({
       orderId: order.id,
       provider: args.paymentMethod,
-      amount: total,
+      // Must equal orders.total exactly: payment verification matches the two.
+      amount: totals.total,
+      currency: CURRENCY,
       status: initialPayment.paymentAttemptStatus,
     })
 

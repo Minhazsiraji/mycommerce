@@ -1,22 +1,33 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { connection } from 'next/server'
+
 import { PolicyPage } from '@/components/storefront/policy-page'
+import { STORE_CONFIG, STORE_HOST } from '@/lib/store-config'
+import { findPolicyPage, PolicyOverride } from '@/modules/policies'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions',
-  description: 'Read the terms that apply when using SirajiBD, placing orders and purchasing products through the store.',
+  description: `Read the terms that apply when using ${STORE_CONFIG.name}, placing orders and purchasing products through the store.`,
   alternates: { canonical: '/terms' },
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  // A client-authored policy replaces the bundled template entirely. The text
+  // below is a starting point written for one retailer, not a legal position
+  // this software can hold on anyone else's behalf.
+  await connection()
+  const authored = await findPolicyPage('terms').catch(() => null)
+  if (authored) return <PolicyOverride page={authored} />
+
   return (
     <PolicyPage
       title="Terms & Conditions"
-      summary="These terms govern use of sirajibd.com and purchases made through the SirajiBD online store. Separate policies linked below form part of the customer information for an order."
+      summary={`These terms govern use of ${STORE_HOST} and purchases made through the ${STORE_CONFIG.name} online store. Separate policies linked below form part of the customer information for an order.`}
       sections={[
         {
-          title: 'Using SirajiBD',
+          title: `Using ${STORE_CONFIG.name}`,
           body: (
             <>
               <p>You may use the store for lawful personal shopping and related account or order activities. Do not misuse the service, interfere with its security, attempt unauthorised access, submit fraudulent orders or use the store in a way that harms other customers or the service.</p>
@@ -55,7 +66,7 @@ export default function TermsPage() {
           title: 'Warranty and product support',
           body: (
             <>
-              <p>SirajiBD does not promise a blanket manufacturer or extended warranty for every product. If a product has a specific seller, manufacturer or service warranty, the applicable duration and material conditions should be stated on the product page or otherwise disclosed before purchase.</p>
+              <p>{STORE_CONFIG.name} does not promise a blanket manufacturer or extended warranty for every product. If a product has a specific seller, manufacturer or service warranty, the applicable duration and material conditions should be stated on the product page or otherwise disclosed before purchase.</p>
               <p>A product-specific warranty does not replace the return process for an item that arrives damaged, defective, wrong or incomplete, and nothing here limits rights that cannot lawfully be excluded.</p>
             </>
           ),
@@ -69,13 +80,13 @@ export default function TermsPage() {
         {
           title: 'Intellectual property',
           body: (
-            <p>The SirajiBD branding, site design, original text, graphics and other protected store materials may not be copied or commercially reused without permission except where applicable law allows it. Product or third-party names and marks remain the property of their respective owners.</p>
+            <p>The {STORE_CONFIG.name} branding, site design, original text, graphics and other protected store materials may not be copied or commercially reused without permission except where applicable law allows it. Product or third-party names and marks remain the property of their respective owners.</p>
           ),
         },
         {
           title: 'Service availability and responsibility',
           body: (
-            <p>We work to keep the store reliable and secure, but online services can experience maintenance, network failures or third-party disruptions. Nothing in these terms excludes responsibility or customer rights that cannot lawfully be excluded. Any limitation applied under these terms is subject to applicable Bangladesh law.</p>
+            <p>We work to keep the store reliable and secure, but online services can experience maintenance, network failures or third-party disruptions. Nothing in these terms excludes responsibility or customer rights that cannot lawfully be excluded. Any limitation applied under these terms is subject to applicable law in {STORE_CONFIG.countryName}.</p>
           ),
         },
         {
@@ -88,7 +99,7 @@ export default function TermsPage() {
           title: 'Applicable law and resolving concerns',
           body: (
             <>
-              <p>These terms are intended to operate under the laws and applicable digital-commerce and consumer-protection rules of Bangladesh.</p>
+              <p>These terms are intended to operate under the laws and applicable digital-commerce and consumer-protection rules of {STORE_CONFIG.countryName}.</p>
               <p>If you have a concern, contact us first through the <Link className="underline" href="/contact">Contact Us</Link> page so we can try to resolve it. Nothing in these terms prevents a customer from using rights or complaint channels available under applicable law.</p>
             </>
           ),

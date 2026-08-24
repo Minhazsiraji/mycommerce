@@ -7,9 +7,17 @@ import { env } from '@/lib/env'
  * Resend over plain fetch — the REST surface we need is two fields wide, and a
  * dependency that wraps one POST is not worth the supply-chain surface.
  *
- * Without RESEND_API_KEY the message is logged instead of sent, so local
- * development and preview deploys work without a mail account. Production
- * refuses to start without one (see the check below).
+ * Without RESEND_API_KEY the message is logged instead of sent — but only when
+ * NODE_ENV is not production, which means local development and tests. A Vercel
+ * preview builds and runs in production mode, so it throws there just as
+ * production does. Dropping the key is therefore not a way to read a
+ * verification link out of a preview's logs; a preview that needs to send mail
+ * needs a real sender configured.
+ *
+ * Set RESEND_API_KEY and EMAIL_FROM together or not at all. A key without a
+ * sender falls back to a placeholder address whose domain is not verified with
+ * the provider, and every message is rejected. `pnpm preflight` refuses that
+ * combination, and runs before the build on Vercel.
  */
 
 type Mail = {

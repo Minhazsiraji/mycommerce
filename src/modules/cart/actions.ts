@@ -12,13 +12,12 @@ import { CartError, type CartView } from './service'
 import { addToCartSchema, removeLineSchema, updateLineSchema } from './validators'
 
 /**
- * `refresh()` from next/cache, not `revalidatePath` and not a cache tag.
- *
- * The cart is per-visitor, so there is no shared server cache entry to
- * invalidate. What goes stale is the *client's* router cache: the rendered
- * segment it already holds. `revalidatePath` did not touch that — the database
- * updated correctly while the page kept showing the old quantity until a hard
- * reload. This is the API built for exactly that case.
+ * Cart-page quantity/removal mutations still refresh the current route after
+ * persistence so the optimistic client state is reconciled with authoritative
+ * stock and pricing. Product-page Add to Cart deliberately does NOT do this:
+ * refreshing the whole product route made a one-line cart write wait on an
+ * expensive server-component rerender. Its header badge is updated locally by
+ * a client event instead.
  */
 function refreshClient() {
   refresh()
@@ -29,7 +28,7 @@ function toResult(error: unknown): ActionResult<never> {
   throw error
 }
 
-export async function addToCart(input: unknown): Promise<ActionResult<CartView>> {
+export async function addToCart(input: unknown): Promise<ActionResult<null>> {
   const parsed = addToCartSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
 
@@ -45,8 +44,12 @@ export async function addToCart(input: unknown): Promise<ActionResult<CartView>>
         }).catch((error) => console.error('[meta] AddToCart delivery failed', error)),
       )
     }
-    refreshClient()
-    return ok(await service.readCart())
+
+    // Do not refresh() here. The product page does not depend on cart state and
+    // a refresh forces all of its dynamic server components to run again before
+    // the action feels complete. The client updates the cart badge after this
+    // authoritative write succeeds.
+    return ok(null)
   } catch (error) {
     return toResult(error)
   }

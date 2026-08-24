@@ -10,15 +10,32 @@ import { drizzle } from 'drizzle-orm/neon-serverless'
 import { migrate } from 'drizzle-orm/neon-serverless/migrator'
 import ws from 'ws'
 
+import { describeDatabase, resolveDatabaseUrl } from './database-url.mjs'
+
 loadEnv({ path: '.env.local' })
 loadEnv({ path: '.env' })
 
-const databaseUrl = process.env.DATABASE_URL
+/**
+ * Same precedence as the running application — see the note on
+ * APP_DATABASE_URL in src/lib/env.ts. Migrating one database while the app
+ * queries another is worse than not migrating at all: the deploy goes green and
+ * the data is wrong.
+ */
+const { url: databaseUrl, source } = resolveDatabaseUrl()
 
 if (!databaseUrl) {
-  console.error('[migrate] DATABASE_URL is not set')
+  console.error('[migrate] neither APP_DATABASE_URL nor DATABASE_URL is set')
   process.exit(1)
 }
+
+// Names the target without printing credentials, so a deploy log shows which
+// database was actually migrated.
+const target = describeDatabase(databaseUrl)
+if (!target) {
+  console.error('[migrate] database URL is not parseable')
+  process.exit(1)
+}
+console.log(`[migrate] target database ${target} (via ${source})`)
 
 if (!globalThis.WebSocket) neonConfig.webSocketConstructor = ws
 

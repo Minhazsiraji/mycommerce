@@ -105,6 +105,9 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               name: STORE_CONFIG.name,
               text: STORE_CONFIG.brandText,
               accent: STORE_CONFIG.brandAccent,
+              // An uploaded logo replaces the wordmark; unset keeps the text,
+              // so a store with no artwork still has a usable header.
+              logoUrl: settings.logoUrl,
             }}
             cart={
               <Suspense fallback={<CartBadgeFallback />}>

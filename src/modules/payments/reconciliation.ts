@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { orders } from '@/lib/db/schema'
 import { env } from '@/lib/env'
 
+import { isOnlineGateway } from './provider'
 import { handleGatewayNotification, PaymentError } from './service'
 
 const HOSTS = {
@@ -89,7 +90,7 @@ export async function reconcileGatewayOrder(
     where: eq(orders.orderNumber, orderNumber),
   })
   if (!order) throw new PaymentError('Order not found.')
-  if (order.paymentMethod !== 'sslcommerz') {
+  if (!isOnlineGateway(order.paymentMethod)) {
     throw new PaymentError('This order is not an SSLCommerz payment.')
   }
   if (order.paymentStatus === 'paid') return 'duplicate'
@@ -97,5 +98,5 @@ export async function reconcileGatewayOrder(
   const valId = await querySuccessfulValidationId(orderNumber)
   if (!valId) return 'pending'
 
-  return handleGatewayNotification(valId)
+  return handleGatewayNotification('sslcommerz', valId)
 }

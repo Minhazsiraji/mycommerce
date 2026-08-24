@@ -4,9 +4,10 @@ import { cookies, headers } from 'next/headers'
 import { after } from 'next/server'
 
 import { clientEnv, env } from '@/lib/env'
+import { CURRENCY } from '@/lib/money'
 import type { CartLine } from '@/modules/cart'
 
-import { META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
+import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
 import { getEffectiveMetaConfig } from './integration-config'
 import {
@@ -39,7 +40,11 @@ const capIdentifier = (value: string | undefined) => {
 const cleanUserAgent = (value: string | null) => value?.trim().slice(0, 500) || null
 
 async function hasConsent() {
-  return (await cookies()).get(META_CONSENT_COOKIE)?.value === META_CONSENT_GRANTED
+  const jar = await cookies()
+  // The browser may not have re-rendered since the rename, so a visitor who
+  // granted consent under the old cookie must still count as granted.
+  const value = jar.get(META_CONSENT_COOKIE)?.value ?? jar.get(LEGACY_CONSENT_COOKIE)?.value
+  return value === META_CONSENT_GRANTED
 }
 
 function safeSourceUrl(raw: string | null, fallbackPath: string) {
@@ -167,7 +172,7 @@ export async function trackViewContent(eventId: string, variantId: string) {
       content_name: variant.productTitle,
       content_type: 'product',
       contents: [{ id: variant.id, quantity: 1, item_price: minorToMetaValue(variant.price) }],
-      currency: 'BDT',
+      currency: CURRENCY,
       value: minorToMetaValue(variant.price),
     },
     '/p',
@@ -193,7 +198,7 @@ export async function trackAddToCart(input: {
           item_price: minorToMetaValue(input.variant.price),
         },
       ],
-      currency: 'BDT',
+      currency: CURRENCY,
       value: minorToMetaValue(input.variant.price * input.quantity),
     },
     '/cart',
@@ -215,7 +220,7 @@ export async function trackInitiateCheckout(
         quantity: line.quantity,
         item_price: minorToMetaValue(line.unitPrice),
       })),
-      currency: 'BDT',
+      currency: CURRENCY,
       num_items: cart.itemCount,
       value: minorToMetaValue(cart.subtotal),
     },

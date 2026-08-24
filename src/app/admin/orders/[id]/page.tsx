@@ -4,7 +4,10 @@ import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 
 import { formatBdt } from '@/lib/money'
+import { STORE_CONFIG } from '@/lib/store-config'
+import { taxLineLabel } from '@/lib/tax'
 import { getOrderById, listShipments } from '@/modules/orders'
+import { isOnlineGateway } from '@/modules/payments'
 import { OrderAdminActions } from '@/modules/orders/components/order-admin-actions'
 import { OrderNotes } from '@/modules/orders/components/order-notes'
 import { OrderParcels } from '@/modules/orders/components/order-parcels'
@@ -73,6 +76,15 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   {order.shippingCost === 0 ? 'Free' : formatBdt(order.shippingCost)}
                 </dd>
               </div>
+              {order.taxAmount > 0 ? (
+                <div className="flex justify-between">
+                  <dt className="text-(--color-muted)">
+                    {taxLineLabel(STORE_CONFIG.tax)}
+                    {STORE_CONFIG.tax.mode === 'inclusive' ? ' — included' : null}
+                  </dt>
+                  <dd className="tabular-nums">{formatBdt(order.taxAmount)}</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between font-semibold">
                 <dt>Total</dt>
                 <dd className="tabular-nums">{formatBdt(order.total)}</dd>
@@ -118,7 +130,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             ) : null}
           </section>
 
-          {order.paymentMethod === 'sslcommerz' && order.paymentStatus !== 'paid' ? (
+          {isOnlineGateway(order.paymentMethod) && order.paymentStatus !== 'paid' ? (
             <GatewayPaymentRecheck orderNumber={order.orderNumber} />
           ) : null}
 
