@@ -28,7 +28,7 @@ export type StoreConfig = {
  * It is a noindex, non-transactional preview used only to demonstrate how the
  * AgentSiraji Commerce buying flow could look for Kountry Feed in Rwanda.
  */
-export const STORE_CONFIG: Readonly<StoreConfig> = Object.freeze({
+const kountryFeedDemoConfig: StoreConfig = {
   name: 'Kountry Feed',
   brandText: 'Kountry Feed',
   brandAccent: '',
@@ -48,7 +48,9 @@ export const STORE_CONFIG: Readonly<StoreConfig> = Object.freeze({
     label: 'Tax',
     appliesToShipping: false,
   },
-})
+}
+
+export const STORE_CONFIG: Readonly<StoreConfig> = Object.freeze(kountryFeedDemoConfig)
 
 export function getStoreUrl(path = '/') {
   return new URL(path, `${STORE_CONFIG.canonicalUrl}/`)
