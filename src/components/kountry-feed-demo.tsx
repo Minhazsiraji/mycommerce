@@ -74,7 +74,7 @@ function FeedBag({ product }: { product: Product }) {
         className="absolute inset-x-3 bottom-1 top-3 rounded-[2rem_2rem_1.2rem_1.2rem] border border-black/10 shadow-[0_22px_50px_rgba(20,50,28,0.18)]"
         style={{ background: `linear-gradient(160deg, #f7f1dc 0%, #efe2ba 64%, ${product.accent} 180%)` }}
       />
-      <div className="absolute inset-x-5 top-7 h-2 rounded-full bg-black/8" />
+      <div className="absolute inset-x-5 top-7 h-2 rounded-full bg-black/10" />
       <div className="relative z-10 mt-4 w-28 text-center">
         <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#1e5b39] text-xl shadow-sm">
           {product.icon}
@@ -97,7 +97,7 @@ export function KountryFeedDemo() {
   const [payment, setPayment] = useState('MTN Mobile Money')
 
   const cartItems = useMemo(
-    () => PRODUCTS.filter((product) => (cart[product.id] || 0) > 0).map((product) => ({ ...product, qty: cart[product.id] })),
+    () => PRODUCTS.map((product) => ({ ...product, qty: cart[product.id] ?? 0 })).filter((item) => item.qty > 0),
     [cart],
   )
   const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0)
@@ -278,7 +278,7 @@ export function KountryFeedDemo() {
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/70">Eastern Province can often receive same or next-day delivery. Other provinces are typically served within 1–3 business days, with final delivery cost confirmed by Kountry Feed.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {provinces.map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/8 px-4 py-4 font-bold">✓ {item}</div>)}
+              {provinces.map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-4 font-bold">✓ {item}</div>)}
             </div>
           </div>
         </div>
