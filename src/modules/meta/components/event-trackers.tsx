@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { CURRENCY } from '@/lib/money'
 
-import { trackInitiateCheckout, trackViewContent } from '../actions'
+import { trackInitiateCheckout, trackLead, trackViewContent } from '../actions'
 import { newBrowserEventId, readMetaConsent, trackBrowserEvent } from './client'
 import { META_CONSENT_EVENT, META_PIXEL_READY_EVENT } from '../consent'
 import { legacyMetaPurchaseStorageKey, metaPurchaseStorageKey } from '../purchase-payload'
@@ -85,6 +85,34 @@ export function PurchaseTracker({ eventId, data }: { eventId: string; data: Meta
     } catch {
       // Tracking succeeded; lack of local storage must not break the order page.
     }
+    return true
+  }, eventId)
+  return null
+}
+
+/**
+ * Reusable Lead tracker. Nothing in this storefront renders it — it is the
+ * browser half of the Lead path the AgentSiraji.com audit form (separate app)
+ * is meant to use. Mount it on a confirmed lead-form submission; the shared
+ * `eventId` keeps the browser and server events deduplicated.
+ */
+export function LeadTracker({
+  data,
+  value,
+  currency,
+  contentName,
+}: {
+  data?: MetaCustomData
+  value?: number
+  currency?: string
+  contentName?: string
+}) {
+  const [eventId] = useState(() => newBrowserEventId('lead'))
+
+  useConsentedEvent(() => {
+    if (readMetaConsent() !== 'granted') return false
+    trackBrowserEvent('Lead', data ?? {}, eventId)
+    void trackLead({ eventId, value, currency, contentName })
     return true
   }, eventId)
   return null

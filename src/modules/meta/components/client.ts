@@ -73,7 +73,14 @@ export function writeMetaConsent(consent: Exclude<MetaConsent, 'unset'>) {
 }
 
 export function trackBrowserEvent(
-  eventName: 'ViewContent' | 'AddToCart' | 'InitiateCheckout' | 'Purchase' | 'Contact' | 'Search',
+  eventName:
+    | 'ViewContent'
+    | 'AddToCart'
+    | 'InitiateCheckout'
+    | 'Purchase'
+    | 'Contact'
+    | 'Lead'
+    | 'Search',
   customData: MetaCustomData,
   eventId?: string,
 ) {

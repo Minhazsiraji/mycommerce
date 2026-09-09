@@ -7,6 +7,11 @@ import { clientEnv, env } from '@/lib/env'
 import { CURRENCY } from '@/lib/money'
 import type { CartLine } from '@/modules/cart'
 
+import {
+  META_ATTRIBUTION_COOKIE,
+  parseAttributionCookie,
+  synthesizeFbc,
+} from './attribution'
 import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
 import { getEffectiveMetaConfig } from './integration-config'
@@ -16,13 +21,22 @@ import {
   normalizeCity,
   normalizeCountry,
   normalizeEmail,
+  normalizePostalCode,
+  normalizeRegion,
+  splitRecipientName,
 } from './normalization'
 import { buildMetaPurchaseData } from './purchase-data'
 import * as repo from './repository'
 import { minorToMetaValue } from './value'
 import type { MetaCustomData } from './validators'
 
-type EventName = 'ViewContent' | 'AddToCart' | 'InitiateCheckout' | 'Purchase'
+type EventName =
+  | 'ViewContent'
+  | 'AddToCart'
+  | 'InitiateCheckout'
+  | 'Contact'
+  | 'Lead'
+  | 'Purchase'
 
 type RequestContext = {
   clientIpAddress: string | null
@@ -228,16 +242,63 @@ export async function trackInitiateCheckout(
   )
 }
 
+/**
+ * Contact — a customer starting a conversation through a contact-intent link
+ * (email, phone, WhatsApp, Messenger). Dual-sent: the browser Pixel and this
+ * server event share the one `eventId` the caller generated, so Meta
+ * deduplicates them.
+ */
+export async function trackContact(eventId: string, method: string) {
+  await sendRequestEvent('Contact', eventId, { content_name: method }, '/contact')
+}
+
+/**
+ * Lead — a qualified enquiry submitted through a lead form. Reusable
+ * infrastructure only; no form in this storefront emits it yet (the intended
+ * trigger is the AgentSiraji.com Store-Audit form, a separate application).
+ * `value` / `currency` are optional and travel only when both are present.
+ */
+export async function trackLead(
+  eventId: string,
+  custom?: { value?: number; currency?: string; contentName?: string },
+) {
+  const data: MetaCustomData = {}
+  if (custom?.contentName) data.content_name = custom.contentName
+  if (
+    typeof custom?.value === 'number' &&
+    Number.isFinite(custom.value) &&
+    custom.value >= 0 &&
+    typeof custom?.currency === 'string' &&
+    /^[A-Z]{3}$/.test(custom.currency)
+  ) {
+    data.value = custom.value
+    data.currency = custom.currency
+  }
+  await sendRequestEvent('Lead', eventId, data, '/')
+}
+
 /** Best-effort and called only after the commercial order transaction commits. */
 export async function captureOrderAttribution(orderId: string) {
   if (!(await configured())) return
   const context = await requestContext('/checkout')
   if (!context?.clientUserAgent) return
 
+  const jar = await cookies()
+  const attribution = parseAttributionCookie(jar.get(META_ATTRIBUTION_COOKIE)?.value)
+
+  // A late Purchase can still reconstruct `fbc` from the raw click id even if
+  // the `_fbc` cookie was never mirrored into this request.
+  const fbc =
+    context.fbc ??
+    (attribution?.fbclid ? synthesizeFbc(attribution.fbclid, Date.now()) : null)
+
   await repo.saveOrderAttribution({
     orderId,
     fbp: context.fbp,
-    fbc: context.fbc,
+    fbc,
+    fbclid: attribution?.fbclid ?? null,
+    utm: attribution?.utm ?? null,
+    adParams: attribution?.adParams ?? null,
     clientUserAgent: context.clientUserAgent,
     eventSourceUrl: context.eventSourceUrl,
   })
@@ -271,6 +332,13 @@ async function deliverPurchase(eventId: string) {
   const { order, attribution, items } = context
   const city = normalizeCity(order.shippingAddress.city)
   const country = normalizeCountry(order.shippingAddress.country)
+  const region = normalizeRegion(order.shippingAddress.district ?? '')
+  const postalCode = order.shippingAddress.postalCode
+    ? normalizePostalCode(order.shippingAddress.postalCode)
+    : ''
+  const { first: firstName, last: lastName } = splitRecipientName(
+    order.shippingAddress.recipient ?? '',
+  )
 
   const result = await postEvent({
     eventName: 'Purchase',
@@ -283,7 +351,11 @@ async function deliverPurchase(eventId: string) {
     userData: {
       em: [hashUserData(normalizeEmail(order.email))],
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
+      fn: firstName ? [hashUserData(firstName)] : undefined,
+      ln: lastName ? [hashUserData(lastName)] : undefined,
       ct: city ? [hashUserData(city)] : undefined,
+      st: region ? [hashUserData(region)] : undefined,
+      zp: postalCode ? [hashUserData(postalCode)] : undefined,
       country: country ? [hashUserData(country)] : undefined,
       external_id: order.userId ? [hashUserData(order.userId)] : undefined,
       client_ip_address: order.checkoutIp ?? undefined,

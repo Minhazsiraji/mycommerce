@@ -12,6 +12,8 @@ import { getCachedCategories } from '@/modules/catalog'
 import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GoogleAnalytics } from '@/modules/google/components/google-analytics'
 import { getEffectiveMetaConfig } from '@/modules/meta'
+import { MetaAttributionCapture } from '@/modules/meta/components/attribution-capture'
+import { ContactLinkTracker } from '@/modules/meta/components/contact-link-tracker'
 import {
   MetaAnalytics,
   PrivacyChoicesButton,
@@ -96,6 +98,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   return (
     <div className="flex min-h-dvh flex-col">
       <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} />
+      <MetaAttributionCapture enabled={meta.enabled} />
+      <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
       <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">

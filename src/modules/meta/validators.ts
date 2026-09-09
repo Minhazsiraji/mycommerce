@@ -16,6 +16,30 @@ export const initiateCheckoutEventSchema = z.object({
   eventId: metaEventIdSchema,
 })
 
+/** Contact-intent channels a storefront link can express. */
+export const contactMethodSchema = z.enum(['email', 'phone', 'whatsapp', 'messenger'])
+
+export const contactEventSchema = z.object({
+  eventId: metaEventIdSchema,
+  method: contactMethodSchema,
+})
+
+/**
+ * Lead is low-trust by nature — a browser POST cannot be allowed to assert an
+ * authoritative sale. `value` is accepted only as a soft qualifier, bounded,
+ * and paired with an explicit ISO-4217 currency or dropped.
+ */
+export const leadEventSchema = z.object({
+  eventId: metaEventIdSchema,
+  value: z.number().nonnegative().max(100_000_000).optional(),
+  currency: z
+    .string()
+    .trim()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  contentName: z.string().trim().min(1).max(100).optional(),
+})
+
 const metaId = z.string().trim().max(40).refine(
   (value) => value === '' || /^\d{5,40}$/.test(value),
   'Use the numeric ID shown in Meta Events Manager',
