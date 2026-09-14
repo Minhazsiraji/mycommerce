@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -51,6 +52,15 @@ export const metaOrderAttributions = pgTable('meta_order_attributions', {
     .references(() => orders.id, { onDelete: 'cascade' }),
   fbp: text('fbp'),
   fbc: text('fbc'),
+  /**
+   * Raw Meta click id, kept alongside `fbc` so a late Purchase can still
+   * reconstruct `fbc` if the `_fbc` cookie was never mirrored.
+   */
+  fbclid: text('fbclid'),
+  /** `utm_*` pairs seen on the inbound URL. Generic — no fixed campaign here. */
+  utm: jsonb('utm').$type<Record<string, string>>(),
+  /** Generic campaign / ad-set / ad / creative identifiers, when the URL had them. */
+  adParams: jsonb('ad_params').$type<Record<string, string>>(),
   clientUserAgent: text('client_user_agent').notNull(),
   eventSourceUrl: text('event_source_url').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),

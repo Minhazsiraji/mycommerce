@@ -100,6 +100,9 @@ export async function saveOrderAttribution(input: {
   orderId: string
   fbp: string | null
   fbc: string | null
+  fbclid?: string | null
+  utm?: Record<string, string> | null
+  adParams?: Record<string, string> | null
   clientUserAgent: string
   eventSourceUrl: string
 }) {
