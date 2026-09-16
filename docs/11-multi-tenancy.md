@@ -37,7 +37,7 @@ Two new modules. Everything else is modified in place.
 src/modules/
   platform/       NEW — tenants, domains, provisioning, subscription billing
   tryon/          NEW — try-on jobs, credit ledger, provider abstraction
-  accounts/       CHANGED — seller and shopper identity split
+  accounts/       CHANGED — platform-user auth and tenant membership
   catalog/        CHANGED — tenant scoping
   cart/           CHANGED — tenant scoping
   orders/         CHANGED — tenant scoping
@@ -138,7 +138,9 @@ the key were shared, which it is not.
 
 **Identity — handled separately.** See section 4.
 
-`users`, `sessions`, `accounts`, `two_factors`, `verifications`.
+The existing `users`, `sessions`, `accounts`, `two_factors` and `verifications` become
+platform-user authentication state. Tenant authorization is carried by
+`tenant_memberships`. Shopper VTO identity is not stored in these Better Auth tables.
 
 ### Denormalise `tenant_id` onto child tables
 
@@ -234,58 +236,62 @@ is missing.
 
 ---
 
-## 4. Identity: the seller / shopper split
+## 4. Identity: platform users and tenant-scoped shopper sessions
 
-This is the highest-risk piece of the whole migration and it is worth reading twice.
+Phase 0 resolved the highest-risk identity unknown. The original design proposed a
+second Better Auth instance for shoppers with `(tenant_id, email)` uniqueness. A live
+spike proved Better Auth still rejects the same email at a second tenant even when the
+database itself uses a composite unique constraint. See
+`docs/architecture/ADR-001-vto-identity-boundary.md`.
 
-### The problem
+### Platform identity
 
-`users` today has `uniqueIndex('users_email_idx').on(t.email)` — one account per email
-across the entire installation. In a platform that is wrong twice over.
+Better Auth remains the authority for sellers, tenant staff and platform staff. These
+are global people who may legitimately belong to more than one tenant. Tenant access is
+represented by membership, never by duplicating the same person into tenant user rows.
 
-First, the same person may shop at three different tenants. Those must be three
-unrelated accounts; merging them means store A's owner and store B's owner are looking
-at a shared customer record.
+```text
+platform_users
+  id, email, name, auth fields...
 
-Second, and more seriously, a global unique email is an **enumeration leak**. A shopper
-signing up at store B with an email already used at store A gets told the address is
-taken, which discloses that a specific person shops at a specific competitor's store.
+tenant_memberships
+  tenant_id, platform_user_id, role, status, created_at
+  unique (tenant_id, platform_user_id)
+```
 
-### The decision: two user tables, two Better Auth instances
+A platform user's authentication session proves who the person is. A membership proves
+what that person may do inside one tenant. Those are deliberately separate questions.
 
-| | `platform_users` | `users` |
-|---|---|---|
-| Who | Sellers and platform staff | Shoppers |
-| Scope | Global | Per tenant |
-| Unique on | `email` | `(tenant_id, email)` |
-| Surface | `/admin` | `/account`, checkout |
-| Cookie prefix | `mc_platform` | `mc_shop` |
-| Second factor | Mandatory (existing `requireRole`) | Optional |
+### Shopper identity
 
-Two Better Auth instances, each configured with its own table names, cookie prefix and
-session table. They never share a session. A seller browsing their own storefront as a
-customer holds two independent cookies, which is correct — those are two different
-capacities.
+Virtual Try-On does not require a global AgentSiraji shopper account. The default
+customer-plane identity is a tenant-scoped, random try-on session identifier. A tenant
+may optionally attach a pseudonymous `external_customer_ref` derived from its own
+customer system, but the platform does not need the shopper's email to perform a try-on.
 
-The existing invariant 11 (mandatory second factor for admin) applies to
-`platform_users` only and is unchanged.
+```text
+tryon_sessions
+  id                  uuid pk
+  tenant_id           uuid not null -> tenants.id
+  external_customer_ref text null
+  created_at          timestamptz not null
+  expires_at          timestamptz not null
+```
 
-### The known unknown
+The same human shopping at two stores therefore produces unrelated tenant-scoped
+sessions. This prevents cross-store account enumeration and avoids forcing registration
+before a shopper can see how a product looks.
 
-Better Auth's schema mapping supports custom table names and additional fields. What is
-**not** confirmed is whether it tolerates a composite unique on `(tenant_id, email)` in
-place of its expected unique email, and whether two instances coexist cleanly in one
-Next.js app.
+### Integration rule
 
-**This is the first thing prototyped in step 3, before any other work.** If it does not
-hold, the fallback is a thin custom auth layer for shoppers only — shoppers need email,
-password, and sessions, not OAuth or passkeys — while sellers keep Better Auth. That
-fallback is perhaps a week of work, but discovering the need for it in month two would
-cost far more, so it gets resolved first.
+If SirajiBD, Shopify, WooCommerce or another merchant already has an authenticated
+customer, the connector may send a tenant-specific pseudonymous reference such as an
+HMAC of that merchant's internal customer ID. Raw internal IDs and cross-tenant email
+linkage are not required. Anonymous sessions remain first-class.
 
-Note also `COOKIE_PREFIX` is duplicated between `modules/accounts/auth.ts` and
-`src/proxy.ts`, already flagged in CLAUDE.md as un-typechecked. With two instances there
-are now two prefixes to keep in sync. Both files gain the same comment.
+Merchant/platform cookies and shopper VTO session cookies must use distinct names and
+scopes. A seller browsing their own storefront can therefore hold both capacities
+without one granting the other.
 
 ---
 
@@ -584,12 +590,12 @@ leaves the tree broken, and no phase is merged without its tests.
 | 4 | `app_tenant` / `app_platform` roles; RLS policies; `withTenant()` | Deliberately unscoped query returns zero rows rather than another tenant's |
 | 5 | `storefront_settings` and `policy_*` singletons become per-tenant; `STORE_*` env moves to columns | Two tenants render visibly different storefronts from one deployment |
 | 6 | `tenant_integrations`; per-tenant payments, Meta, Google; webhook path routing | Two tenants take payments through separate gateway accounts |
-| 7 | Identity split; two Better Auth instances; shopper unique becomes `(tenant_id, email)` | Same email registers independently at two tenants |
+| 7 | Platform-user memberships + tenant-scoped shopper/VTO sessions; optional pseudonymous external customer refs | Same shopper can use two tenants without global identity linkage or account enumeration |
 | 8 | Platform admin; provisioning; Vercel domain attachment | A tenant is created end to end without touching the database |
 | 9 | Subscriptions, invoices, dunning | A tenant can be suspended and restored |
 | 10 | Try-on: tables, moderation gate, provider abstraction, cron worker, credit ledger | A shopper completes a try-on and the ledger debits |
 
-Phase 0 gates everything. Phases 1–4 are the load-bearing refactor and should be
+Phase 0 is accepted and recorded in ADR-001. Phases 1–4 are the load-bearing refactor and should be
 reviewed hardest. Try-on is last deliberately: it is the feature that sells the product,
 but it is worthless sitting on a foundation that leaks data between tenants.
 
