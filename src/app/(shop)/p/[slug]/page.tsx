@@ -14,6 +14,8 @@ import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
 import { minorToMetaValue } from '@/modules/meta'
+import { VirtualTryOn } from '@/modules/vto/components/virtual-try-on'
+import { getVtoCatalogItemId } from '@/modules/vto/config'
 
 type Params = {
   params: Promise<{ slug: string }>
@@ -86,6 +88,8 @@ export default async function ProductPage({ params, searchParams }: Params) {
     fullUrl: storage.url(image.r2Key, { width: 2000, height: 2000, fit: 'contain' }),
     thumbUrl: storage.url(image.r2Key, { width: 128, height: 128, fit: 'cover' }),
   }))
+
+  const vtoCatalogItemId = getVtoCatalogItemId(product.id)
 
   const cheapest = product.variants.reduce<number | null>(
     (min, v) => (min == null || v.price < min ? v.price : min),
@@ -217,6 +221,14 @@ export default async function ProductPage({ params, searchParams }: Params) {
               {cheapest == null ? '—' : formatBdt(cheapest)}
             </p>
           )}
+
+          {vtoCatalogItemId ? (
+            <VirtualTryOn
+              catalogItemId={vtoCatalogItemId}
+              productTitle={product.title}
+              productImageUrl={images[0]?.url}
+            />
+          ) : null}
 
           {product.description ? (
             <div className="flex flex-col gap-2 border-t border-(--color-border) pt-6">

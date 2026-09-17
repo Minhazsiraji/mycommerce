@@ -72,7 +72,7 @@ export default function proxy(request: NextRequest) {
     // Merchant Center's Google tag sends measurement only to its documented
     // analytics host. No broad google.com / doubleclick allowance is needed.
     // ws: is the dev HMR socket only.
-    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog${isDev ? ' ws:' : ''}`,
+    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog https://agentsiraji-vto.vercel.app${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
