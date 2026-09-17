@@ -14,8 +14,7 @@ import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
 import { minorToMetaValue } from '@/modules/meta'
-import { VirtualTryOn } from '@/modules/vto/components/virtual-try-on'
-import { getVtoCatalogItemId } from '@/modules/vto/config'
+import { VirtualTryOn, isVtoEnabledProduct } from '@/modules/vto'
 
 type Params = {
   params: Promise<{ slug: string }>
@@ -89,7 +88,7 @@ export default async function ProductPage({ params, searchParams }: Params) {
     thumbUrl: storage.url(image.r2Key, { width: 128, height: 128, fit: 'cover' }),
   }))
 
-  const vtoCatalogItemId = getVtoCatalogItemId(product.id)
+  const vtoEnabled = isVtoEnabledProduct(product.id)
 
   const cheapest = product.variants.reduce<number | null>(
     (min, v) => (min == null || v.price < min ? v.price : min),
@@ -222,9 +221,10 @@ export default async function ProductPage({ params, searchParams }: Params) {
             </p>
           )}
 
-          {vtoCatalogItemId ? (
+          {vtoEnabled && initialVariant ? (
             <VirtualTryOn
-              catalogItemId={vtoCatalogItemId}
+              productId={product.id}
+              initialVariantId={initialVariant.id}
               productTitle={product.title}
               productImageUrl={images[0]?.url}
             />

@@ -61,7 +61,10 @@ export function VariantPicker({
                 <button
                   key={variant.id}
                   type="button"
-                  onClick={() => setSelectedId(variant.id)}
+                  onClick={() => {
+                    setSelectedId(variant.id)
+                    window.dispatchEvent(new CustomEvent('commerce:variant-selected', { detail: { variantId: variant.id } }))
+                  }}
                   aria-pressed={isSelected}
                   className={`rounded-md border px-3 py-2 text-sm transition-colors ${
                     isSelected

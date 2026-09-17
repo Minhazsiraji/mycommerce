@@ -62,7 +62,7 @@ export default function proxy(request: NextRequest) {
     // never uses eval() in production, so that relaxation stays scoped to dev.
     // Meta Pixel and the Merchant Center Google tag are permitted by host, but
     // loaded only after explicit analytics consent.
-    `script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.googletagmanager.com https://agentsiraji-vto.vercel.app${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'unsafe-inline'`,
     // Cloudinary serves every product image. Meta Pixel and Merchant Center may
     // emit measurement pixels only after analytics consent.
