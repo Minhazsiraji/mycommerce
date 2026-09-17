@@ -22,7 +22,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio",
     "db:identity": "node --env-file-if-exists=.env.local scripts/db-identity.mjs",
-    "admin:promote": "node --env-file=.env.local scripts/make-admin.mjs"
+    "admin:promote": "node --env-file=.env.local scripts/make-admin.mjs",
+    "vto:sync": "node --env-file-if-exists=.env.local scripts/vto-sync-catalog.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
