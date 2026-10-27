@@ -158,7 +158,7 @@ export default async function ProductPage({ params, searchParams }: Params) {
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex min-w-0 flex-col gap-10">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c') }}
@@ -191,15 +191,15 @@ export default async function ProductPage({ params, searchParams }: Params) {
         <span aria-current="page">{product.title}</span>
       </nav>
 
-      <div className="storefront-card grid gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
+      <div className="storefront-card grid min-w-0 grid-cols-1 gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
         <ProductGallery images={images} title={product.title} />
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-1">
             {product.brand ? (
               <span className="text-sm text-(--color-muted)">{product.brand}</span>
             ) : null}
-            <h1 className="text-3xl font-semibold tracking-tight">{product.title}</h1>
+            <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">{product.title}</h1>
           </div>
 
           {product.variants.length > 0 ? (
