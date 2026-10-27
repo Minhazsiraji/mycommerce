@@ -45,8 +45,9 @@ export default async function TrackOrderPage({
               Status: <span className="font-medium capitalize text-(--color-text)">{status?.replaceAll('_', ' ') ?? 'Unable to fetch live status'}</span>
             </p>
             <a href={steadfastPublicTrackingUrl()} target="_blank" rel="noreferrer" className="mt-2 inline-block underline underline-offset-4">
-              Open Steadfast tracking
+              Open Steadfast tracking page
             </a>
+            <p className="mt-1 text-xs text-(--color-muted)">If Steadfast asks for a code, paste the tracking code shown above.</p>
           </div>
         ) : null}
       </form>

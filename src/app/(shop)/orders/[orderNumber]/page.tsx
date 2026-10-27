@@ -17,7 +17,7 @@ import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowPanel } from '@/modules/payments/components/pay-now-panel'
 import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
-import { getSteadfastStatus, steadfastPublicTrackingUrl } from '@/modules/shipping'
+import { getSteadfastStatus } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
@@ -223,7 +223,7 @@ async function OrderDetail({
                       <span className="text-(--color-muted)">
                         Courier status: <span className="font-medium capitalize text-(--color-text)">{steadfastStatusByShipment.get(shipment.id)?.replaceAll('_', ' ') ?? 'Booked'}</span>
                         {' · '}
-                        <a href={steadfastPublicTrackingUrl()} target="_blank" rel="noreferrer" className="underline underline-offset-4">Track with Steadfast</a>
+                        <a href={`/track?code=${encodeURIComponent(shipment.trackingNumber)}`} className="underline underline-offset-4">Track live</a>
                       </span>
                     ) : null}
                   </>
