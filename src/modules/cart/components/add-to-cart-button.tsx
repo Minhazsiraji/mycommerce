@@ -1,5 +1,7 @@
 'use client'
 
+import type { Route } from 'next'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
 import { CURRENCY } from '@/lib/money'
@@ -20,6 +22,7 @@ export function AddToCartButton({
   children = 'Add to cart',
   contentName,
   unitPrice,
+  redirectTo,
 }: {
   variantId: string
   disabled?: boolean
@@ -27,7 +30,9 @@ export function AddToCartButton({
   children?: React.ReactNode
   contentName: string
   unitPrice: number
+  redirectTo?: string
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [state, setState] = useState<'idle' | 'added'>('idle')
   const [error, setError] = useState<string>()
@@ -59,6 +64,11 @@ export function AddToCartButton({
         },
         eventId,
       )
+
+      if (redirectTo) {
+        router.push(redirectTo as Route)
+        return
+      }
 
       setTimeout(() => setState('idle'), 2000)
     })
