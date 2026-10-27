@@ -101,7 +101,17 @@ export function SiteFooter({
 
         <div className="border-t border-white/60 dark:border-white/15">
           <div className="mx-auto flex min-h-16 w-full max-w-(--container-content) flex-wrap items-center justify-between gap-4 px-5 py-3 text-xs text-(--text-muted) sm:px-8 lg:px-10">
-            <span>{footer.copyright}</span>
+            <div className="flex flex-col gap-1">
+              <span>{footer.copyright}</span>
+              {hideContact ? (
+                <span>
+                  Developed by{' '}
+                  <a href="https://agentsiraji.com" className="underline underline-offset-4 hover:text-(--text-primary)">AgentSiraji.com</a>
+                  {' · '}
+                  <a href="mailto:business@agentsiraji.com" className="underline underline-offset-4 hover:text-(--text-primary)">business@agentsiraji.com</a>
+                </span>
+              ) : null}
+            </div>
             <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
               <Link href="/privacy" className="underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)">
                 Privacy

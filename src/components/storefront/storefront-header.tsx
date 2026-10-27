@@ -78,7 +78,7 @@ export function StorefrontHeader({
             {!compactSocial ? <SearchBar id="site-search" className="hidden w-56 shrink-0 md:block xl:w-64" /> : null}
 
             <div className="flex items-center gap-1 sm:gap-2">
-              {compactSocial ? <ThemeToggle /> : null}
+              {compactSocial ? <ThemeToggle borderless /> : null}
 
               {cart}
 
