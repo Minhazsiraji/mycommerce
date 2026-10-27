@@ -73,7 +73,7 @@ function emitMetaPurchaseOnce(): boolean {
   return true
 }
 
-export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled: boolean }) {
+export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean }) {
   const pathname = usePathname()
   const consent = useSyncExternalStore(
     (onChange) => {
@@ -90,7 +90,8 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   // visitor is neither re-prompted nor silently re-tracked.
   useEffect(() => {
     migrateLegacyConsent()
-  }, [])
+    if (implicitConsent && readMetaConsent() === 'unset') writeMetaConsent('granted')
+  }, [implicitConsent])
 
   useEffect(() => {
     const openChoices = () => setChoicesOpen(true)
@@ -127,7 +128,7 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
     return () => observer.disconnect()
   }, [consent, pathname, pixelId])
 
-  if (!enabled || (consent !== 'unset' && !choicesOpen)) return null
+  if (!enabled || implicitConsent || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
@@ -161,8 +162,8 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   )
 }
 
-export function PrivacyChoicesButton({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null
+export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boolean; hidden?: boolean }) {
+  if (!enabled || hidden) return null
 
   return (
     <button

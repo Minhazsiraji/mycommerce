@@ -95,9 +95,11 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     if (offerLabel) announcementFacts.push({ key: 'threshold', label: offerLabel })
   }
 
+  const implicitAnalyticsConsent = process.env.STORE_ANALYTICS_CONSENT_MODE?.trim() === 'implicit'
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} />
+      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} implicitConsent={implicitAnalyticsConsent} />
       <MetaAttributionCapture enabled={meta.enabled} />
       <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
@@ -139,7 +141,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           description: settings.footerDescription,
           copyright: settings.footerCopyright,
         }}
-        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} />}
+        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} hidden={implicitAnalyticsConsent} />}
       />
     </div>
   )
