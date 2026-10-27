@@ -32,6 +32,10 @@ const serverSchema = z.object({
   EMAIL_FROM: z.string().default('MyCommerce <noreply@example.com>'),
   CRON_SECRET: z.string().min(16).optional(),
 
+  /** Steadfast Courier. Optional: checkout/order creation must still work without courier credentials. */
+  STEADFAST_API_KEY: z.string().trim().min(1).optional(),
+  STEADFAST_SECRET_KEY: z.string().trim().min(1).optional(),
+
   /**
    * Optional deliberately, unlike DATABASE_URL.
    *

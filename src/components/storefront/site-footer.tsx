@@ -70,7 +70,7 @@ export function SiteFooter({
           )}
 
           <FooterColumn title="Customer care" label="Footer customer care links">
-            <FooterLink href="/orders/lookup">Track your order</FooterLink>
+            <FooterLink href={hideContact ? '/track' : '/orders/lookup'}>Track your order</FooterLink>
             {customerCare.map((route) => (
               <FooterLink key={route.href} href={route.href}>
                 {route.label}

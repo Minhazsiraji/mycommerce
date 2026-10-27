@@ -17,6 +17,7 @@ import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowPanel } from '@/modules/payments/components/pay-now-panel'
 import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
+import { getSteadfastStatus, steadfastPublicTrackingUrl } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
@@ -115,6 +116,15 @@ async function OrderDetail({
       purchaseTrackingEnabled: false,
     })),
   ])
+  const steadfastStatusByShipment = new Map<string, string | null>()
+  await Promise.all(
+    shipments.map(async (shipment) => {
+      if (shipment.carrier !== 'Steadfast' || !shipment.trackingNumber) return
+      const status = await getSteadfastStatus(shipment.trackingNumber).catch(() => null)
+      steadfastStatusByShipment.set(shipment.id, status)
+    }),
+  )
+
   const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
   const fulfilment = fulfilmentCopy(order.fulfillmentStatus, order.paymentMethod)
   const copy = order.status === 'cancelled'
@@ -205,9 +215,18 @@ async function OrderDetail({
               <li key={shipment.id} className="flex flex-col gap-1">
                 <span className="font-medium">{shipment.carrier}</span>
                 {shipment.trackingNumber ? (
-                  <span className="text-(--color-muted)">
-                    Tracking number: <span className="font-medium text-(--color-text)">{shipment.trackingNumber}</span>
-                  </span>
+                  <>
+                    <span className="text-(--color-muted)">
+                      Tracking number: <span className="font-medium text-(--color-text)">{shipment.trackingNumber}</span>
+                    </span>
+                    {shipment.carrier === 'Steadfast' ? (
+                      <span className="text-(--color-muted)">
+                        Courier status: <span className="font-medium capitalize text-(--color-text)">{steadfastStatusByShipment.get(shipment.id)?.replaceAll('_', ' ') ?? 'Booked'}</span>
+                        {' · '}
+                        <a href={steadfastPublicTrackingUrl()} target="_blank" rel="noreferrer" className="underline underline-offset-4">Track with Steadfast</a>
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
                   <span className="text-(--color-muted)">Tracking number will be added when available.</span>
                 )}

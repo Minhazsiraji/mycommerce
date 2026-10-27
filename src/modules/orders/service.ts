@@ -12,7 +12,7 @@ import {
   sendOrderDelivered,
   sendOrderShipped,
 } from '@/modules/notifications'
-import { resolveRate } from '@/modules/shipping'
+import { bookConfirmedOrderWithSteadfast, resolveRate } from '@/modules/shipping'
 import { assessCheckout } from '@/modules/fraud'
 import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
@@ -91,6 +91,12 @@ export async function placeOrder(input: PlaceOrderInput) {
   await captureOrderAttribution(order.id).catch((error) =>
     console.error('[meta] order attribution capture failed', error),
   )
+
+  if (order.status === 'confirmed') {
+    await bookConfirmedOrderWithSteadfast(order.id).catch((error) =>
+      console.error('[steadfast] automatic booking failed', error),
+    )
+  }
 
   if (order.paymentMethod === 'cod') {
     const placed = await repo.getOrderById(order.id)
@@ -221,6 +227,10 @@ async function notify(what: string, send: () => Promise<unknown>) {
 export async function notifyOrderPaid(orderId: string) {
   const order = await repo.getOrderById(orderId)
   if (!order || order.status !== 'confirmed' || order.paymentStatus !== 'paid') return
+
+  await bookConfirmedOrderWithSteadfast(orderId).catch((error) =>
+    console.error('[steadfast] automatic booking failed', error),
+  )
 
   await queuePurchase(orderId).catch((error) =>
     console.error('[meta] Purchase delivery failed', error),

@@ -24,5 +24,12 @@ export { listActiveRates, listRates } from './repository'
 export { getCachedDeliverySummary } from './cached'
 export { SHIPPING_TAGS } from './tags'
 
+export {
+  bookConfirmedOrderWithSteadfast,
+  getSteadfastStatus,
+  isSteadfastConfigured,
+  steadfastPublicTrackingUrl,
+} from './steadfast'
+
 export type { ShippingRate } from './schema'
 export { shippingRateInputSchema, type ShippingRateInput } from './validators'
