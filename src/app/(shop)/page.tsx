@@ -61,8 +61,8 @@ export default async function HomePage() {
               <Image src={socialLogoPath} alt="" width={56} height={56} className="size-14 rounded-full object-cover" priority />
             ) : null}
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight">{STORE_CONFIG.name}</h1>
-              {process.env.STORE_OFFER_TEXT?.trim() ? <p className="mt-1 text-sm font-medium">{process.env.STORE_OFFER_TEXT.trim()}</p> : null}
+              <h1 className="text-xl font-semibold tracking-tight">MoyMoy</h1>
+              {process.env.STORE_TAGLINE?.trim() ? <p className="mt-1 text-sm font-medium">{process.env.STORE_TAGLINE.trim()}</p> : null}
             </div>
           </div>
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-3">

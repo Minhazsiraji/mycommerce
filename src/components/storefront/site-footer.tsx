@@ -14,6 +14,7 @@ export function SiteFooter({
   categories,
   footer,
   privacyChoices,
+  hideContact = false,
 }: {
   categories: NavigationItem[]
   footer: {
@@ -23,6 +24,7 @@ export function SiteFooter({
     copyright: string
   }
   privacyChoices?: React.ReactNode
+  hideContact?: boolean
 }) {
   const email = env.STORE_CONTACT_EMAIL
   const phone = env.STORE_CONTACT_PHONE
@@ -44,10 +46,12 @@ export function SiteFooter({
             <p className="max-w-xs text-sm leading-6 text-(--text-secondary)">
               {footer.description}
             </p>
-            <div className="flex flex-col text-sm text-(--text-secondary)">
-              {email ? <FooterInlineLink href={`mailto:${email}`}>{email}</FooterInlineLink> : null}
-              {phone ? <FooterInlineLink href={`tel:${phone.replace(/\s+/g, '')}`}>{phone}</FooterInlineLink> : null}
-            </div>
+            {!hideContact ? (
+              <div className="flex flex-col text-sm text-(--text-secondary)">
+                {email ? <FooterInlineLink href={`mailto:${email}`}>{email}</FooterInlineLink> : null}
+                {phone ? <FooterInlineLink href={`tel:${phone.replace(/\s+/g, '')}`}>{phone}</FooterInlineLink> : null}
+              </div>
+            ) : null}
           </div>
 
           {categories.length > 0 ? (
