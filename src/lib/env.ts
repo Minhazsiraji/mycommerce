@@ -91,14 +91,6 @@ const serverSchema = z.object({
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
   BANK_BRANCH: z.string().optional(),
-}).superRefine((value, context) => {
-  if (Boolean(value.META_CAPI_DATASET_ID) === Boolean(value.META_CAPI_ACCESS_TOKEN)) return
-
-  context.addIssue({
-    code: 'custom',
-    path: ['META_CAPI_DATASET_ID'],
-    message: 'META_CAPI_DATASET_ID and META_CAPI_ACCESS_TOKEN must be set together',
-  })
 })
 
 const clientSchema = z.object({
