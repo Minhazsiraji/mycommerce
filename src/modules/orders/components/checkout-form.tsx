@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
 import { countryPreset } from '@/lib/country-presets'
-import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { ratesForDistrict, ratesForMoyMoyAddress } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { calculateOrderTotals, showsTaxLine, taxLineLabel } from '@/lib/tax'
 
@@ -80,6 +80,7 @@ export function CheckoutForm({
   defaults,
   signedIn,
   paymentMethods,
+  moymoyShipping = false,
 }: {
   subtotal: number
   tracking: MetaCustomData
@@ -88,6 +89,7 @@ export function CheckoutForm({
   signedIn: boolean
   /** Only what this deployment has credentials for; the server checks again. */
   paymentMethods: CheckoutPaymentMethod[]
+  moymoyShipping?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -118,11 +120,15 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    return ratesForDistrict(rates, district, { regionRequired }).map((rate) => ({
+    const eligible = moymoyShipping
+      ? ratesForMoyMoyAddress(rates, district, city)
+      : ratesForDistrict(rates, district, { regionRequired })
+
+    return eligible.map((rate) => ({
       ...rate,
       isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
     }))
-  }, [rates, district, subtotal, regionRequired])
+  }, [rates, district, city, subtotal, regionRequired, moymoyShipping])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]

@@ -47,6 +47,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   const shipping = await resolveRate({
     rateId: input.shippingRateId,
     district: input.address.district,
+    city: input.address.city,
     subtotal: cart.subtotal,
   })
 

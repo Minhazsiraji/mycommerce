@@ -48,6 +48,7 @@ export default async function CheckoutPage() {
 
       <CheckoutForm
         paymentMethods={configuredPaymentMethods()}
+        moymoyShipping={process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'}
         subtotal={cart.subtotal}
         tracking={{
           content_ids: cart.lines.map((line) => line.variantId),
