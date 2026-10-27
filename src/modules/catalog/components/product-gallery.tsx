@@ -72,13 +72,13 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
       <div
         ref={frameRef}
         onMouseEnter={() => setZooming(true)}
         onMouseLeave={() => setZooming(false)}
         onMouseMove={onMove}
-        className="storefront-card-soft group relative aspect-square cursor-zoom-in overflow-hidden"
+        className="storefront-card-soft group relative aspect-square w-full min-w-0 cursor-zoom-in overflow-hidden"
       >
         <button
           type="button"
@@ -107,9 +107,9 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
       </div>
 
       {images.length > 1 ? (
-        <ul className="flex gap-3 overflow-x-auto pb-1">
+        <ul className="flex w-full min-w-0 max-w-full gap-3 overflow-x-auto overscroll-x-contain pb-1">
           {images.map((image, i) => (
-            <li key={image.id}>
+            <li key={image.id} className="shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveId(image.id)}
