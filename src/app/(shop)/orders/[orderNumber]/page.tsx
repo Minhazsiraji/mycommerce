@@ -31,7 +31,7 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
   awaiting_verification: {
     title: 'Reference received',
-    body: 'We are checking your transfer against our bank statement. You will get an email once it clears.',
+    body: 'We are checking your payment reference against our records. You will get an email once it clears.',
   },
   unpaid: {
     title: 'Order placed — payment pending',
@@ -174,15 +174,16 @@ async function OrderDetail({
               ? 'This order was cancelled and the payment was refunded.'
               : 'This order was cancelled. No successful payment is recorded.'}
         </p>
-      ) : order.paymentMethod === 'bank_transfer' && order.paymentStatus === 'awaiting_transfer' ? (
+      ) : (order.paymentMethod === 'bank_transfer' || order.paymentMethod === 'bkash_manual') && order.paymentStatus === 'awaiting_transfer' ? (
         <BankTransferInstructions
+          kind={order.paymentMethod === 'bkash_manual' ? 'bkash' : 'bank'}
           orderNumber={order.orderNumber}
           amount={order.total}
           bank={{
-            accountName: env.BANK_ACCOUNT_NAME ?? null,
-            accountNumber: env.BANK_ACCOUNT_NUMBER ?? null,
-            bankName: env.BANK_NAME ?? null,
-            branch: env.BANK_BRANCH ?? null,
+            accountName: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_NAME ?? env.BKASH_ACCOUNT_TYPE ?? null) : (env.BANK_ACCOUNT_NAME ?? null),
+            accountNumber: order.paymentMethod === 'bkash_manual' ? (env.BKASH_NUMBER ?? null) : (env.BANK_ACCOUNT_NUMBER ?? null),
+            bankName: order.paymentMethod === 'bkash_manual' ? 'bKash' : (env.BANK_NAME ?? null),
+            branch: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_BRANCH ?? null),
           }}
         />
       ) : isOnlineGateway(order.paymentMethod) &&

@@ -77,6 +77,7 @@ export function trackBrowserEvent(
     | 'ViewContent'
     | 'AddToCart'
     | 'InitiateCheckout'
+    | 'AddPaymentInfo'
     | 'Purchase'
     | 'Contact'
     | 'Lead'

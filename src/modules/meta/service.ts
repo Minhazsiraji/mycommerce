@@ -34,6 +34,7 @@ type EventName =
   | 'ViewContent'
   | 'AddToCart'
   | 'InitiateCheckout'
+  | 'AddPaymentInfo'
   | 'Contact'
   | 'Lead'
   | 'Purchase'
@@ -225,6 +226,29 @@ export async function trackInitiateCheckout(
 ) {
   await sendRequestEvent(
     'InitiateCheckout',
+    eventId,
+    {
+      content_ids: cart.lines.map((line) => line.variantId),
+      content_type: 'product',
+      contents: cart.lines.map((line) => ({
+        id: line.variantId,
+        quantity: line.quantity,
+        item_price: minorToMetaValue(line.unitPrice),
+      })),
+      currency: CURRENCY,
+      num_items: cart.itemCount,
+      value: minorToMetaValue(cart.subtotal),
+    },
+    '/checkout',
+  )
+}
+
+export async function trackAddPaymentInfo(
+  eventId: string,
+  cart: { lines: CartLine[]; subtotal: number; itemCount: number },
+) {
+  await sendRequestEvent(
+    'AddPaymentInfo',
     eventId,
     {
       content_ids: cart.lines.map((line) => line.variantId),

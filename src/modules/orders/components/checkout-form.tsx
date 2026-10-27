@@ -21,6 +21,10 @@ const PAYMENT_LABELS: Record<CheckoutPaymentMethod, { title: string; detail: str
     title: 'Cash on delivery',
     detail: 'Pay the courier when your order arrives.',
   },
+  bkash_manual: {
+    title: 'bKash',
+    detail: 'Send by bKash and submit the transaction ID. We verify it manually.',
+  },
   bank_transfer: {
     title: 'Bank transfer',
     detail: 'Transfer to our account, then send us the reference. We confirm within a day.',
@@ -38,6 +42,8 @@ import {
   canonicalBdCity,
 } from '@/lib/bd-locations'
 import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
+import { trackAddPaymentInfo } from '@/modules/meta/actions'
+import { newBrowserEventId, readMetaConsent, trackBrowserEvent } from '@/modules/meta/components/client'
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
@@ -391,7 +397,13 @@ export function CheckoutForm({
                 type="radio"
                 name="payment"
                 checked={paymentMethod === method}
-                onChange={() => setPaymentMethod(method)}
+                onChange={() => {
+                  setPaymentMethod(method)
+                  if (readMetaConsent() !== 'granted') return
+                  const eventId = newBrowserEventId('addpaymentinfo')
+                  trackBrowserEvent('AddPaymentInfo', tracking, eventId)
+                  void trackAddPaymentInfo({ eventId })
+                }}
                 className="mt-0.5"
               />
               <span>

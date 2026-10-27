@@ -12,9 +12,11 @@ export function BankTransferInstructions({
   orderNumber,
   amount,
   bank,
+  kind = 'bank',
 }: {
   orderNumber: string
   amount: number
+  kind?: 'bank' | 'bkash'
   bank: {
     accountName: string | null
     accountNumber: string | null
@@ -26,7 +28,7 @@ export function BankTransferInstructions({
   const [error, setError] = useState<string>()
   const [done, setDone] = useState(false)
 
-  const configured = bank.accountName && bank.accountNumber && bank.bankName
+  const configured = kind === 'bkash' ? Boolean(bank.accountNumber) : Boolean(bank.accountName && bank.accountNumber && bank.bankName)
 
   function onSubmit(formData: FormData) {
     setError(undefined)
@@ -51,7 +53,7 @@ export function BankTransferInstructions({
       <div className="storefront-card p-5">
         <p className="text-sm font-medium">Reference received</p>
         <p className="mt-1 text-sm text-(--color-muted)">
-          We will check it against our bank statement and email you once it clears — usually
+          We will verify it against our payment records and email you once it clears — usually
           within one working day.
         </p>
       </div>
@@ -61,17 +63,22 @@ export function BankTransferInstructions({
   return (
     <div className="storefront-card flex flex-col gap-5 p-5">
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">Send {formatBdt(amount)}</h2>
+        <h2 className="text-sm font-semibold">Send {formatBdt(amount)} by {kind === 'bkash' ? 'bKash' : 'bank transfer'}</h2>
 
         {configured ? (
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
-            <dt className="text-(--color-muted)">Bank</dt>
-            <dd>{bank.bankName}</dd>
-            <dt className="text-(--color-muted)">Account name</dt>
-            <dd>{bank.accountName}</dd>
-            <dt className="text-(--color-muted)">Account number</dt>
+            {kind === 'bank' ? (<>
+              <dt className="text-(--color-muted)">Bank</dt>
+              <dd>{bank.bankName}</dd>
+              <dt className="text-(--color-muted)">Account name</dt>
+              <dd>{bank.accountName}</dd>
+            </>) : bank.accountName ? (<>
+              <dt className="text-(--color-muted)">Account name</dt>
+              <dd>{bank.accountName}</dd>
+            </>) : null}
+            <dt className="text-(--color-muted)">{kind === 'bkash' ? 'bKash number' : 'Account number'}</dt>
             <dd className="font-medium tabular-nums">{bank.accountNumber}</dd>
-            {bank.branch ? (
+            {kind === 'bank' && bank.branch ? (
               <>
                 <dt className="text-(--color-muted)">Branch</dt>
                 <dd>{bank.branch}</dd>
@@ -82,7 +89,7 @@ export function BankTransferInstructions({
           </dl>
         ) : (
           <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-sm text-(--color-danger)">
-            Bank details are not set up yet. Please contact us to complete this order.
+            {kind === 'bkash' ? 'bKash details are not set up yet.' : 'Bank details are not set up yet.'} Please contact us to complete this order.
           </p>
         )}
 
@@ -102,7 +109,7 @@ export function BankTransferInstructions({
             error={error}
           />
           <p className="-mt-1 text-xs text-(--color-muted)">
-            Send this once the transfer is done. We verify against our statement before
+            Send this once the payment is done. We verify it against our records before
             confirming.
           </p>
           <Button type="submit" disabled={pending} className="self-start">

@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { connection } from 'next/server'
 
 import { HomepageHero } from '@/components/storefront/homepage-hero'
@@ -48,6 +49,41 @@ export default async function HomePage() {
     productResult.status === 'fulfilled' && productResult.value.total === 0
   const allDiscoveryFailed =
     categoryResult.status === 'rejected' && productResult.status === 'rejected'
+  const socialCommerceMode = process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+  const socialLogoPath = process.env.STORE_SOCIAL_LOGO_PATH?.trim()
+
+  if (socialCommerceMode) {
+    return (
+      <div className="flex flex-col gap-8 md:gap-10">
+        <section className="rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-primary) px-4 py-4 sm:px-5">
+          <div className="flex items-center gap-3">
+            {socialLogoPath ? (
+              <Image src={socialLogoPath} alt="" width={56} height={56} className="size-14 rounded-full object-cover" priority />
+            ) : null}
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight">{STORE_CONFIG.name}</h1>
+              {process.env.STORE_OFFER_TEXT?.trim() ? <p className="mt-1 text-sm font-medium">{process.env.STORE_OFFER_TEXT.trim()}</p> : null}
+            </div>
+          </div>
+          <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+            <div><dt className="font-medium">Delivery</dt><dd className="text-(--text-secondary)">{process.env.STORE_DELIVERY_TEXT?.trim() || 'Nationwide delivery available'}</dd></div>
+            <div><dt className="font-medium">Lead time</dt><dd className="text-(--text-secondary)">{process.env.STORE_LEAD_TIME_TEXT?.trim() || 'Shown with each delivery option'}</dd></div>
+            <div><dt className="font-medium">Payment</dt><dd className="text-(--text-secondary)">{process.env.STORE_PAYMENT_TEXT?.trim() || 'Cash on delivery and configured manual payment options'}</dd></div>
+          </dl>
+        </section>
+
+        <section aria-labelledby="products-title">
+          <SectionHeader id="products-title" title="Shop products" />
+          {products.length > 0 ? <div className="mt-4"><ProductGrid products={products} priorityCount={2} /></div> : (
+            <div className="mt-4 rounded-(--radius-xl) border border-dashed border-(--border-strong) px-6 py-12 text-center">
+              <p className="font-medium">Products are being added.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    )
+  }
+
   const categoryGridColumns =
     categories.length === 1
       ? 'lg:grid-cols-8 [&>li]:lg:col-span-2 [&>li:first-child]:lg:col-start-4'
