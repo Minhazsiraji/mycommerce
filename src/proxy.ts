@@ -67,13 +67,13 @@ export default function proxy(request: NextRequest) {
     `style-src 'self' 'unsafe-inline'`,
     // Cloudinary serves every product image. Meta Pixel and Merchant Center may
     // emit measurement pixels only after analytics consent.
-    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com https://*.merchant-center-analytics.goog`,
+    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com https://*.merchant-center-analytics.goog https://www.google-analytics.com https://*.google-analytics.com`,
     `font-src 'self'`,
     // api.cloudinary.com receives direct browser uploads from admin.
     // Merchant Center's Google tag sends measurement only to its documented
     // analytics host. No broad google.com / doubleclick allowance is needed.
     // ws: is the dev HMR socket only.
-    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog https://agentsiraji-vto.vercel.app${isDev ? ' ws:' : ''}`,
+    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://agentsiraji-vto.vercel.app${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
