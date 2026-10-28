@@ -73,7 +73,7 @@ export function ProductCard({
 
 export function ProductGrid({
   products,
-  priorityCount = 4,
+  priorityCount = 2,
 }: {
   products: ProductCardData[]
   priorityCount?: number
