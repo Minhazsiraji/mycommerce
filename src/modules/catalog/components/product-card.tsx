@@ -30,7 +30,7 @@ export function ProductCard({
   return (
     <Link
       href={`/p/${product.slug}`}
-      className="group flex h-full min-w-0 flex-col gap-3 rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) p-2 shadow-(--shadow-1) backdrop-blur-[12px] transition-[transform,border-color,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:-translate-y-0.5 hover:border-(--border-interactive) hover:shadow-(--shadow-2) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) motion-reduce:transform-none sm:p-3 dark:border-white/20"
+      className="group flex h-full min-w-0 flex-col gap-2 sm:gap-3 rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) p-1.5 shadow-(--shadow-1) backdrop-blur-[12px] transition-[transform,border-color,box-shadow] duration-(--duration-base) ease-(--ease-standard) hover:-translate-y-0.5 hover:border-(--border-interactive) hover:shadow-(--shadow-2) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) motion-reduce:transform-none sm:p-3 dark:border-white/20"
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-lg) border border-(--border-subtle) bg-(--surface-secondary)">
         {product.imageKey ? (
@@ -56,14 +56,14 @@ export function ProductCard({
         ) : null}
       </div>
 
-      <div className="flex h-[6rem] flex-col gap-0.5 px-1 pb-1 sm:h-[6.5rem]">
+      <div className="flex h-[4.75rem] flex-col gap-0.5 px-1 pb-1 sm:h-[6.5rem]">
         {product.brand ? (
-          <span className="text-xs text-(--text-muted)">{product.brand}</span>
+          <span className="truncate text-[10px] text-(--text-muted) sm:text-xs">{product.brand}</span>
         ) : null}
-        <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-(--text-primary) underline-offset-4 group-hover:underline sm:min-h-12 sm:text-base">
+        <h3 className="line-clamp-2 min-h-8 text-xs font-medium text-(--text-primary) underline-offset-4 group-hover:underline sm:min-h-12 sm:text-base">
           {product.title}
         </h3>
-        <span className="mt-auto text-sm font-semibold text-(--text-primary) tabular-nums sm:text-base">
+        <span className="mt-auto text-xs font-semibold sm:text-base text-(--text-primary) tabular-nums ">
           {product.fromPrice == null ? '—' : formatBdt(Number(product.fromPrice))}
         </span>
       </div>
@@ -79,7 +79,7 @@ export function ProductGrid({
   priorityCount?: number
 }) {
   return (
-    <ul className="grid grid-cols-1 gap-x-4 gap-y-8 min-[360px]:grid-cols-2 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6">
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-4 lg:gap-x-6">
       {products.map((product, i) => (
         <li key={product.slug}>
           <ProductCard product={product} priority={i < priorityCount} />
