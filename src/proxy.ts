@@ -1,5 +1,6 @@
 import { getSessionCookie } from 'better-auth/cookies'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isCanonicalRequestHost, isIndexableEnvironment } from '@/lib/site-metadata'
 
 /**
  * Next 16 renamed the `middleware` file convention to `proxy`.
@@ -91,6 +92,11 @@ export default function proxy(request: NextRequest) {
 
   const response = NextResponse.next()
   response.headers.set('content-security-policy', csp)
+  // A branded Preview deployment may be indexable only on its canonical custom domain.
+  // Vercel preview hostnames and every other preview remain noindex.
+  if (!isIndexableEnvironment() || !isCanonicalRequestHost(request.nextUrl.hostname)) {
+    response.headers.set('x-robots-tag', 'noindex, nofollow')
+  }
   return response
 }
 
