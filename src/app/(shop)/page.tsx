@@ -58,7 +58,7 @@ export default async function HomePage() {
         <section className="rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-primary) px-4 py-4 sm:px-5">
           <div className="flex items-center gap-3">
             {socialLogoPath ? (
-              <Image src={socialLogoPath} alt="" width={56} height={56} className="size-14 rounded-full object-cover" priority />
+              <Image src={socialLogoPath} alt="" width={56} height={56} className="size-14 rounded-full object-cover" loading="lazy" />
             ) : null}
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-tight">MoyMoy</h1>
@@ -74,7 +74,7 @@ export default async function HomePage() {
 
         <section aria-labelledby="products-title">
           <SectionHeader id="products-title" title="Shop products" />
-          {products.length > 0 ? <div className="mt-4"><ProductGrid products={products} priorityCount={2} /></div> : (
+          {products.length > 0 ? <div className="mt-4"><ProductGrid products={products} priorityCount={1} /></div> : (
             <div className="mt-4 rounded-(--radius-xl) border border-dashed border-(--border-strong) px-6 py-12 text-center">
               <p className="font-medium">Products are being added.</p>
             </div>
