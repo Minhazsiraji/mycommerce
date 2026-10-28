@@ -25,7 +25,7 @@ function googleWindow() {
   return window as GoogleWindow
 }
 
-function bootGoogleTag(tagId: string) {
+function bootGoogleTag(tagId: string, debugMode: boolean) {
   const w = googleWindow()
   w.dataLayer ??= []
   w.gtag ??= (...args: unknown[]) => {
@@ -42,7 +42,7 @@ function bootGoogleTag(tagId: string) {
 
   if (w._commerceGoogleTagId !== tagId) {
     w.gtag('js', new Date())
-    w.gtag('config', tagId, { send_page_view: false })
+    w.gtag('config', tagId, { send_page_view: false, ...(debugMode ? { debug_mode: true } : {}) })
     w._commerceGoogleTagId = tagId
   }
 
@@ -96,11 +96,15 @@ export function GoogleAnalytics({ tagId, enabled }: { tagId?: string; enabled: b
   useEffect(() => {
     if (!enabled || !tagId || consent !== 'granted') return
 
-    bootGoogleTag(tagId)
+    // Opt-in diagnostics only: GA4 DebugView receives events when a tester opens ?ga_debug=1.
+    // The existing analytics-consent requirement is still enforced above.
+    const debugMode = new URLSearchParams(window.location.search).get('ga_debug') === '1'
+    bootGoogleTag(tagId, debugMode)
     if (lastPage.current !== pathname) {
       googleWindow().gtag?.('event', 'page_view', {
         page_location: window.location.href,
         page_path: pathname,
+        ...(debugMode ? { debug_mode: true } : {}),
       })
       lastPage.current = pathname
     }
