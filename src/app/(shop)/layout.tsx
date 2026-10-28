@@ -105,7 +105,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <MetaAttributionCapture enabled={meta.enabled} />
       <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
-      <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+      <div className={socialCommerceMode ? 'px-3 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-6' : 'px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6'}>
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
             categories={topCategories}
@@ -131,7 +131,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8"
+        className={socialCommerceMode ? 'mx-auto w-full max-w-(--container-content) flex-1 px-3 py-4 outline-none sm:px-6 sm:py-8 md:py-10 lg:px-8' : 'mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8'}
       >
         {children}
       </main>
