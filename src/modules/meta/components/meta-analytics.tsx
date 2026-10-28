@@ -19,9 +19,11 @@ import { migrateLegacyConsent, readMetaConsent, writeMetaConsent } from './clien
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
-    const fbq: NonNullable<Window['fbq']> = (...args: unknown[]) => {
+    // Match Meta's official Pixel bootstrap: queue the real Arguments object.
+    // fbevents.js expects queued commands in that shape, not a rest array.
+    const fbq: NonNullable<Window['fbq']> = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args)
-      else (fbq.queue ??= []).push(args)
+      else (fbq.queue ??= []).push(arguments as unknown as unknown[])
     }
     fbq.loaded = true
     fbq.version = '2.0'
