@@ -362,6 +362,12 @@ async function deliverPurchase(eventId: string) {
   }
 
   const { order, attribution, items } = context
+  // A queued/retried marketing event must not count an order that was
+  // cancelled, refunded or reverted to unpaid after it entered the queue.
+  if (order.paymentStatus !== 'paid' || order.status !== 'confirmed') {
+    await repo.markDeliveryFailed(eventId, 'Purchase not eligible at delivery time')
+    return
+  }
   const city = normalizeCity(order.shippingAddress.city)
   const country = normalizeCountry(order.shippingAddress.country)
   const region = normalizeRegion(order.shippingAddress.district ?? '')
