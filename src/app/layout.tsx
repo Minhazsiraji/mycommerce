@@ -16,7 +16,9 @@ const inter = Inter({
 })
 
 const siteDescription = STORE_CONFIG.defaultDescription
-const defaultTitle = `${STORE_CONFIG.name} | Smarter Everyday Shopping in ${STORE_CONFIG.countryName}`
+const defaultTitle = process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+  ? `${STORE_CONFIG.name} | Wear Your Style`
+  : `${STORE_CONFIG.name} | Smarter Everyday Shopping in ${STORE_CONFIG.countryName}`
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
