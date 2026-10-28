@@ -54,7 +54,7 @@ export function StorefrontHeader({
                 />
               ) : null}
               {compactSocial || !brand.logoUrl ? (
-                <span className="truncate">
+                <span className={compactSocial ? 'whitespace-nowrap' : 'truncate'}>
                   {brand.text}
                   {brand.accent ? <span className="text-(--action-primary)">{brand.accent}</span> : null}
                 </span>
