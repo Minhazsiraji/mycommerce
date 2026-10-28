@@ -34,14 +34,14 @@ export function StorefrontHeader({
       </a>
 
       <header>
-        <div className="mx-auto w-full max-w-(--container-content) px-4 sm:px-6 lg:px-8">
-          <div className="flex min-h-16 items-center gap-1 sm:gap-2 md:min-h-18">
+        <div className="mx-auto w-full max-w-(--container-content) px-3 sm:px-6 lg:px-8">
+          <div className="flex min-h-12 items-center gap-0.5 sm:min-h-16 sm:gap-2 md:min-h-18">
             {!compactSocial ? <MobileNavigation categories={categories} /> : null}
 
             <Link
               href="/"
               aria-label={brand.name + ' home'}
-              className="mr-auto inline-flex min-w-0 items-center gap-2 text-xl font-bold tracking-(--tracking-tight) text-(--text-primary) focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
+              className="mr-auto inline-flex min-w-0 items-center gap-1.5 text-base font-bold tracking-(--tracking-tight) text-(--text-primary) sm:gap-2 sm:text-xl focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
             >
               {brand.logoUrl ? (
                 <Image
@@ -50,7 +50,7 @@ export function StorefrontHeader({
                   width={40}
                   height={40}
                   priority
-                  className="size-9 shrink-0 rounded-full object-cover"
+                  className="size-8 shrink-0 rounded-full object-cover sm:size-9"
                 />
               ) : null}
               {compactSocial || !brand.logoUrl ? (
@@ -85,7 +85,7 @@ export function StorefrontHeader({
               <Link
                 href="/account"
                 aria-label="Account"
-                className="inline-flex size-11 shrink-0 items-center justify-center rounded-(--radius-md) text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                className="inline-flex size-9 shrink-0 items-center justify-center sm:size-11 rounded-(--radius-md) text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
               >
                 <AccountIcon />
               </Link>
@@ -96,8 +96,9 @@ export function StorefrontHeader({
 
           <SearchBar
             id="site-search-mobile"
-            className={compactSocial ? 'pb-4' : 'pb-4 md:hidden'}
+            className={compactSocial ? 'pb-2 sm:pb-4' : 'pb-4 md:hidden'}
             label={'Search ' + brand.name + ' products'}
+            compact={compactSocial}
           />
 
           {!compactSocial && categories.length > 0 ? (
