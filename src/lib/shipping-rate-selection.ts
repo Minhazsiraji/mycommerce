@@ -1,4 +1,5 @@
 type DistrictRate = { districts: string[] }
+type NamedRate = DistrictRate & { name: string }
 
 const matchesDistrict = (rate: DistrictRate, district: string) =>
   rate.districts.some((name) => name.toLowerCase() === district.trim().toLowerCase())
@@ -13,6 +14,25 @@ const matchesDistrict = (rate: DistrictRate, district: string) =>
  * otherwise a store whose customers have no state or province could never see a
  * delivery option at all.
  */
+export function ratesForMoyMoyAddress<T extends NamedRate>(rates: T[], district: string | null, city: string | null): T[] {
+  const isDhakaCity =
+    district?.trim().toLowerCase() === 'dhaka' && city?.trim().toLowerCase() === 'dhaka city'
+
+  const preferredName = isDhakaCity ? 'inside dhaka' : 'outside dhaka'
+  const preferred = rates.find((rate) => rate.name.trim().toLowerCase() === preferredName)
+  if (preferred) return [preferred]
+
+  // Safe fallback: Dhaka City may use a Dhaka-specific row; everywhere else uses catch-all.
+  if (isDhakaCity) {
+    const dhakaSpecific = rates.find(
+      (rate) => rate.districts.length > 0 && matchesDistrict(rate, 'Dhaka'),
+    )
+    return dhakaSpecific ? [dhakaSpecific] : []
+  }
+
+  return rates.filter((rate) => rate.districts.length === 0).slice(0, 1)
+}
+
 export function ratesForDistrict<T extends DistrictRate>(
   rates: T[],
   district: string | null,

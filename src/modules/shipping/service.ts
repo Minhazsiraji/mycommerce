@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { countryPreset } from '@/lib/country-presets'
-import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { ratesForDistrict, ratesForMoyMoyAddress } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
 
 import * as repo from './repository'
@@ -74,17 +74,19 @@ export async function quoteRates(input: {
 export async function resolveRate(input: {
   rateId: string
   district: string | null
+  city?: string | null
   subtotal: number
 }): Promise<QuotedRate> {
   const activeRates = await repo.listActiveRates()
   const rate = activeRates.find((candidate) => candidate.id === input.rateId)
 
   if (!rate) throw new ShippingError('That delivery option is no longer available.')
-  if (
-    !ratesForDistrict(activeRates, input.district, { regionRequired: REGION_REQUIRED }).some(
-      (candidate) => candidate.id === rate.id,
-    )
-  ) {
+  const eligibleRates =
+    process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+      ? ratesForMoyMoyAddress(activeRates, input.district, input.city ?? null)
+      : ratesForDistrict(activeRates, input.district, { regionRequired: REGION_REQUIRED })
+
+  if (!eligibleRates.some((candidate) => candidate.id === rate.id)) {
     throw new ShippingError('That delivery option does not cover this address.')
   }
 

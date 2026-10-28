@@ -147,6 +147,8 @@ export const orderItems = pgTable(
     imageKey: text('image_key'),
 
     unitPrice: integer('unit_price').notNull(),
+    /** Frozen cost at sale time, so later supplier-price edits do not rewrite history. */
+    unitCost: integer('unit_cost').notNull().default(0),
     quantity: integer('quantity').notNull(),
     lineTotal: integer('line_total').notNull(),
   },

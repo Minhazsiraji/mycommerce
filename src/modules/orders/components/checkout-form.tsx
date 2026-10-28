@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
 import { countryPreset } from '@/lib/country-presets'
-import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { ratesForDistrict, ratesForMoyMoyAddress } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { calculateOrderTotals, showsTaxLine, taxLineLabel } from '@/lib/tax'
 
@@ -20,6 +20,10 @@ const PAYMENT_LABELS: Record<CheckoutPaymentMethod, { title: string; detail: str
   cod: {
     title: 'Cash on delivery',
     detail: 'Pay the courier when your order arrives.',
+  },
+  bkash_manual: {
+    title: 'bKash',
+    detail: 'Send by bKash and submit the transaction ID. We verify it manually.',
   },
   bank_transfer: {
     title: 'Bank transfer',
@@ -38,6 +42,8 @@ import {
   canonicalBdCity,
 } from '@/lib/bd-locations'
 import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
+import { trackAddPaymentInfo } from '@/modules/meta/actions'
+import { newBrowserEventId, readMetaConsent, trackBrowserEventWhenReady } from '@/modules/meta/components/client'
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
@@ -74,6 +80,7 @@ export function CheckoutForm({
   defaults,
   signedIn,
   paymentMethods,
+  moymoyShipping = false,
 }: {
   subtotal: number
   tracking: MetaCustomData
@@ -82,6 +89,7 @@ export function CheckoutForm({
   signedIn: boolean
   /** Only what this deployment has credentials for; the server checks again. */
   paymentMethods: CheckoutPaymentMethod[]
+  moymoyShipping?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -112,11 +120,15 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    return ratesForDistrict(rates, district, { regionRequired }).map((rate) => ({
+    const eligible = moymoyShipping
+      ? ratesForMoyMoyAddress(rates, district, city)
+      : ratesForDistrict(rates, district, { regionRequired })
+
+    return eligible.map((rate) => ({
       ...rate,
       isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
     }))
-  }, [rates, district, subtotal, regionRequired])
+  }, [rates, district, city, subtotal, regionRequired, moymoyShipping])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]
@@ -391,7 +403,13 @@ export function CheckoutForm({
                 type="radio"
                 name="payment"
                 checked={paymentMethod === method}
-                onChange={() => setPaymentMethod(method)}
+                onChange={() => {
+                  setPaymentMethod(method)
+                  if (readMetaConsent() !== 'granted') return
+                  const eventId = newBrowserEventId('addpaymentinfo')
+                  trackBrowserEventWhenReady('AddPaymentInfo', tracking, eventId)
+                  void trackAddPaymentInfo({ eventId })
+                }}
                 className="mt-0.5"
               />
               <span>

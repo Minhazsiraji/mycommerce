@@ -19,9 +19,11 @@ import { migrateLegacyConsent, readMetaConsent, writeMetaConsent } from './clien
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
-    const fbq: NonNullable<Window['fbq']> = (...args: unknown[]) => {
+    // Match Meta's official Pixel bootstrap: queue the real Arguments object.
+    // fbevents.js expects queued commands in that shape, not a rest array.
+    const fbq: NonNullable<Window['fbq']> = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args)
-      else (fbq.queue ??= []).push(args)
+      else (fbq.queue ??= []).push(arguments as unknown as unknown[])
     }
     fbq.loaded = true
     fbq.version = '2.0'
@@ -73,7 +75,7 @@ function emitMetaPurchaseOnce(): boolean {
   return true
 }
 
-export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled: boolean }) {
+export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean }) {
   const pathname = usePathname()
   const consent = useSyncExternalStore(
     (onChange) => {
@@ -90,7 +92,8 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   // visitor is neither re-prompted nor silently re-tracked.
   useEffect(() => {
     migrateLegacyConsent()
-  }, [])
+    if (implicitConsent && readMetaConsent() === 'unset') writeMetaConsent('granted')
+  }, [implicitConsent])
 
   useEffect(() => {
     const openChoices = () => setChoicesOpen(true)
@@ -127,7 +130,7 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
     return () => observer.disconnect()
   }, [consent, pathname, pixelId])
 
-  if (!enabled || (consent !== 'unset' && !choicesOpen)) return null
+  if (!enabled || implicitConsent || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
@@ -161,8 +164,8 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   )
 }
 
-export function PrivacyChoicesButton({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null
+export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boolean; hidden?: boolean }) {
+  if (!enabled || hidden) return null
 
   return (
     <button

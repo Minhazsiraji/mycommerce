@@ -73,15 +73,15 @@ function TransferRow({ transfer }: { transfer: PendingTransfer }) {
       </div>
 
       {/*
-        The admin types what the bank statement shows, and it must match the
-        order total. An uploaded receipt would be evidence for a human, never
+        The admin types the amount actually received, and it must match the
+        order total. A submitted reference or receipt is evidence for a human, never
         proof — a screenshot is trivially forged, so nothing here treats the
         customer's claim as authoritative.
       */}
       <div className="flex flex-wrap items-end gap-3 border-t border-(--color-border) pt-4">
         <div className="w-44">
           <Input
-            label={`Amount on statement (${CURRENCY_SYMBOL})`}
+            label={`Amount received (${CURRENCY_SYMBOL})`}
             inputMode="decimal"
             placeholder="e.g. 2560"
             value={amount}
@@ -99,7 +99,7 @@ function TransferRow({ transfer }: { transfer: PendingTransfer }) {
       </div>
 
       <p className="-mt-2 text-xs text-(--color-muted)">
-        Check your bank statement before confirming. Confirming marks the order paid.
+        Check the relevant bank or bKash account before confirming. Confirming marks the order paid.
       </p>
 
       {error ? (

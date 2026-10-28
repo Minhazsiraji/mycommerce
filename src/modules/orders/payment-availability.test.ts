@@ -33,6 +33,12 @@ describe('a store offers only what it can settle', () => {
     ])
   })
 
+  it('offers manual bKash only when a bKash number is configured', () => {
+    expect(
+      availablePaymentMethods({ sslcommerz: false, bankTransfer: false, manualBkash: true }),
+    ).toEqual(['cod', 'bkash_manual'])
+  })
+
   it('still lets a bare clone trade with cash on delivery', () => {
     // The floor: a store that has configured no gateway at all can open.
     expect(availablePaymentMethods({ sslcommerz: false, bankTransfer: false })).toEqual(['cod'])

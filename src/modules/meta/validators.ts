@@ -16,6 +16,8 @@ export const initiateCheckoutEventSchema = z.object({
   eventId: metaEventIdSchema,
 })
 
+export const addPaymentInfoEventSchema = initiateCheckoutEventSchema
+
 /** Contact-intent channels a storefront link can express. */
 export const contactMethodSchema = z.enum(['email', 'phone', 'whatsapp', 'messenger'])
 

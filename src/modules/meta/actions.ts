@@ -6,6 +6,7 @@ import { readCart } from '@/modules/cart'
 
 import * as service from './service'
 import {
+  addPaymentInfoEventSchema,
   contactEventSchema,
   initiateCheckoutEventSchema,
   leadEventSchema,
@@ -36,6 +37,21 @@ export async function trackInitiateCheckout(input: unknown): Promise<ActionResul
   if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
 
   await service.trackInitiateCheckout(parsed.data.eventId, cart)
+  return ok(null)
+}
+
+export async function trackAddPaymentInfo(input: unknown): Promise<ActionResult<null>> {
+  const parsed = addPaymentInfoEventSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+  if (!(await service.isCapiConfigured())) return ok(null)
+
+  const limit = await rateLimit('meta-add-payment-info', 30, 3600)
+  if (!limit.ok) return ok(null)
+
+  const cart = await readCart()
+  if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
+
+  await service.trackAddPaymentInfo(parsed.data.eventId, cart)
   return ok(null)
 }
 

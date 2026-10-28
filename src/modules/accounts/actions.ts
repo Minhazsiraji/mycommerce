@@ -55,7 +55,8 @@ export async function resendVerificationEmail(input: unknown): Promise<ActionRes
    * it, and a shared IP does not lock out a whole office. Three an hour is more
    * than a real person needs and far less than a mail bomb requires.
    */
-  const limit = await rateLimit('resend-verification', 3, 3600, email)
+  const uatBypass = process.env.MOYM0Y_UAT_RELAX_VERIFICATION === 'true'
+  const limit = await rateLimit('resend-verification', uatBypass ? 50 : 3, 3600, email)
   if (!limit.ok) return fail('conflict', tooManyRequests(limit.retryAfter))
 
   /**

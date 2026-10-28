@@ -153,6 +153,16 @@ describe('identity leakage', () => {
     ).toMatch(/must use its own domain/)
   })
 
+  it('allows an intentionally assigned branded subdomain on preview', () => {
+    expect(
+      preflight({
+        VERCEL_ENV: 'preview',
+        STORE_NAME: 'MoyMoy',
+        STORE_CANONICAL_URL: 'https://moymoy.sirajibd.com',
+      }).errors,
+    ).toEqual([])
+  })
+
   it('leaves the original production deployment alone', () => {
     expect(preflight(healthy).errors).toEqual([])
   })

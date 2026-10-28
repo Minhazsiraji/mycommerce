@@ -54,7 +54,11 @@ async function summary(filters: AnalyticsFilters, range: Range) {
       .where(scope(filters, range, true))
       .groupBy(sql`lower(${orders.email})`),
     db
-      .select({ units: sum(orderItems.quantity), itemSales: sum(orderItems.lineTotal) })
+      .select({
+        units: sum(orderItems.quantity),
+        itemSales: sum(orderItems.lineTotal),
+        cogs: sql<number>`coalesce(sum(${orderItems.unitCost} * ${orderItems.quantity}), 0)::bigint`,
+      })
       .from(orderItems)
       .innerJoin(orders, eq(orderItems.orderId, orders.id))
       .where(
@@ -82,6 +86,8 @@ async function summary(filters: AnalyticsFilters, range: Range) {
     repeatCustomers: customers.filter((customer) => numeric(customer.orders) > 1).length,
     units: numeric(itemStats?.units),
     itemSales: numeric(itemStats?.itemSales),
+    cogs: numeric(itemStats?.cogs),
+    grossProfit: numeric(itemStats?.itemSales) - numeric(itemStats?.cogs),
   }
 }
 
@@ -121,6 +127,8 @@ export async function getAnalytics(filters: AnalyticsFilters) {
         product: sql<string>`max(${orderItems.productTitle})`,
         units: sum(orderItems.quantity),
         sales: sum(orderItems.lineTotal),
+        cogs: sql<number>`coalesce(sum(${orderItems.unitCost} * ${orderItems.quantity}), 0)::bigint`,
+        profit: sql<number>`coalesce(sum((${orderItems.unitPrice} - ${orderItems.unitCost}) * ${orderItems.quantity}), 0)::bigint`,
       })
       .from(orderItems)
       .innerJoin(orders, eq(orderItems.orderId, orders.id))
@@ -162,7 +170,13 @@ export async function getAnalytics(filters: AnalyticsFilters) {
     db.select({ id: categories.id, name: categories.name }).from(categories).orderBy(asc(categories.name)),
   ])
 
-  const productsResult = productRows.map((row) => ({ ...row, units: numeric(row.units), sales: numeric(row.sales) }))
+  const productsResult = productRows.map((row) => ({
+    ...row,
+    units: numeric(row.units),
+    sales: numeric(row.sales),
+    cogs: numeric(row.cogs),
+    profit: numeric(row.profit),
+  }))
   const categoriesResult = categoryRows.map((row) => ({ ...row, units: numeric(row.units), sales: numeric(row.sales) }))
 
   return {

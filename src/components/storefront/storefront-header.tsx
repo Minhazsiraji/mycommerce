@@ -1,3 +1,4 @@
+import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -16,10 +17,12 @@ export function StorefrontHeader({
   categories,
   cart,
   brand,
+  compactSocial = false,
 }: {
   categories: NavigationItem[]
   cart: React.ReactNode
   brand: { name: string; text: string; accent: string; logoUrl?: string | null }
+  compactSocial?: boolean
 }) {
   return (
     <>
@@ -31,40 +34,39 @@ export function StorefrontHeader({
       </a>
 
       <header>
-        <div className="mx-auto w-full max-w-(--container-content) px-4 sm:px-6 lg:px-8">
-          <div className="flex min-h-16 items-center gap-2 md:min-h-18 lg:gap-6">
-            <MobileNavigation categories={categories} />
+        <div className="mx-auto w-full max-w-(--container-content) px-3 sm:px-6 lg:px-8">
+          <div className="flex min-h-12 items-center gap-0.5 sm:min-h-16 sm:gap-2 md:min-h-18">
+            {!compactSocial ? <MobileNavigation categories={categories} /> : null}
 
             <Link
               href="/"
-              aria-label={`${brand.name} home`}
-              className="mr-auto text-xl font-bold tracking-(--tracking-tight) text-(--text-primary) focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring) lg:mr-0"
+              aria-label={brand.name + ' home'}
+              className="mr-auto inline-flex min-w-0 items-center gap-1.5 text-base font-bold tracking-(--tracking-tight) text-(--text-primary) sm:gap-2 sm:text-xl focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--focus-ring)"
             >
               {brand.logoUrl ? (
                 <Image
                   src={brand.logoUrl}
-                  alt={brand.name}
-                  width={160}
+                  alt=""
+                  width={40}
                   height={40}
                   priority
-                  className="h-8 w-auto"
+                  className="size-8 shrink-0 rounded-full object-cover sm:size-9"
                 />
-              ) : (
-                <>
+              ) : null}
+              {compactSocial || !brand.logoUrl ? (
+                <span className={compactSocial ? 'whitespace-nowrap' : 'truncate'}>
                   {brand.text}
-                  {brand.accent ? (
-                    <span className="text-(--action-primary)">{brand.accent}</span>
-                  ) : null}
-                </>
-              )}
+                  {brand.accent ? <span className="text-(--action-primary)">{brand.accent}</span> : null}
+                </span>
+              ) : null}
             </Link>
 
-            {categories.length > 0 ? (
+            {!compactSocial && categories.length > 0 ? (
               <nav aria-label="Primary" className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
                 {categories.slice(0, 5).map((category) => (
                   <Link
                     key={category.id}
-                    href={`/c/${category.slug}`}
+                    href={('/c/' + category.slug) as Route}
                     className="inline-flex min-h-11 items-center rounded-(--radius-md) px-3 text-sm font-medium whitespace-nowrap text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
                   >
                     {category.name}
@@ -73,32 +75,39 @@ export function StorefrontHeader({
               </nav>
             ) : null}
 
-            <SearchBar id="site-search" className="hidden w-56 shrink-0 md:block xl:w-64" />
+            {!compactSocial ? <SearchBar id="site-search" className="hidden w-56 shrink-0 md:block xl:w-64" /> : null}
 
             <div className="flex items-center gap-1 sm:gap-2">
+              {compactSocial ? <ThemeToggle borderless /> : null}
+
+              {cart}
+
               <Link
                 href="/account"
                 aria-label="Account"
-                className="inline-flex size-11 shrink-0 items-center justify-center rounded-(--radius-md) text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                className="inline-flex size-9 shrink-0 items-center justify-center sm:size-11 rounded-(--radius-md) text-(--text-secondary) transition-colors hover:bg-(--surface-secondary) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
               >
                 <AccountIcon />
               </Link>
 
-              {cart}
-
-              <ThemeToggle />
+              {compactSocial ? <MobileNavigation categories={categories} alwaysVisible /> : <ThemeToggle />}
             </div>
           </div>
 
-          <SearchBar id="site-search-mobile" className="pb-4 md:hidden" label={`Search ${brand.name} products`} />
+          <SearchBar
+            id="site-search-mobile"
+            className={compactSocial ? 'pb-2 sm:pb-4' : 'pb-4 md:hidden'}
+            label={'Search ' + brand.name + ' products'}
+            compact={compactSocial}
+          />
 
-          {categories.length > 0 ? (
+          {!compactSocial && categories.length > 0 ? (
             <nav aria-label="Browse categories" className="-mx-4 overflow-x-auto px-4 pb-3 md:hidden">
               <ul className="flex w-max min-w-full items-center gap-2">
                 {categories.slice(0, 5).map((category) => (
                   <li key={category.id}>
                     <Link
-                      href={`/c/${category.slug}`}
+                      href={('/c/' + category.slug) as Route}
                       className="inline-flex min-h-11 items-center rounded-full border border-(--border-subtle) bg-(--surface-secondary) px-4 text-sm font-medium whitespace-nowrap text-(--text-secondary) transition-colors hover:border-(--border-strong) hover:text-(--text-primary) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
                     >
                       {category.name}

@@ -32,6 +32,10 @@ const serverSchema = z.object({
   EMAIL_FROM: z.string().default('MyCommerce <noreply@example.com>'),
   CRON_SECRET: z.string().min(16).optional(),
 
+  /** Steadfast Courier. Optional: checkout/order creation must still work without courier credentials. */
+  STEADFAST_API_KEY: z.string().trim().min(1).optional(),
+  STEADFAST_SECRET_KEY: z.string().trim().min(1).optional(),
+
   /**
    * Optional deliberately, unlike DATABASE_URL.
    *
@@ -81,19 +85,16 @@ const serverSchema = z.object({
    */
   INTEGRATIONS_ENCRYPTION_KEY: z.string().trim().min(43).max(64).optional(),
 
+  /** Manual bKash details. No API credential: the owner verifies Txn IDs manually. */
+  BKASH_NUMBER: z.string().trim().min(6).max(40).optional(),
+  BKASH_ACCOUNT_NAME: z.string().trim().max(100).optional(),
+  BKASH_ACCOUNT_TYPE: z.string().trim().max(40).optional(),
+
   /** Bank details shown to customers paying by transfer. */
   BANK_ACCOUNT_NAME: z.string().optional(),
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
   BANK_BRANCH: z.string().optional(),
-}).superRefine((value, context) => {
-  if (Boolean(value.META_CAPI_DATASET_ID) === Boolean(value.META_CAPI_ACCESS_TOKEN)) return
-
-  context.addIssue({
-    code: 'custom',
-    path: ['META_CAPI_DATASET_ID'],
-    message: 'META_CAPI_DATASET_ID and META_CAPI_ACCESS_TOKEN must be set together',
-  })
 })
 
 const clientSchema = z.object({

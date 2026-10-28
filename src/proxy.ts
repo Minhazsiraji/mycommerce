@@ -1,5 +1,6 @@
 import { getSessionCookie } from 'better-auth/cookies'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isCanonicalRequestHost, isIndexableEnvironment } from '@/lib/site-metadata'
 
 /**
  * Next 16 renamed the `middleware` file convention to `proxy`.
@@ -66,13 +67,13 @@ export default function proxy(request: NextRequest) {
     `style-src 'self' 'unsafe-inline'`,
     // Cloudinary serves every product image. Meta Pixel and Merchant Center may
     // emit measurement pixels only after analytics consent.
-    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com https://*.merchant-center-analytics.goog`,
+    `img-src 'self' blob: data: https://res.cloudinary.com https://www.facebook.com https://*.merchant-center-analytics.goog https://www.google-analytics.com https://*.google-analytics.com`,
     `font-src 'self'`,
     // api.cloudinary.com receives direct browser uploads from admin.
     // Merchant Center's Google tag sends measurement only to its documented
     // analytics host. No broad google.com / doubleclick allowance is needed.
     // ws: is the dev HMR socket only.
-    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog https://agentsiraji-vto.vercel.app${isDev ? ' ws:' : ''}`,
+    `connect-src 'self' https://api.cloudinary.com https://www.facebook.com https://connect.facebook.net https://*.merchant-center-analytics.goog https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://agentsiraji-vto.vercel.app${isDev ? ' ws:' : ''}`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
@@ -91,6 +92,11 @@ export default function proxy(request: NextRequest) {
 
   const response = NextResponse.next()
   response.headers.set('content-security-policy', csp)
+  // A branded Preview deployment may be indexable only on its canonical custom domain.
+  // Vercel preview hostnames and every other preview remain noindex.
+  if (!isIndexableEnvironment() || !isCanonicalRequestHost(request.nextUrl.hostname)) {
+    response.headers.set('x-robots-tag', 'noindex, nofollow')
+  }
   return response
 }
 
