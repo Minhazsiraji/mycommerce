@@ -54,27 +54,27 @@ export default async function HomePage() {
 
   if (socialCommerceMode) {
     return (
-      <div className="flex flex-col gap-8 md:gap-10">
-        <section className="rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-primary) px-4 py-4 sm:px-5">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-5 sm:gap-8 md:gap-10">
+        <section className="rounded-(--radius-xl) border border-(--border-subtle) bg-(--surface-primary) px-3 py-3 sm:px-5 sm:py-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {socialLogoPath ? (
-              <Image src={socialLogoPath} alt="" width={56} height={56} className="size-14 rounded-full object-cover" loading="lazy" />
+              <Image src={socialLogoPath} alt="" width={48} height={48} className="size-11 rounded-full object-cover sm:size-14" loading="lazy" />
             ) : null}
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight">MoyMoy</h1>
-              {process.env.STORE_TAGLINE?.trim() ? <p className="mt-1 text-sm font-medium">{process.env.STORE_TAGLINE.trim()}</p> : null}
+              <h1 className="text-lg font-semibold tracking-tight sm:text-xl">MoyMoy</h1>
+              {process.env.STORE_TAGLINE?.trim() ? <p className="mt-0.5 text-xs font-medium sm:mt-1 sm:text-sm">{process.env.STORE_TAGLINE.trim()}</p> : null}
             </div>
           </div>
-          <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
-            <div><dt className="font-medium">Delivery</dt><dd className="text-(--text-secondary)">{process.env.STORE_DELIVERY_TEXT?.trim() || 'Nationwide delivery available'}</dd></div>
-            <div><dt className="font-medium">Lead time</dt><dd className="text-(--text-secondary)">{process.env.STORE_LEAD_TIME_TEXT?.trim() || 'Shown with each delivery option'}</dd></div>
-            <div><dt className="font-medium">Payment</dt><dd className="text-(--text-secondary)">{process.env.STORE_PAYMENT_TEXT?.trim() || 'Cash on delivery and configured manual payment options'}</dd></div>
+          <dl className="mt-3 grid gap-1.5 text-xs sm:mt-4 sm:grid-cols-3 sm:gap-2 sm:text-sm">
+            <div className="grid grid-cols-[68px_1fr] gap-2 sm:block"><dt className="font-medium">Delivery</dt><dd className="text-(--text-secondary)">{process.env.STORE_DELIVERY_TEXT?.trim() || 'Nationwide delivery available'}</dd></div>
+            <div className="grid grid-cols-[68px_1fr] gap-2 sm:block"><dt className="font-medium">Lead time</dt><dd className="text-(--text-secondary)">{process.env.STORE_LEAD_TIME_TEXT?.trim() || 'Shown with each delivery option'}</dd></div>
+            <div className="grid grid-cols-[68px_1fr] gap-2 sm:block"><dt className="font-medium">Payment</dt><dd className="text-(--text-secondary)">{process.env.STORE_PAYMENT_TEXT?.trim() || 'Cash on delivery and configured manual payment options'}</dd></div>
           </dl>
         </section>
 
         <section aria-labelledby="products-title">
           <SectionHeader id="products-title" title="Shop products" />
-          {products.length > 0 ? <div className="mt-4"><ProductGrid products={products} priorityCount={1} /></div> : (
+          {products.length > 0 ? <div className="mt-3 sm:mt-4"><ProductGrid products={products} priorityCount={1} /></div> : (
             <div className="mt-4 rounded-(--radius-xl) border border-dashed border-(--border-strong) px-6 py-12 text-center">
               <p className="font-medium">Products are being added.</p>
             </div>
