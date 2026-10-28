@@ -28,8 +28,11 @@ function googleWindow() {
 function bootGoogleTag(tagId: string, debugMode: boolean) {
   const w = googleWindow()
   w.dataLayer ??= []
-  w.gtag ??= (...args: unknown[]) => {
-    w.dataLayer!.push(args)
+  // Google tag commands MUST push the actual Arguments object, not a rest-parameter array.
+  // gtag.js silently ignores plain arrays for 'config' and 'event' commands.
+  // Keep this a normal function, not an arrow function.
+  w.gtag ??= function (..._args: unknown[]) {
+    w.dataLayer!.push(arguments as unknown as unknown[])
   }
 
   if (!document.querySelector(`script[data-google-tag="${tagId}"]`)) {
