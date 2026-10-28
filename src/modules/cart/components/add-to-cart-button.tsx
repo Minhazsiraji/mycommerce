@@ -8,7 +8,7 @@ import { CURRENCY } from '@/lib/money'
 
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
-import { newBrowserEventId, trackBrowserEvent } from '@/modules/meta/components/client'
+import { newBrowserEventId, trackBrowserEventWhenReady } from '@/modules/meta/components/client'
 
 /**
  * Deliberately not optimistic about persistence: "Added" is shown only after
@@ -52,7 +52,7 @@ export function AddToCartButton({
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
 
-      trackBrowserEvent(
+      trackBrowserEventWhenReady(
         'AddToCart',
         {
           content_ids: [variantId],

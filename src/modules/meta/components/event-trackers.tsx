@@ -50,7 +50,7 @@ export function ViewContentTracker({
 
   useConsentedEvent(() => {
     if (readMetaConsent() !== 'granted') return false
-    trackBrowserEvent('ViewContent', data, eventId)
+    if (!trackBrowserEvent('ViewContent', data, eventId)) return false
     void trackViewContent({ eventId, variantId })
     return true
   }, eventId)
@@ -62,7 +62,7 @@ export function InitiateCheckoutTracker({ data }: { data: MetaCustomData }) {
 
   useConsentedEvent(() => {
     if (readMetaConsent() !== 'granted') return false
-    trackBrowserEvent('InitiateCheckout', data, eventId)
+    if (!trackBrowserEvent('InitiateCheckout', data, eventId)) return false
     void trackInitiateCheckout({ eventId })
     return true
   }, eventId)

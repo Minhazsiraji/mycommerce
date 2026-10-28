@@ -7,6 +7,7 @@ import {
   META_CONSENT_DENIED,
   META_CONSENT_EVENT,
   META_CONSENT_GRANTED,
+  META_PIXEL_READY_EVENT,
   parseMetaConsent,
   type MetaConsent,
 } from '../consent'
@@ -89,4 +90,43 @@ export function trackBrowserEvent(
   if (eventId) window.fbq('track', eventName, customData, { eventID: eventId })
   else window.fbq('track', eventName, customData)
   return true
+}
+
+export function trackBrowserEventWhenReady(
+  eventName:
+    | 'ViewContent'
+    | 'AddToCart'
+    | 'InitiateCheckout'
+    | 'AddPaymentInfo'
+    | 'Purchase'
+    | 'Contact'
+    | 'Lead'
+    | 'Search',
+  customData: MetaCustomData,
+  eventId?: string,
+) {
+  let finished = false
+
+  const cleanup = () => {
+    window.removeEventListener(META_CONSENT_EVENT, attempt)
+    window.removeEventListener(META_PIXEL_READY_EVENT, attempt)
+  }
+
+  const attempt = () => {
+    if (finished) return
+    if (!trackBrowserEvent(eventName, customData, eventId)) return
+    finished = true
+    cleanup()
+  }
+
+  attempt()
+  if (finished) return
+
+  window.addEventListener(META_CONSENT_EVENT, attempt)
+  window.addEventListener(META_PIXEL_READY_EVENT, attempt)
+  window.setTimeout(() => {
+    if (finished) return
+    finished = true
+    cleanup()
+  }, 10_000)
 }
