@@ -22,6 +22,9 @@ export function BankTransferInstructions({
     accountNumber: string | null
     bankName: string | null
     branch: string | null
+    branchDistrict?: string | null
+    routingNumber?: string | null
+    accountType?: string | null
   }
 }) {
   const [pending, startTransition] = useTransition()
@@ -72,16 +75,34 @@ export function BankTransferInstructions({
               <dd>{bank.bankName}</dd>
               <dt className="text-(--color-muted)">Account name</dt>
               <dd>{bank.accountName}</dd>
-            </>) : bank.accountName ? (<>
-              <dt className="text-(--color-muted)">Account name</dt>
-              <dd>{bank.accountName}</dd>
-            </>) : null}
+            </>) : (<>
+              {bank.accountName ? (<>
+                <dt className="text-(--color-muted)">Account name</dt>
+                <dd>{bank.accountName}</dd>
+              </>) : null}
+              {bank.accountType ? (<>
+                <dt className="text-(--color-muted)">Account type</dt>
+                <dd>{bank.accountType}</dd>
+              </>) : null}
+            </>)}
             <dt className="text-(--color-muted)">{kind === 'bkash' ? 'bKash number' : 'Account number'}</dt>
             <dd className="font-medium tabular-nums">{bank.accountNumber}</dd>
             {kind === 'bank' && bank.branch ? (
               <>
                 <dt className="text-(--color-muted)">Branch</dt>
                 <dd>{bank.branch}</dd>
+              </>
+            ) : null}
+            {kind === 'bank' && bank.branchDistrict ? (
+              <>
+                <dt className="text-(--color-muted)">Branch district</dt>
+                <dd>{bank.branchDistrict}</dd>
+              </>
+            ) : null}
+            {kind === 'bank' && bank.routingNumber ? (
+              <>
+                <dt className="text-(--color-muted)">Routing number</dt>
+                <dd className="font-medium tabular-nums">{bank.routingNumber}</dd>
               </>
             ) : null}
             <dt className="text-(--color-muted)">Reference</dt>
