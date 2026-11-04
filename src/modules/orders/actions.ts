@@ -26,7 +26,7 @@ import {
 
 export type LookupState = {
   error?: string
-  fieldErrors?: { orderNumber?: string; email?: string }
+  fieldErrors?: { orderNumber?: string; phone?: string }
 }
 
 /**
@@ -44,19 +44,19 @@ export async function lookupGuestOrder(
 
   const parsed = guestLookupSchema.safeParse({
     orderNumber: formData.get('orderNumber'),
-    email: formData.get('email'),
+    phone: formData.get('phone'),
   })
 
   if (!parsed.success) {
     const fieldErrors: LookupState['fieldErrors'] = {}
     for (const issue of parsed.error.issues) {
       const key = issue.path[0]
-      if (key === 'orderNumber' || key === 'email') fieldErrors[key] ??= issue.message
+      if (key === 'orderNumber' || key === 'phone') fieldErrors[key] ??= issue.message
     }
     return { error: 'Check the order number and email address.', fieldErrors }
   }
 
-  const order = await service.lookupGuestOrder(parsed.data.orderNumber, parsed.data.email)
+  const order = await service.lookupGuestOrder(parsed.data.orderNumber, parsed.data.phone)
 
   // One message for both "no such order" and "wrong email" — see the service.
   if (!order) {
