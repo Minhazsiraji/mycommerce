@@ -13,7 +13,7 @@ export async function assessCheckout(input: { email: string; phone: string }) {
 
   const [phoneBlock, emailBlock, ipBlock] = await Promise.all([
     repo.findActiveBlock('phone', input.phone),
-    repo.findActiveBlock('email', email),
+    email ? repo.findActiveBlock('email', email) : Promise.resolve(null),
     repo.findActiveBlock('ip', ip),
   ])
 
@@ -25,7 +25,7 @@ export async function assessCheckout(input: { email: string; phone: string }) {
   // networks while repeatedly using the same delivery identity.
   const [phoneVelocity, emailVelocity] = await Promise.all([
     rateLimit('place-order-phone', 3, 3600, input.phone),
-    rateLimit('place-order-email', 5, 3600, email),
+    email ? rateLimit('place-order-email', 5, 3600, email) : Promise.resolve({ ok: true as const, retryAfter: 0 }),
   ])
   if (!phoneVelocity.ok || !emailVelocity.ok) {
     return { allowed: false as const, ip, message: BLOCKED_MESSAGE }
