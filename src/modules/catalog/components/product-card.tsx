@@ -35,13 +35,13 @@ export function ProductCard({
       <div className="relative aspect-[4/5] overflow-hidden rounded-(--radius-lg) border border-(--border-subtle) bg-(--surface-secondary)">
         {product.imageKey ? (
           <Image
-            src={storage.url(product.imageKey, { width: 560, height: 700, fit: 'cover' })}
+            src={storage.url(product.imageKey, { width: 560, height: 700, fit: 'contain' })}
             alt={product.title}
             fill
             // Phones never download the desktop asset. See docs/05-performance.md.
             sizes="(max-width: 359px) 100vw, (max-width: 639px) 50vw, (max-width: 1023px) 33vw, 264px"
             priority={priority}
-            className="object-cover"
+            className="object-contain p-1 sm:p-2"
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-(image:--gradient-brand-soft) px-4 text-center text-xs font-medium text-(--text-muted)">
