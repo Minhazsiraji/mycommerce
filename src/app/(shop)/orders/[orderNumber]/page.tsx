@@ -190,10 +190,13 @@ async function OrderDetail({
           orderNumber={order.orderNumber}
           amount={order.total}
           bank={{
-            accountName: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_NAME ?? env.BKASH_ACCOUNT_TYPE ?? null) : (env.BANK_ACCOUNT_NAME ?? null),
+            accountName: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_NAME ?? null) : (env.BANK_ACCOUNT_NAME ?? null),
             accountNumber: order.paymentMethod === 'bkash_manual' ? (env.BKASH_NUMBER ?? null) : (env.BANK_ACCOUNT_NUMBER ?? null),
             bankName: order.paymentMethod === 'bkash_manual' ? 'bKash' : (env.BANK_NAME ?? null),
             branch: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_BRANCH ?? null),
+            branchDistrict: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_BRANCH_DISTRICT ?? null),
+            routingNumber: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_ROUTING_NUMBER ?? null),
+            accountType: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_TYPE ?? null) : null,
           }}
         />
       ) : isOnlineGateway(order.paymentMethod) &&
