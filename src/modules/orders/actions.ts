@@ -1,6 +1,7 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { z } from 'zod'
 import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
@@ -74,6 +75,26 @@ function toResult(error: unknown): ActionResult<never> {
   if (error instanceof CheckoutError) return fail('conflict', error.message)
   if (error instanceof ShippingError) return fail('conflict', error.message)
   throw error
+}
+
+export async function confirmOrderForCourier(orderId: unknown): Promise<ActionResult<null>> {
+  const parsed = z.uuid().safeParse(orderId)
+  if (!parsed.success) return fail('validation', 'Invalid order.')
+  const admin = await requireRole('admin')
+
+  try {
+    await service.confirmOrderForCourier(parsed.data)
+    await recordAudit(admin, {
+      action: 'order.courier_confirmed',
+      entityType: 'order',
+      entityId: parsed.data,
+      detail: { courier: 'Steadfast' },
+    })
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
 }
 
 export async function setFulfillmentStatus(input: unknown): Promise<ActionResult<null>> {
