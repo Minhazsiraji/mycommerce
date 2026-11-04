@@ -41,7 +41,7 @@ export function OrderAdminActions({
     return (
       <p className="rounded-lg bg-(--color-danger)/10 px-4 py-3 text-sm text-(--color-danger)">
         This order is cancelled. Reserved stock was returned; any refund is made through your bank
-        or SSLCommerz and recorded there, not here.
+        or payment provider and recorded there, not here.
       </p>
     )
   }
@@ -178,7 +178,7 @@ export function OrderAdminActions({
         <p className="text-xs text-(--color-muted)">
           {fulfillmentStatus === 'shipped' || fulfillmentStatus === 'delivered'
             ? 'A shipped order needs a separate return/refund process and cannot be cancelled here.'
-            : 'Returns reserved stock. A real refund remains a separate step through your bank or SSLCommerz.'}
+            : 'Returns reserved stock. A real refund remains a separate step through your bank or payment provider.'}
         </p>
       </section>
 
