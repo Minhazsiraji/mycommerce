@@ -236,9 +236,20 @@ export async function listOrdersForAdmin(filters: OrderFilters) {
     filters.status ? eq(orders.status, filters.status) : undefined,
     filters.paymentStatus ? eq(orders.paymentStatus, filters.paymentStatus) : undefined,
     filters.fulfillmentStatus ? eq(orders.fulfillmentStatus, filters.fulfillmentStatus) : undefined,
-    // Order number or email — the two things a customer can quote on the phone.
+    filters.dateFrom
+      ? sql`${orders.createdAt} >= ${new Date(`${filters.dateFrom}T00:00:00+06:00`)}`
+      : undefined,
+    filters.dateTo
+      ? sql`${orders.createdAt} < ${new Date(new Date(`${filters.dateTo}T00:00:00+06:00`).getTime() + 86_400_000)}`
+      : undefined,
+    // Search by the identifiers support actually uses: order, customer, mobile or email.
     filters.q
-      ? sql`(${orders.orderNumber} ilike ${'%' + filters.q + '%'} or ${orders.email} ilike ${'%' + filters.q + '%'})`
+      ? sql`(
+          ${orders.orderNumber} ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.email}, '') ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.phone}, '') ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.shippingAddress}->>'recipient', '') ilike ${'%' + filters.q + '%'}
+        )`
       : undefined,
   )
 
@@ -248,6 +259,8 @@ export async function listOrdersForAdmin(filters: OrderFilters) {
         id: orders.id,
         orderNumber: orders.orderNumber,
         email: orders.email,
+        phone: orders.phone,
+        shippingAddress: orders.shippingAddress,
         status: orders.status,
         paymentStatus: orders.paymentStatus,
         fulfillmentStatus: orders.fulfillmentStatus,
