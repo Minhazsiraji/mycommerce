@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
 import { Input } from '@/components/ui/input'
+import { bdPhoneSchema } from '@/modules/accounts/validators'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
@@ -184,16 +185,15 @@ export function CheckoutForm({
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-(--color-muted)">Contact</h2>
           <Input
-            label="Email"
+            label="Email (optional)"
             name="email"
             type="email"
             autoComplete="email"
             defaultValue={defaults.email}
-            required
             error={errors.email}
           />
           <p className="-mt-2 text-xs text-(--color-muted)">
-            Your order confirmation goes here.
+            Add an email only if you want order updates by email. Your mobile number is the primary contact.
           </p>
         </section>
 
@@ -218,6 +218,10 @@ export function CheckoutForm({
               autoComplete="tel"
               defaultValue={defaults.phone}
               required
+              onBlur={(event) => {
+                const parsed = bdPhoneSchema.safeParse(event.currentTarget.value)
+                if (parsed.success) event.currentTarget.value = parsed.data
+              }}
               error={field('phone')}
             />
           </div>
