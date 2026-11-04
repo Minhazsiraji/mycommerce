@@ -36,6 +36,8 @@ export default async function AdminOrdersPage({
       ...(filters.q ? { q: filters.q } : {}),
       ...(filters.paymentStatus ? { paymentStatus: filters.paymentStatus } : {}),
       ...(filters.fulfillmentStatus ? { fulfillmentStatus: filters.fulfillmentStatus } : {}),
+      ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+      ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
       ...(page > 1 ? { page: String(page) } : {}),
     },
   })
@@ -53,9 +55,23 @@ export default async function AdminOrdersPage({
         <input
           name="q"
           defaultValue={filters.q ?? ''}
-          placeholder="Order number or email…"
+          placeholder="Order, name, mobile or email…"
           aria-label="Search orders"
           className="h-10 min-w-56 flex-1 rounded-md border border-(--color-border) bg-(--color-bg) px-3 text-sm"
+        />
+        <input
+          type="date"
+          name="dateFrom"
+          defaultValue={filters.dateFrom ?? ''}
+          aria-label="Orders from date"
+          className="h-10 rounded-md border border-(--color-border) bg-(--color-bg) px-3 text-sm"
+        />
+        <input
+          type="date"
+          name="dateTo"
+          defaultValue={filters.dateTo ?? ''}
+          aria-label="Orders to date"
+          className="h-10 rounded-md border border-(--color-border) bg-(--color-bg) px-3 text-sm"
         />
         <select
           name="paymentStatus"
@@ -123,7 +139,14 @@ export default async function AdminOrdersPage({
                       {o.createdAt.toLocaleDateString('en-GB')} · {label(o.paymentMethod)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-(--color-muted)">{o.email}</td>
+                  <td className="px-4 py-3">
+                    <span className="block font-medium text-(--color-text)">
+                      {o.shippingAddress.recipient}
+                    </span>
+                    <span className="block text-xs tabular-nums text-(--color-muted)">
+                      {o.phone || o.shippingAddress.phone || '—'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${PAYMENT_STYLES[o.paymentStatus] ?? ''}`}
