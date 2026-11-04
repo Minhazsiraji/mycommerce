@@ -13,8 +13,14 @@ import { availablePaymentMethods, type CheckoutPaymentMethod } from './payment-m
  * be unit tested.
  */
 export function configuredPaymentMethods(): CheckoutPaymentMethod[] {
+  const moymoyStore = process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+
   return availablePaymentMethods({
-    sslcommerz: Boolean(env.SSLCOMMERZ_STORE_ID && env.SSLCOMMERZ_STORE_PASSWORD),
+    // MoyMoy intentionally uses only COD + manual bKash/bank transfer.
+    // Old clone SSLCommerz credentials must never leak into this storefront.
+    sslcommerz: moymoyStore
+      ? false
+      : Boolean(env.SSLCOMMERZ_STORE_ID && env.SSLCOMMERZ_STORE_PASSWORD),
     bankTransfer: Boolean(env.BANK_ACCOUNT_NAME && env.BANK_ACCOUNT_NUMBER && env.BANK_NAME),
     manualBkash: Boolean(env.BKASH_NUMBER),
     // Opt-out rather than opt-in: a store that says nothing keeps trading.
