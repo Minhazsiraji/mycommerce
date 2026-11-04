@@ -78,7 +78,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
         onMouseEnter={() => setZooming(true)}
         onMouseLeave={() => setZooming(false)}
         onMouseMove={onMove}
-        className="storefront-card-soft group relative aspect-square w-full min-w-0 cursor-zoom-in overflow-hidden"
+        className="storefront-card-soft group relative aspect-[4/5] w-full min-w-0 cursor-zoom-in overflow-hidden sm:aspect-square"
       >
         <button
           type="button"
@@ -94,7 +94,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
           sizes="(max-width: 1024px) 100vw, 50vw"
           // Largest element above the fold, so never lazy-loaded.
           priority
-          className="object-cover transition-transform duration-200 ease-out"
+          className="object-contain p-2 transition-transform duration-200 ease-out sm:p-3"
           style={{
             transform: zooming ? `scale(${ZOOM})` : 'scale(1)',
             transformOrigin: origin,
@@ -119,7 +119,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
                   image.id === active.id ? 'border-(--color-accent)' : 'border-transparent'
                 }`}
               >
-                <Image src={image.thumbUrl} alt="" fill sizes="64px" className="object-cover" />
+                <Image src={image.thumbUrl} alt="" fill sizes="64px" className="object-contain p-0.5" />
               </button>
             </li>
           ))}
