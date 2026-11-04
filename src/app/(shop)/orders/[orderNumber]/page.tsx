@@ -23,8 +23,8 @@ export const metadata: Metadata = { title: 'Your order', robots: { index: false 
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
   cod_pending: {
-    title: 'Order confirmed — cash on delivery',
-    body: 'Pay the total to the courier when your order arrives. We will email you when it ships.',
+    title: 'Order placed — cash on delivery',
+    body: 'We received your order and will confirm it shortly. Pay the total to the courier when it arrives.',
   },
   awaiting_transfer: {
     title: 'Order placed — awaiting your transfer',
