@@ -579,9 +579,9 @@ export function listOrdersForUser(userId: string) {
 }
 
 /** Guest lookup needs BOTH, or an order number alone becomes an oracle. */
-export function findGuestOrder(orderNumber: string, email: string) {
+export function findGuestOrder(orderNumber: string, phone: string) {
   return db.query.orders.findFirst({
-    where: and(eq(orders.orderNumber, orderNumber), eq(orders.email, email.toLowerCase())),
+    where: and(eq(orders.orderNumber, orderNumber), eq(orders.phone, phone)),
     with: { items: true },
   })
 }
