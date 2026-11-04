@@ -95,6 +95,8 @@ const serverSchema = z.object({
   BANK_ACCOUNT_NUMBER: z.string().optional(),
   BANK_NAME: z.string().optional(),
   BANK_BRANCH: z.string().optional(),
+  BANK_BRANCH_DISTRICT: z.string().optional(),
+  BANK_ROUTING_NUMBER: z.string().optional(),
 })
 
 const clientSchema = z.object({
