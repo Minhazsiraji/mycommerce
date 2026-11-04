@@ -108,7 +108,7 @@ export async function bookConfirmedOrderWithSteadfast(orderId: string) {
       invoice: order.orderNumber,
       recipient_name: order.shippingAddress.recipient.slice(0, 100),
       recipient_phone: order.shippingAddress.phone,
-      recipient_email: order.email,
+      recipient_email: order.email || undefined,
       recipient_address: addressText(order.shippingAddress),
       cod_amount: codAmount,
       note: order.notes || undefined,
