@@ -387,7 +387,7 @@ async function deliverPurchase(eventId: string) {
       '/orders',
     ),
     userData: {
-      em: [hashUserData(normalizeEmail(order.email))],
+      em: order.email ? [hashUserData(normalizeEmail(order.email))] : undefined,
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
       fn: firstName ? [hashUserData(firstName)] : undefined,
       ln: lastName ? [hashUserData(lastName)] : undefined,
