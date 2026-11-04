@@ -57,6 +57,8 @@ export const orderFiltersSchema = z.object({
     .enum(['unpaid', 'cod_pending', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'])
     .optional(),
   fulfillmentStatus: z.enum(['unfulfilled', 'processing', 'shipped', 'delivered']).optional(),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   page: z.coerce.number().int().min(1).default(1),
 })
 
