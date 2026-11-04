@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-import { addShipment, cancelOrder, setFulfillmentStatus } from '../actions'
+import { addShipment, cancelOrder, confirmOrderForCourier, setFulfillmentStatus } from '../actions'
 
 const STAGES = ['unfulfilled', 'processing', 'shipped', 'delivered'] as const
 
@@ -15,12 +15,14 @@ export function OrderAdminActions({
   cancelled,
   paid,
   collectOnDelivery,
+  courierBooked,
 }: {
   orderId: string
   fulfillmentStatus: string
   cancelled: boolean
   paid: boolean
   collectOnDelivery: boolean
+  courierBooked: boolean
 }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
@@ -44,9 +46,34 @@ export function OrderAdminActions({
     )
   }
 
+  const canConfirmCourier = paid || collectOnDelivery
+
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold">Order confirmation</h2>
+        {courierBooked ? (
+          <p className="text-sm font-medium text-(--color-success)">Confirmed and booked with Steadfast.</p>
+        ) : (
+          <>
+            <Button
+              type="button"
+              className="self-start"
+              disabled={pending || !canConfirmCourier}
+              onClick={() => run(() => confirmOrderForCourier(orderId))}
+            >
+              {pending ? 'Confirming…' : 'Confirm order & send to Steadfast'}
+            </Button>
+            <p className="text-xs text-(--color-muted)">
+              {canConfirmCourier
+                ? 'Steadfast will receive this order only after you press this button.'
+                : 'Verify the bKash or bank payment first. Then confirm the order for Steadfast.'}
+            </p>
+          </>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 border-t border-(--color-border) pt-6">
         <h2 className="text-sm font-semibold">Fulfilment</h2>
 
         <div className="flex flex-wrap gap-2">
