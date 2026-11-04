@@ -92,12 +92,6 @@ export async function placeOrder(input: PlaceOrderInput) {
     console.error('[meta] order attribution capture failed', error),
   )
 
-  if (order.status === 'confirmed') {
-    await bookConfirmedOrderWithSteadfast(order.id).catch((error) =>
-      console.error('[steadfast] automatic booking failed', error),
-    )
-  }
-
   if (order.paymentMethod === 'cod') {
     const placed = await repo.getOrderById(order.id)
     if (placed) {
@@ -228,10 +222,6 @@ export async function notifyOrderPaid(orderId: string) {
   const order = await repo.getOrderById(orderId)
   if (!order || order.status !== 'confirmed' || order.paymentStatus !== 'paid') return
 
-  await bookConfirmedOrderWithSteadfast(orderId).catch((error) =>
-    console.error('[steadfast] automatic booking failed', error),
-  )
-
   await queuePurchase(orderId).catch((error) =>
     console.error('[meta] Purchase delivery failed', error),
   )
@@ -248,6 +238,32 @@ export async function notifyOrderPaid(orderId: string) {
       items: order.items,
     }),
   )
+}
+
+export async function confirmOrderForCourier(orderId: string) {
+  const order = await repo.getOrderById(orderId)
+  if (!order) throw new CheckoutError('Order not found.')
+  if (order.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be confirmed.')
+  if (order.status !== 'confirmed') {
+    throw new CheckoutError('Confirm payment before confirming this order for courier.')
+  }
+  if (
+    order.paymentStatus !== 'paid' &&
+    !(order.paymentMethod === 'cod' && order.paymentStatus === 'cod_pending')
+  ) {
+    throw new CheckoutError('Confirm payment before sending this order to Steadfast.')
+  }
+
+  const shipment = await bookConfirmedOrderWithSteadfast(orderId)
+  if (!shipment) {
+    throw new CheckoutError('Steadfast is not configured or the order is not ready for courier.')
+  }
+
+  if (order.fulfillmentStatus === 'unfulfilled') {
+    await repo.setFulfillmentStatus(orderId, 'processing')
+  }
+
+  return shipment
 }
 
 export async function setFulfillmentStatus(orderId: string, status: string) {
