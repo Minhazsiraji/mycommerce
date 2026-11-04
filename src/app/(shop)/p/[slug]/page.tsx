@@ -83,9 +83,9 @@ export default async function ProductPage({ params, searchParams }: Params) {
   const images = product.images.map((image) => ({
     id: image.id,
     alt: image.alt,
-    url: storage.url(image.r2Key, { width: 1400, height: 1400, fit: 'cover' }),
+    url: storage.url(image.r2Key, { width: 1400, height: 1750, fit: 'contain' }),
     fullUrl: storage.url(image.r2Key, { width: 2000, height: 2000, fit: 'contain' }),
-    thumbUrl: storage.url(image.r2Key, { width: 128, height: 128, fit: 'cover' }),
+    thumbUrl: storage.url(image.r2Key, { width: 128, height: 160, fit: 'contain' }),
   }))
 
 
