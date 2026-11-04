@@ -30,6 +30,8 @@ export function BankTransferInstructions({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string>()
   const [done, setDone] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const paymentReference = `MM-${orderNumber.replace(/[^a-z0-9]/gi, '').slice(-6).toUpperCase()}`
 
   const configured = kind === 'bkash' ? Boolean(bank.accountNumber) : Boolean(bank.accountName && bank.accountNumber && bank.bankName)
 
@@ -105,8 +107,21 @@ export function BankTransferInstructions({
                 <dd className="font-medium tabular-nums">{bank.routingNumber}</dd>
               </>
             ) : null}
-            <dt className="text-(--color-muted)">Reference</dt>
-            <dd className="font-medium">{orderNumber}</dd>
+            <dt className="text-(--color-muted)">Payment reference</dt>
+            <dd className="flex items-center gap-2">
+              <span className="font-semibold tabular-nums">{paymentReference}</span>
+              <button
+                type="button"
+                className="rounded border border-(--color-border) px-2 py-0.5 text-xs"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(paymentReference)
+                  setCopied(true)
+                  window.setTimeout(() => setCopied(false), 1500)
+                }}
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </dd>
           </dl>
         ) : (
           <p className="rounded-md bg-(--color-danger)/10 px-3 py-2 text-sm text-(--color-danger)">
@@ -115,8 +130,7 @@ export function BankTransferInstructions({
         )}
 
         <p className="text-xs text-(--color-muted)">
-          Put <span className="font-medium text-(--color-fg)">{orderNumber}</span> in the transfer
-          reference so we can match your payment.
+          Use <span className="font-medium text-(--color-fg)">{paymentReference}</span> as the payment reference. Tap Copy to avoid typing it.
         </p>
       </div>
 
