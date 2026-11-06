@@ -10,6 +10,7 @@ export const metaEventIdSchema = z
 export const viewContentEventSchema = z.object({
   eventId: metaEventIdSchema,
   variantId: z.uuid(),
+  eventSourceUrl: z.string().url().max(2048),
 })
 
 export const initiateCheckoutEventSchema = z.object({
