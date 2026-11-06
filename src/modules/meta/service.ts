@@ -164,6 +164,7 @@ async function sendRequestEvent(
   eventId: string,
   customData: MetaCustomData,
   fallbackPath: string,
+  explicitSourceUrl?: string,
 ): Promise<boolean> {
   if (!(await configured())) return false
   const context = await requestContext(fallbackPath)
@@ -172,7 +173,9 @@ async function sendRequestEvent(
   const result = await postEvent({
     eventName,
     eventId,
-    eventSourceUrl: context.eventSourceUrl,
+    eventSourceUrl: explicitSourceUrl
+      ? safeSourceUrl(explicitSourceUrl, fallbackPath)
+      : context.eventSourceUrl,
     customData,
     userData: {
       client_ip_address: context.clientIpAddress ?? undefined,
@@ -184,7 +187,11 @@ async function sendRequestEvent(
   return result.sent
 }
 
-export async function trackViewContent(eventId: string, variantId: string): Promise<boolean> {
+export async function trackViewContent(
+  eventId: string,
+  variantId: string,
+  eventSourceUrl: string,
+): Promise<boolean> {
   const variant = await repo.findVariantForTracking(variantId)
   if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return false
 
@@ -200,6 +207,7 @@ export async function trackViewContent(eventId: string, variantId: string): Prom
       value: minorToMetaValue(variant.price),
     },
     '/p',
+    eventSourceUrl,
   )
 }
 
