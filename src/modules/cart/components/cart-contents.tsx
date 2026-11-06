@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOptimistic, useState, useTransition } from 'react'
 
-import { CURRENCY, formatBdt, minorToMetaValue } from '@/lib/money'
+import { CURRENCY, formatBdt } from '@/lib/money'
+import { minorToMetaValue } from '@/modules/meta/value'
 import { trackInitiateCheckout } from '@/modules/meta/actions'
 import {
   newBrowserEventId,
