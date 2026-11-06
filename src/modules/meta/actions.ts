@@ -21,7 +21,11 @@ export async function trackViewContent(input: unknown): Promise<ActionResult<boo
   const limit = await rateLimit('meta-view-content', 120, 3600)
   if (!limit.ok) return ok(false)
 
-  const sent = await service.trackViewContent(parsed.data.eventId, parsed.data.variantId)
+  const sent = await service.trackViewContent(
+    parsed.data.eventId,
+    parsed.data.variantId,
+    parsed.data.eventSourceUrl,
+  )
   return ok(sent)
 }
 
