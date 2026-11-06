@@ -3,7 +3,11 @@
 import { useEffect } from 'react'
 
 import { trackContact } from '../actions'
-import { newBrowserEventId, readMetaConsent, trackBrowserEvent } from './client'
+import {
+  newBrowserEventId,
+  readMetaConsent,
+  trackBrowserEventWhenReadyAsync,
+} from './client'
 
 type ContactMethod = 'email' | 'phone' | 'whatsapp' | 'messenger'
 
@@ -56,16 +60,43 @@ export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
       const target = event.target
       if (!(target instanceof Element)) return
       const anchor = target.closest('a[href]')
-      if (!anchor) return
+      if (!(anchor instanceof HTMLAnchorElement)) return
 
+      const href = anchor.href
       const method = classifyContactHref(anchor.getAttribute('href') ?? '')
       if (!method || fired.has(method)) return
       if (readMetaConsent() !== 'granted') return
 
       fired.add(method)
       const eventId = newBrowserEventId('contact')
-      trackBrowserEvent('Contact', { content_name: method }, eventId)
-      void trackContact({ eventId, method })
+
+      const shouldDelayNavigation =
+        !event.defaultPrevented &&
+        event.button === 0 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        !event.altKey &&
+        (!anchor.target || anchor.target === '_self')
+
+      if (shouldDelayNavigation) event.preventDefault()
+
+      void (async () => {
+        await Promise.race([
+          Promise.all([
+            trackBrowserEventWhenReadyAsync(
+              'Contact',
+              { content_name: method },
+              eventId,
+              500,
+            ),
+            trackContact({ eventId, method }),
+          ]),
+          new Promise((resolve) => window.setTimeout(resolve, 600)),
+        ])
+
+        if (shouldDelayNavigation) window.location.href = href
+      })()
     }
 
     document.addEventListener('click', onClick, { capture: true })
