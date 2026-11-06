@@ -2,15 +2,22 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useOptimistic, useState, useTransition } from 'react'
 
-import { formatBdt } from '@/lib/money'
+import { CURRENCY, formatBdt, minorToMetaValue } from '@/lib/money'
+import { trackInitiateCheckout } from '@/modules/meta/actions'
+import {
+  newBrowserEventId,
+  trackBrowserEventWhenReadyAsync,
+} from '@/modules/meta/components/client'
 
 import { removeLine, updateLineQuantity } from '../actions'
 import { MAX_LINE_QUANTITY } from '../validators'
 
 export type CartLineView = {
   id: string
+  variantId: string
   productSlug: string
   productTitle: string
   variantTitle: string | null
@@ -43,6 +50,8 @@ export function CartContents({
   freeDeliveryOver: number | null
   deliveryDays: { min: number; max: number } | null
 }) {
+  const router = useRouter()
+  const [checkoutPending, startCheckout] = useTransition()
   const [lines, applyChange] = useOptimistic(serverLines, (current, change: Change) =>
     current
       .map((line) =>
@@ -129,15 +138,39 @@ export function CartContents({
           </p>
         ) : null}
 
-        <Link
-          href="/checkout"
-          aria-disabled={hasIssues}
-          className={`inline-flex h-11 items-center justify-center rounded-md bg-(--color-accent) px-6 text-sm font-medium text-(--color-accent-fg) hover:opacity-90 ${
-            hasIssues ? 'pointer-events-none opacity-40' : ''
-          }`}
+        <button
+          type="button"
+          disabled={hasIssues || checkoutPending}
+          onClick={() => {
+            startCheckout(async () => {
+              const eventId = newBrowserEventId('initiatecheckout')
+              const tracking = {
+                content_ids: lines.map((line) => line.variantId),
+                content_type: 'product' as const,
+                contents: lines.map((line) => ({
+                  id: line.variantId,
+                  quantity: line.quantity,
+                  item_price: minorToMetaValue(line.unitPrice),
+                })),
+                currency: CURRENCY,
+                num_items: itemCount,
+                value: minorToMetaValue(subtotal),
+              }
+
+              await trackBrowserEventWhenReadyAsync(
+                'InitiateCheckout',
+                tracking,
+                eventId,
+                5_000,
+              )
+              await trackInitiateCheckout({ eventId })
+              router.push('/checkout')
+            })
+          }}
+          className="inline-flex h-11 items-center justify-center rounded-md bg-(--color-accent) px-6 text-sm font-medium text-(--color-accent-fg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Checkout
-        </Link>
+          {checkoutPending ? 'Opening checkout…' : 'Checkout'}
+        </button>
       </aside>
     </div>
   )
