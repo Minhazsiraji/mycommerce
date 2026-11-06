@@ -16,11 +16,7 @@ import {
   parseMetaPurchasePayload,
 } from '../purchase-payload'
 import { migrateLegacyConsent, readMetaConsent, trackBrowserEvent, writeMetaConsent } from './client'
-import { trackViewContent } from '../actions'
-import {
-  META_VIEW_CONTENT_ELEMENT_ID,
-  parseMetaViewContentPayload,
-} from '../view-content-payload'
+import { prepareViewContent, trackViewContent } from '../actions'
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
@@ -64,34 +60,25 @@ function bootPixel(pixelId: string) {
  * from the layout keeps browser Pixel reporting aligned with the server-side
  * CAPI event without depending on a dead page-level useEffect.
  */
-async function emitMetaViewContentOnce(): Promise<boolean> {
-  const block = document.getElementById(META_VIEW_CONTENT_ELEMENT_ID)
-  const payload = parseMetaViewContentPayload(block?.textContent)
-  if (!payload) return false
+async function emitProductView(pathname: string): Promise<boolean> {
+  if (!pathname.startsWith('/p/')) return false
+  const slug = pathname.slice(3).split('/')[0]
+  if (!slug) return false
 
-  const storageKey = `commerce_meta_${payload.eventId}`
-  try {
-    if (sessionStorage.getItem(storageKey)) return true
-  } catch {
-    // Hardened browsers can deny storage. Meta can still deduplicate by event id.
-  }
+  const prepared = await prepareViewContent({ slug })
+  if (!prepared.ok || !prepared.data) return false
 
+  const payload = prepared.data
   if (!trackBrowserEvent('ViewContent', payload.data, payload.eventId)) return false
-
-  try {
-    sessionStorage.setItem(storageKey, '1')
-  } catch {
-    // Browser event already fired; storage is only a local repeat guard.
-  }
 
   try {
     await trackViewContent({
       eventId: payload.eventId,
       variantId: payload.variantId,
-      eventSourceUrl: payload.eventSourceUrl,
+      eventSourceUrl: window.location.href,
     })
   } catch {
-    // CAPI retry logic in the server path keeps this best effort.
+    // Browser event already fired. Server delivery remains best effort.
   }
 
   return true
@@ -130,6 +117,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
   )
   const [choicesOpen, setChoicesOpen] = useState(false)
   const lastPage = useRef<string | undefined>(undefined)
+  const lastProductView = useRef<string | undefined>(undefined)
 
   // Before anything reads consent, carry a pre-rename choice across so the
   // visitor is neither re-prompted nor silently re-tracked.
@@ -162,14 +150,16 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       lastPage.current = pathname
     }
 
-    void emitMetaViewContentOnce()
+    if (pathname.startsWith('/p/') && lastProductView.current !== pathname) {
+      lastProductView.current = pathname
+      void emitProductView(pathname)
+    }
 
     if (emitMetaPurchaseOnce()) return
 
-    // Dynamic product/order content can stream in after the layout hydrated. Observe
+    // Dynamic order content can stream in after the layout hydrated. Observe
     // for the inert purchase block instead of guessing a timeout.
     const observer = new MutationObserver(() => {
-      void emitMetaViewContentOnce()
       if (emitMetaPurchaseOnce()) observer.disconnect()
     })
     observer.observe(document.body, { childList: true, subtree: true })
