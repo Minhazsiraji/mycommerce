@@ -42,6 +42,17 @@ export function AddToCartButton({
 
     startTransition(async () => {
       const eventId = newBrowserEventId('addtocart')
+      const tracking = {
+        content_ids: [variantId],
+        content_name: contentName,
+        content_type: 'product' as const,
+        contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
+        currency: CURRENCY,
+        value: unitPrice,
+      }
+
+      await trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
+
       const result = await addToCart({ variantId, quantity: 1, eventId })
 
       if (!result.ok) {
@@ -52,34 +63,10 @@ export function AddToCartButton({
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
 
-      const tracking = {
-        content_ids: [variantId],
-        content_name: contentName,
-        content_type: 'product' as const,
-        contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
-        currency: CURRENCY,
-        value: unitPrice,
-      }
-
       if (redirectTo) {
-        try {
-          sessionStorage.setItem(
-            'commerce_meta_pending_addtocart',
-            JSON.stringify({ eventId, data: tracking }),
-          )
-        } catch {
-          // If storage is unavailable, fall back to firing before navigation.
-          await trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 2_000)
-        }
         router.push(redirectTo as Route)
         return
       }
-
-      await trackBrowserEventWhenReadyAsync(
-        'AddToCart',
-        tracking,
-        eventId,
-      )
 
       setTimeout(() => setState('idle'), 2000)
     })
