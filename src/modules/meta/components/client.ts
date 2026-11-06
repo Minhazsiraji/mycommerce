@@ -105,28 +105,49 @@ export function trackBrowserEventWhenReady(
   customData: MetaCustomData,
   eventId?: string,
 ) {
-  let finished = false
+  void trackBrowserEventWhenReadyAsync(eventName, customData, eventId)
+}
 
-  const cleanup = () => {
-    window.removeEventListener(META_CONSENT_EVENT, attempt)
-    window.removeEventListener(META_PIXEL_READY_EVENT, attempt)
-  }
+export function trackBrowserEventWhenReadyAsync(
+  eventName:
+    | 'ViewContent'
+    | 'AddToCart'
+    | 'InitiateCheckout'
+    | 'AddPaymentInfo'
+    | 'Purchase'
+    | 'Contact'
+    | 'Lead'
+    | 'Search',
+  customData: MetaCustomData,
+  eventId?: string,
+  timeoutMs = 1_500,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let finished = false
 
-  const attempt = () => {
+    const cleanup = () => {
+      window.removeEventListener(META_CONSENT_EVENT, attempt)
+      window.removeEventListener(META_PIXEL_READY_EVENT, attempt)
+    }
+
+    const finish = (sent: boolean) => {
+      if (finished) return
+      finished = true
+      cleanup()
+      resolve(sent)
+    }
+
+    const attempt = () => {
+      if (finished) return
+      if (!trackBrowserEvent(eventName, customData, eventId)) return
+      finish(true)
+    }
+
+    attempt()
     if (finished) return
-    if (!trackBrowserEvent(eventName, customData, eventId)) return
-    finished = true
-    cleanup()
-  }
 
-  attempt()
-  if (finished) return
-
-  window.addEventListener(META_CONSENT_EVENT, attempt)
-  window.addEventListener(META_PIXEL_READY_EVENT, attempt)
-  window.setTimeout(() => {
-    if (finished) return
-    finished = true
-    cleanup()
-  }, 10_000)
+    window.addEventListener(META_CONSENT_EVENT, attempt)
+    window.addEventListener(META_PIXEL_READY_EVENT, attempt)
+    window.setTimeout(() => finish(false), timeoutMs)
+  })
 }
