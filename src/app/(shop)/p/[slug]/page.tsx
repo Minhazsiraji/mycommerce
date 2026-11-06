@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
-import { randomUUID } from 'crypto'
 
 import { formatBdt, toDecimalString } from '@/lib/money'
 import { getSiteUrl } from '@/lib/site-metadata'
@@ -14,7 +13,6 @@ import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
 import { minorToMetaValue } from '@/modules/meta'
-import { META_VIEW_CONTENT_ELEMENT_ID } from '@/modules/meta/view-content-payload'
 import { VirtualTryOn } from '@/modules/vto'
 
 type Params = {
@@ -157,23 +155,6 @@ export default async function ProductPage({ params, searchParams }: Params) {
       item: item.item,
     })),
   }
-
-  const viewContentEventId = initialVariant ? `viewcontent:${randomUUID()}` : null
-  const viewContentData = initialVariant
-    ? {
-        eventId: viewContentEventId,
-        variantId: initialVariant.id,
-        eventSourceUrl: canonicalUrl,
-        data: {
-          content_ids: [initialVariant.id],
-          content_name: product.title,
-          content_type: 'product' as const,
-          contents: [{ id: initialVariant.id, quantity: 1, item_price: minorToMetaValue(initialVariant.price) }],
-          currency: STORE_CONFIG.currency,
-          value: minorToMetaValue(initialVariant.price),
-        },
-      }
-    : null
 
   return (
     <div className="flex min-w-0 flex-col gap-10">
