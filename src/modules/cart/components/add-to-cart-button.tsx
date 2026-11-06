@@ -52,7 +52,7 @@ export function AddToCartButton({
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
 
-      await trackBrowserEventWhenReadyAsync(
+      const browserEventSent = await trackBrowserEventWhenReadyAsync(
         'AddToCart',
         {
           content_ids: [variantId],
@@ -66,6 +66,12 @@ export function AddToCartButton({
       )
 
       if (redirectTo) {
+        // Handing the event to fbq is synchronous, but the browser request is not.
+        // Give fbevents.js a brief chance to dispatch before navigation tears down
+        // the page. Keep this tiny so Buy now still feels instant.
+        if (browserEventSent) {
+          await new Promise((resolve) => window.setTimeout(resolve, 250))
+        }
         router.push(redirectTo as Route)
         return
       }
