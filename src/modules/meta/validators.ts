@@ -7,6 +7,10 @@ export const metaEventIdSchema = z
   .max(120)
   .regex(/^[a-z][a-z0-9_-]*:[0-9a-f-]{36}$/i, 'Invalid analytics event id')
 
+export const viewContentPrepareSchema = z.object({
+  slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9-]+$/),
+})
+
 export const viewContentEventSchema = z.object({
   eventId: metaEventIdSchema,
   variantId: z.uuid(),
