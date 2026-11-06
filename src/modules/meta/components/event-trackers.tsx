@@ -29,6 +29,21 @@ function useConsentedEvent(send: () => boolean, key: string) {
   }, [key, send])
 }
 
+async function ensureViewContentCapi(eventId: string, variantId: string) {
+  const delays = [0, 1_500, 5_000]
+
+  for (const delay of delays) {
+    if (delay) await new Promise((resolve) => window.setTimeout(resolve, delay))
+    try {
+      const result = await trackViewContent({ eventId, variantId })
+      if (result.ok && result.data) return
+    } catch {
+      // Same event id is retried. If Meta accepted an earlier attempt but the
+      // response was lost, Meta can still deduplicate the repeated CAPI event.
+    }
+  }
+}
+
 export function ViewContentTracker({
   variantId,
   contentName,
@@ -51,7 +66,7 @@ export function ViewContentTracker({
   useConsentedEvent(() => {
     if (readMetaConsent() !== 'granted') return false
     if (!trackBrowserEvent('ViewContent', data, eventId)) return false
-    void trackViewContent({ eventId, variantId })
+    void ensureViewContentCapi(eventId, variantId)
     return true
   }, eventId)
   return null
