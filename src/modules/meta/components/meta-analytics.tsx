@@ -15,7 +15,13 @@ import {
   metaPurchaseStorageKey,
   parseMetaPurchasePayload,
 } from '../purchase-payload'
-import { migrateLegacyConsent, readMetaConsent, trackBrowserEvent, writeMetaConsent } from './client'
+import {
+  migrateLegacyConsent,
+  readMetaConsent,
+  trackBrowserEvent,
+  trackBrowserEventWhenReadyAsync,
+  writeMetaConsent,
+} from './client'
 import {
   prepareInitiateCheckout,
   prepareViewContent,
@@ -94,15 +100,52 @@ async function emitCheckoutView(): Promise<boolean> {
   if (!prepared.ok || !prepared.data) return false
 
   const payload = prepared.data
-  if (!trackBrowserEvent('InitiateCheckout', payload.data, payload.eventId)) return false
+  const browserSent = await trackBrowserEventWhenReadyAsync(
+    'InitiateCheckout',
+    payload.data,
+    payload.eventId,
+    5_000,
+  )
 
   try {
     await trackInitiateCheckout({ eventId: payload.eventId })
   } catch {
-    // Browser event already fired. CAPI remains best effort.
+    // CAPI remains best effort.
   }
 
-  return true
+  return browserSent
+}
+
+async function emitPendingAddToCart(): Promise<boolean> {
+  let raw: string | null = null
+  try {
+    raw = sessionStorage.getItem('commerce_meta_pending_addtocart')
+  } catch {
+    return false
+  }
+  if (!raw) return false
+
+  try {
+    const parsed = JSON.parse(raw) as { eventId?: unknown; data?: unknown }
+    if (typeof parsed.eventId !== 'string' || !parsed.data || typeof parsed.data !== 'object') {
+      sessionStorage.removeItem('commerce_meta_pending_addtocart')
+      return false
+    }
+
+    const sent = await trackBrowserEventWhenReadyAsync(
+      'AddToCart',
+      parsed.data as Parameters<typeof trackBrowserEvent>[1],
+      parsed.eventId,
+      5_000,
+    )
+    if (sent) sessionStorage.removeItem('commerce_meta_pending_addtocart')
+    return sent
+  } catch {
+    try {
+      sessionStorage.removeItem('commerce_meta_pending_addtocart')
+    } catch {}
+    return false
+  }
 }
 
 function emitMetaPurchaseOnce(): boolean {
@@ -177,9 +220,14 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       void emitProductView(pathname)
     }
 
+    if (pathname === '/cart') {
+      void emitPendingAddToCart()
+    }
+
     if (pathname === '/checkout' && lastCheckoutView.current !== pathname) {
-      lastCheckoutView.current = pathname
-      void emitCheckoutView()
+      void emitCheckoutView().then((sent) => {
+        if (sent) lastCheckoutView.current = pathname
+      })
     }
 
     if (emitMetaPurchaseOnce()) return
