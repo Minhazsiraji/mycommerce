@@ -42,9 +42,12 @@ import {
   canonicalBdArea,
   canonicalBdCity,
 } from '@/lib/bd-locations'
-import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
 import { trackAddPaymentInfo } from '@/modules/meta/actions'
-import { newBrowserEventId, readMetaConsent, trackBrowserEventWhenReady } from '@/modules/meta/components/client'
+import {
+  newBrowserEventId,
+  readMetaConsent,
+  trackBrowserEventWhenReadyAsync,
+} from '@/modules/meta/components/client'
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
@@ -180,7 +183,6 @@ export function CheckoutForm({
 
   return (
     <form action={onSubmit} className="grid gap-10 lg:grid-cols-[1fr_340px]" noValidate>
-      <InitiateCheckoutTracker data={tracking} />
       <div className="flex flex-col gap-8">
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-(--color-muted)">Contact</h2>
@@ -411,8 +413,14 @@ export function CheckoutForm({
                   setPaymentMethod(method)
                   if (readMetaConsent() !== 'granted') return
                   const eventId = newBrowserEventId('addpaymentinfo')
-                  trackBrowserEventWhenReady('AddPaymentInfo', tracking, eventId)
-                  void trackAddPaymentInfo({ eventId })
+                  void (async () => {
+                    await trackBrowserEventWhenReadyAsync(
+                      'AddPaymentInfo',
+                      tracking,
+                      eventId,
+                    )
+                    await trackAddPaymentInfo({ eventId })
+                  })()
                 }}
                 className="mt-0.5"
               />
