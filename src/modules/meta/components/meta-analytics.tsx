@@ -35,6 +35,9 @@ function bootPixel(pixelId: string) {
     const script = document.createElement('script')
     script.async = true
     script.src = 'https://connect.facebook.net/en_US/fbevents.js'
+    script.addEventListener('load', () => {
+      window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
+    }, { once: true })
     document.head.appendChild(script)
   }
 
@@ -44,7 +47,9 @@ function bootPixel(pixelId: string) {
   }
 
   window.fbq('consent', 'grant')
-  window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
+  if (window.fbq.callMethod) {
+    window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
+  }
 }
 
 /**
