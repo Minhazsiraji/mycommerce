@@ -3,6 +3,8 @@
 import { ok, fromZodError, type ActionResult } from '@/lib/action-result'
 import { rateLimit } from '@/lib/rate-limit'
 import { readCart } from '@/modules/cart'
+import { getProductBySlug } from '@/modules/catalog'
+import { CURRENCY } from '@/lib/money'
 
 import * as service from './service'
 import {
@@ -11,7 +13,44 @@ import {
   initiateCheckoutEventSchema,
   leadEventSchema,
   viewContentEventSchema,
+  viewContentPrepareSchema,
 } from './validators'
+
+export async function prepareViewContent(input: unknown): Promise<ActionResult<{
+  eventId: string
+  variantId: string
+  data: {
+    content_ids: string[]
+    content_name: string
+    content_type: 'product'
+    contents: { id: string; quantity: number; item_price: number }[]
+    currency: string
+    value: number
+  }
+} | null>> {
+  const parsed = viewContentPrepareSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  const product = await getProductBySlug(parsed.data.slug)
+  if (!product || product.status !== 'active') return ok(null)
+
+  const variant = product.variants.find((item) => item.stock > 0) ?? product.variants[0]
+  if (!variant) return ok(null)
+
+  const value = variant.price / 100
+  return ok({
+    eventId: `viewcontent:${crypto.randomUUID()}`,
+    variantId: variant.id,
+    data: {
+      content_ids: [variant.id],
+      content_name: product.title,
+      content_type: 'product',
+      contents: [{ id: variant.id, quantity: 1, item_price: value }],
+      currency: CURRENCY,
+      value,
+    },
+  })
+}
 
 export async function trackViewContent(input: unknown): Promise<ActionResult<boolean>> {
   const parsed = viewContentEventSchema.safeParse(input)
