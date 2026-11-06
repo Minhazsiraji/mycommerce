@@ -16,7 +16,12 @@ import {
   parseMetaPurchasePayload,
 } from '../purchase-payload'
 import { migrateLegacyConsent, readMetaConsent, trackBrowserEvent, writeMetaConsent } from './client'
-import { prepareViewContent, trackViewContent } from '../actions'
+import {
+  prepareInitiateCheckout,
+  prepareViewContent,
+  trackInitiateCheckout,
+  trackViewContent,
+} from '../actions'
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
@@ -84,6 +89,22 @@ async function emitProductView(pathname: string): Promise<boolean> {
   return true
 }
 
+async function emitCheckoutView(): Promise<boolean> {
+  const prepared = await prepareInitiateCheckout()
+  if (!prepared.ok || !prepared.data) return false
+
+  const payload = prepared.data
+  if (!trackBrowserEvent('InitiateCheckout', payload.data, payload.eventId)) return false
+
+  try {
+    await trackInitiateCheckout({ eventId: payload.eventId })
+  } catch {
+    // Browser event already fired. CAPI remains best effort.
+  }
+
+  return true
+}
+
 function emitMetaPurchaseOnce(): boolean {
   const block = document.getElementById(META_PURCHASE_ELEMENT_ID)
   const payload = parseMetaPurchasePayload(block?.textContent)
@@ -118,6 +139,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
   const [choicesOpen, setChoicesOpen] = useState(false)
   const lastPage = useRef<string | undefined>(undefined)
   const lastProductView = useRef<string | undefined>(undefined)
+  const lastCheckoutView = useRef<string | undefined>(undefined)
 
   // Before anything reads consent, carry a pre-rename choice across so the
   // visitor is neither re-prompted nor silently re-tracked.
@@ -153,6 +175,11 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
     if (pathname.startsWith('/p/') && lastProductView.current !== pathname) {
       lastProductView.current = pathname
       void emitProductView(pathname)
+    }
+
+    if (pathname === '/checkout' && lastCheckoutView.current !== pathname) {
+      lastCheckoutView.current = pathname
+      void emitCheckoutView()
     }
 
     if (emitMetaPurchaseOnce()) return
