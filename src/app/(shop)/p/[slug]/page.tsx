@@ -12,7 +12,6 @@ import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/cata
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
-import { minorToMetaValue } from '@/modules/meta'
 import { VirtualTryOn } from '@/modules/vto'
 
 type Params = {
@@ -167,13 +166,6 @@ export default async function ProductPage({ params, searchParams }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c') }}
       />
 
-      {viewContentData ? (
-        <script
-          id={META_VIEW_CONTENT_ELEMENT_ID}
-          type="application/json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(viewContentData).replace(/</g, '\\u003c') }}
-        />
-      ) : null}
       <nav aria-label="Breadcrumb" className="text-sm text-(--color-muted)">
         <Link href="/" className="hover:text-(--color-fg)">
           Home
