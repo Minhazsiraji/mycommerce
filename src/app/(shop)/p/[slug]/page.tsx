@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
+import { randomUUID } from 'crypto'
 
 import { formatBdt, toDecimalString } from '@/lib/money'
 import { getSiteUrl } from '@/lib/site-metadata'
@@ -12,8 +13,8 @@ import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/cata
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
-import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
 import { minorToMetaValue } from '@/modules/meta'
+import { META_VIEW_CONTENT_ELEMENT_ID } from '@/modules/meta/view-content-payload'
 import { VirtualTryOn } from '@/modules/vto'
 
 type Params = {
@@ -157,6 +158,23 @@ export default async function ProductPage({ params, searchParams }: Params) {
     })),
   }
 
+  const viewContentEventId = initialVariant ? `viewcontent:${randomUUID()}` : null
+  const viewContentData = initialVariant
+    ? {
+        eventId: viewContentEventId,
+        variantId: initialVariant.id,
+        eventSourceUrl: canonicalUrl,
+        data: {
+          content_ids: [initialVariant.id],
+          content_name: product.title,
+          content_type: 'product' as const,
+          contents: [{ id: initialVariant.id, quantity: 1, item_price: minorToMetaValue(initialVariant.price) }],
+          currency: STORE_CONFIG.currency,
+          value: minorToMetaValue(initialVariant.price),
+        },
+      }
+    : null
+
   return (
     <div className="flex min-w-0 flex-col gap-10">
       <script
@@ -168,11 +186,11 @@ export default async function ProductPage({ params, searchParams }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c') }}
       />
 
-      {initialVariant ? (
-        <ViewContentTracker
-          variantId={initialVariant.id}
-          contentName={product.title}
-          value={minorToMetaValue(initialVariant.price)}
+      {viewContentData ? (
+        <script
+          id={META_VIEW_CONTENT_ELEMENT_ID}
+          type="application/json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(viewContentData).replace(/</g, '\\u003c') }}
         />
       ) : null}
       <nav aria-label="Breadcrumb" className="text-sm text-(--color-muted)">
