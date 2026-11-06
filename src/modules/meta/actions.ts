@@ -13,16 +13,16 @@ import {
   viewContentEventSchema,
 } from './validators'
 
-export async function trackViewContent(input: unknown): Promise<ActionResult<null>> {
+export async function trackViewContent(input: unknown): Promise<ActionResult<boolean>> {
   const parsed = viewContentEventSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-  if (!(await service.isCapiConfigured())) return ok(null)
+  if (!(await service.isCapiConfigured())) return ok(false)
 
   const limit = await rateLimit('meta-view-content', 120, 3600)
-  if (!limit.ok) return ok(null)
+  if (!limit.ok) return ok(false)
 
-  await service.trackViewContent(parsed.data.eventId, parsed.data.variantId)
-  return ok(null)
+  const sent = await service.trackViewContent(parsed.data.eventId, parsed.data.variantId)
+  return ok(sent)
 }
 
 export async function trackInitiateCheckout(input: unknown): Promise<ActionResult<null>> {
