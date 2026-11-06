@@ -15,7 +15,12 @@ import {
   metaPurchaseStorageKey,
   parseMetaPurchasePayload,
 } from '../purchase-payload'
-import { migrateLegacyConsent, readMetaConsent, writeMetaConsent } from './client'
+import { migrateLegacyConsent, readMetaConsent, trackBrowserEvent, writeMetaConsent } from './client'
+import { trackViewContent } from '../actions'
+import {
+  META_VIEW_CONTENT_ELEMENT_ID,
+  parseMetaViewContentPayload,
+} from '../view-content-payload'
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
@@ -59,6 +64,39 @@ function bootPixel(pixelId: string) {
  * from the layout keeps browser Pixel reporting aligned with the server-side
  * CAPI event without depending on a dead page-level useEffect.
  */
+async function emitMetaViewContentOnce(): Promise<boolean> {
+  const block = document.getElementById(META_VIEW_CONTENT_ELEMENT_ID)
+  const payload = parseMetaViewContentPayload(block?.textContent)
+  if (!payload) return false
+
+  const storageKey = `commerce_meta_${payload.eventId}`
+  try {
+    if (sessionStorage.getItem(storageKey)) return true
+  } catch {
+    // Hardened browsers can deny storage. Meta can still deduplicate by event id.
+  }
+
+  if (!trackBrowserEvent('ViewContent', payload.data, payload.eventId)) return false
+
+  try {
+    sessionStorage.setItem(storageKey, '1')
+  } catch {
+    // Browser event already fired; storage is only a local repeat guard.
+  }
+
+  try {
+    await trackViewContent({
+      eventId: payload.eventId,
+      variantId: payload.variantId,
+      eventSourceUrl: payload.eventSourceUrl,
+    })
+  } catch {
+    // CAPI retry logic in the server path keeps this best effort.
+  }
+
+  return true
+}
+
 function emitMetaPurchaseOnce(): boolean {
   const block = document.getElementById(META_PURCHASE_ELEMENT_ID)
   const payload = parseMetaPurchasePayload(block?.textContent)
@@ -124,11 +162,14 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       lastPage.current = pathname
     }
 
+    void emitMetaViewContentOnce()
+
     if (emitMetaPurchaseOnce()) return
 
-    // Dynamic order content can stream in after the layout hydrated. Observe
+    // Dynamic product/order content can stream in after the layout hydrated. Observe
     // for the inert purchase block instead of guessing a timeout.
     const observer = new MutationObserver(() => {
+      void emitMetaViewContentOnce()
       if (emitMetaPurchaseOnce()) observer.disconnect()
     })
     observer.observe(document.body, { childList: true, subtree: true })
