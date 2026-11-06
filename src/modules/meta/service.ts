@@ -164,12 +164,12 @@ async function sendRequestEvent(
   eventId: string,
   customData: MetaCustomData,
   fallbackPath: string,
-) {
-  if (!(await configured())) return
+): Promise<boolean> {
+  if (!(await configured())) return false
   const context = await requestContext(fallbackPath)
-  if (!context?.clientUserAgent) return
+  if (!context?.clientUserAgent) return false
 
-  await postEvent({
+  const result = await postEvent({
     eventName,
     eventId,
     eventSourceUrl: context.eventSourceUrl,
@@ -181,13 +181,14 @@ async function sendRequestEvent(
       fbc: context.fbc ?? undefined,
     },
   })
+  return result.sent
 }
 
-export async function trackViewContent(eventId: string, variantId: string) {
+export async function trackViewContent(eventId: string, variantId: string): Promise<boolean> {
   const variant = await repo.findVariantForTracking(variantId)
-  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return
+  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return false
 
-  await sendRequestEvent(
+  return sendRequestEvent(
     'ViewContent',
     eventId,
     {
