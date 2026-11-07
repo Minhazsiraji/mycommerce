@@ -9,8 +9,8 @@ import { CURRENCY, formatBdt } from '@/lib/money'
 import { minorToMetaValue } from '@/modules/meta/value'
 import { trackInitiateCheckout } from '@/modules/meta/actions'
 import {
-  emitMetaBrowserEvent,
   newBrowserEventId,
+  trackBrowserEvent,
 } from '@/modules/meta/components/client'
 
 import { removeLine, updateLineQuantity } from '../actions'
@@ -157,11 +157,7 @@ export function CartContents({
               value: minorToMetaValue(subtotal),
             }
 
-            emitMetaBrowserEvent({
-              eventName: 'InitiateCheckout',
-              eventId,
-              data: tracking,
-            })
+            trackBrowserEvent('InitiateCheckout', tracking, eventId)
 
             startCheckout(async () => {
               await trackInitiateCheckout({ eventId })
