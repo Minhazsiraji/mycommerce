@@ -5,13 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOptimistic, useState, useTransition } from 'react'
 
-import { CURRENCY, formatBdt } from '@/lib/money'
-import { minorToMetaValue } from '@/modules/meta/value'
+import { formatBdt } from '@/lib/money'
 import { trackInitiateCheckout } from '@/modules/meta/actions'
-import {
-  newBrowserEventId,
-  trackBrowserEvent,
-} from '@/modules/meta/components/client'
 
 import { removeLine, updateLineQuantity } from '../actions'
 import { MAX_LINE_QUANTITY } from '../validators'
@@ -143,25 +138,8 @@ export function CartContents({
           type="button"
           disabled={hasIssues || checkoutPending}
           onClick={() => {
-            const eventId = newBrowserEventId('initiatecheckout')
-            const tracking = {
-                content_ids: lines.map((line) => line.variantId),
-                content_type: 'product' as const,
-                contents: lines.map((line) => ({
-                  id: line.variantId,
-                  quantity: line.quantity,
-                  item_price: minorToMetaValue(line.unitPrice),
-                })),
-                currency: CURRENCY,
-                num_items: itemCount,
-              value: minorToMetaValue(subtotal),
-            }
-
-            trackBrowserEvent('InitiateCheckout', tracking, eventId)
-
             startCheckout(async () => {
-              await new Promise((resolve) => window.setTimeout(resolve, 300))
-              await trackInitiateCheckout({ eventId })
+              await trackInitiateCheckout({})
               router.push('/checkout')
             })
           }}
