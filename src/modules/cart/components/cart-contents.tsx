@@ -10,6 +10,7 @@ import { minorToMetaValue } from '@/modules/meta/value'
 import { trackInitiateCheckout } from '@/modules/meta/actions'
 import {
   newBrowserEventId,
+  trackBrowserEvent,
   trackBrowserEventWhenReadyAsync,
 } from '@/modules/meta/components/client'
 
@@ -158,12 +159,19 @@ export function CartContents({
                 value: minorToMetaValue(subtotal),
               }
 
-              await trackBrowserEventWhenReadyAsync(
+              const browserSent = trackBrowserEvent(
                 'InitiateCheckout',
                 tracking,
                 eventId,
-                5_000,
               )
+              if (!browserSent) {
+                await trackBrowserEventWhenReadyAsync(
+                  'InitiateCheckout',
+                  tracking,
+                  eventId,
+                  5_000,
+                )
+              }
               await trackInitiateCheckout({ eventId })
               router.push('/checkout')
             })
