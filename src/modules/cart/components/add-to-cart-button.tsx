@@ -9,9 +9,8 @@ import { CURRENCY } from '@/lib/money'
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
 import {
+  emitMetaBrowserEvent,
   newBrowserEventId,
-  trackBrowserEvent,
-  trackBrowserEventWhenReadyAsync,
 } from '@/modules/meta/components/client'
 
 /**
@@ -54,11 +53,6 @@ export function AddToCartButton({
       value: unitPrice,
     }
 
-    const browserSent = trackBrowserEvent('AddToCart', tracking, eventId)
-    if (!browserSent) {
-      void trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
-    }
-
     startTransition(async () => {
       const result = await addToCart({ variantId, quantity: 1, eventId })
 
@@ -69,6 +63,11 @@ export function AddToCartButton({
 
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
+      emitMetaBrowserEvent({
+        eventName: 'AddToCart',
+        eventId,
+        data: tracking,
+      })
 
       if (redirectTo) {
         router.push(redirectTo as Route)
