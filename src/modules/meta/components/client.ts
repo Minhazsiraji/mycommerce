@@ -90,23 +90,3 @@ export function trackBrowserEvent(
   else window.fbq('track', eventName, customData)
   return true
 }
-
-export const META_BROWSER_EVENT = 'commerce:meta-browser-event'
-
-export type MetaBrowserEventDetail = {
-  eventName:
-    | 'ViewContent'
-    | 'AddToCart'
-    | 'InitiateCheckout'
-    | 'AddPaymentInfo'
-    | 'Purchase'
-    | 'Contact'
-    | 'Lead'
-    | 'Search'
-  eventId: string
-  data: MetaCustomData
-}
-
-export function emitMetaBrowserEvent(detail: MetaBrowserEventDetail) {
-  window.dispatchEvent(new CustomEvent<MetaBrowserEventDetail>(META_BROWSER_EVENT, { detail }))
-}
