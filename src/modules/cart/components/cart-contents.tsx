@@ -160,6 +160,7 @@ export function CartContents({
             trackBrowserEvent('InitiateCheckout', tracking, eventId)
 
             startCheckout(async () => {
+              await new Promise((resolve) => window.setTimeout(resolve, 300))
               await trackInitiateCheckout({ eventId })
               router.push('/checkout')
             })
