@@ -23,12 +23,10 @@ function optionValue(options: Record<string, string>, names: string[]) {
 
 export function VariantPicker({
   variants,
-  title,
   initialVariantId,
   directToCart = false,
 }: {
   variants: PickableVariant[]
-  title: string
   initialVariantId?: string
   directToCart?: boolean
 }) {
@@ -169,8 +167,6 @@ export function VariantPicker({
 
       <AddToCartButton
         variantId={selected.id}
-        contentName={title}
-        unitPrice={selected.price / 100}
         disabled={!selectionComplete || selected.stock === 0}
         className="w-full"
         redirectTo={directToCart ? '/cart' : undefined}
