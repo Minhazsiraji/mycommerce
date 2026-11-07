@@ -5,7 +5,6 @@ import { rateLimit } from '@/lib/rate-limit'
 import { readCart } from '@/modules/cart'
 import { getProductBySlug } from '@/modules/catalog'
 import { CURRENCY } from '@/lib/money'
-import { minorToMetaValue } from './value'
 
 import * as service from './service'
 import {
@@ -67,37 +66,6 @@ export async function trackViewContent(input: unknown): Promise<ActionResult<boo
     parsed.data.eventSourceUrl,
   )
   return ok(sent)
-}
-
-export async function prepareInitiateCheckout(): Promise<ActionResult<{
-  eventId: string
-  data: {
-    content_ids: string[]
-    content_type: 'product'
-    contents: { id: string; quantity: number; item_price: number }[]
-    currency: string
-    num_items: number
-    value: number
-  }
-} | null>> {
-  const cart = await readCart()
-  if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
-
-  return ok({
-    eventId: `initiatecheckout:${crypto.randomUUID()}`,
-    data: {
-      content_ids: cart.lines.map((line) => line.variantId),
-      content_type: 'product',
-      contents: cart.lines.map((line) => ({
-        id: line.variantId,
-        quantity: line.quantity,
-        item_price: minorToMetaValue(line.unitPrice),
-      })),
-      currency: CURRENCY,
-      num_items: cart.itemCount,
-      value: minorToMetaValue(cart.subtotal),
-    },
-  })
 }
 
 export async function trackInitiateCheckout(input: unknown): Promise<ActionResult<null>> {
