@@ -44,10 +44,9 @@ import {
 } from '@/lib/bd-locations'
 import { trackAddPaymentInfo } from '@/modules/meta/actions'
 import {
+  emitMetaBrowserEvent,
   newBrowserEventId,
   readMetaConsent,
-  trackBrowserEvent,
-  trackBrowserEventWhenReadyAsync,
 } from '@/modules/meta/components/client'
 import type { MetaCustomData } from '@/modules/meta/components/client'
 
@@ -414,22 +413,12 @@ export function CheckoutForm({
                   setPaymentMethod(method)
                   if (readMetaConsent() !== 'granted') return
                   const eventId = newBrowserEventId('addpaymentinfo')
-                  void (async () => {
-                    const browserSent = trackBrowserEvent(
-                      'AddPaymentInfo',
-                      tracking,
-                      eventId,
-                    )
-                    if (!browserSent) {
-                      await trackBrowserEventWhenReadyAsync(
-                        'AddPaymentInfo',
-                        tracking,
-                        eventId,
-                        5_000,
-                      )
-                    }
-                    await trackAddPaymentInfo({ eventId })
-                  })()
+                  emitMetaBrowserEvent({
+                    eventName: 'AddPaymentInfo',
+                    eventId,
+                    data: tracking,
+                  })
+                  void trackAddPaymentInfo({ eventId })
                 }}
                 className="mt-0.5"
               />
