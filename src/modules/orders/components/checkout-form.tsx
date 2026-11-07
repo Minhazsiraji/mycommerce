@@ -43,12 +43,6 @@ import {
   canonicalBdCity,
 } from '@/lib/bd-locations'
 import { trackAddPaymentInfo } from '@/modules/meta/actions'
-import {
-  newBrowserEventId,
-  readMetaConsent,
-  trackBrowserEvent,
-} from '@/modules/meta/components/client'
-import type { MetaCustomData } from '@/modules/meta/components/client'
 
 import { placeOrder } from '../actions'
 import type { CheckoutPaymentMethod } from '../payment-methods'
@@ -79,7 +73,6 @@ export type CheckoutDefaults = {
 
 export function CheckoutForm({
   subtotal,
-  tracking,
   rates,
   defaults,
   signedIn,
@@ -87,7 +80,6 @@ export function CheckoutForm({
   moymoyShipping = false,
 }: {
   subtotal: number
-  tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
@@ -411,10 +403,7 @@ export function CheckoutForm({
                 checked={paymentMethod === method}
                 onChange={() => {
                   setPaymentMethod(method)
-                  if (readMetaConsent() !== 'granted') return
-                  const eventId = newBrowserEventId('addpaymentinfo')
-                  trackBrowserEvent('AddPaymentInfo', tracking, eventId)
-                  void trackAddPaymentInfo({ eventId })
+                  void trackAddPaymentInfo({})
                 }}
                 className="mt-0.5"
               />
