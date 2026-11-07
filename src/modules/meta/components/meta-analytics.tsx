@@ -15,12 +15,10 @@ import {
   parseMetaPurchasePayload,
 } from '../purchase-payload'
 import {
-  META_BROWSER_EVENT,
   migrateLegacyConsent,
   readMetaConsent,
   trackBrowserEvent,
   writeMetaConsent,
-  type MetaBrowserEventDetail,
 } from './client'
 import {
   prepareViewContent,
@@ -128,17 +126,6 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
     migrateLegacyConsent()
     if (implicitConsent && readMetaConsent() === 'unset') writeMetaConsent('granted')
   }, [implicitConsent])
-
-  useEffect(() => {
-    const onBrowserEvent = (event: Event) => {
-      const detail = (event as CustomEvent<MetaBrowserEventDetail>).detail
-      if (!detail) return
-      trackBrowserEvent(detail.eventName, detail.data, detail.eventId)
-    }
-
-    window.addEventListener(META_BROWSER_EVENT, onBrowserEvent)
-    return () => window.removeEventListener(META_BROWSER_EVENT, onBrowserEvent)
-  }, [])
 
   useEffect(() => {
     const openChoices = () => setChoicesOpen(true)
