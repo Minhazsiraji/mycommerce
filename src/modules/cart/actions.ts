@@ -34,16 +34,14 @@ export async function addToCart(input: unknown): Promise<ActionResult<null>> {
 
   try {
     const variant = await service.addToCart(parsed.data)
-    const eventId = parsed.data.eventId
-    if (eventId) {
-      after(() =>
-        trackAddToCart({
-          eventId,
-          variant,
-          quantity: parsed.data.quantity,
-        }).catch((error) => console.error('[meta] AddToCart delivery failed', error)),
-      )
-    }
+    const eventId = `addtocart:${crypto.randomUUID()}`
+    after(() =>
+      trackAddToCart({
+        eventId,
+        variant,
+        quantity: parsed.data.quantity,
+      }).catch((error) => console.error('[meta] AddToCart delivery failed', error)),
+    )
 
     // Do not refresh() here. The product page does not depend on cart state and
     // a refresh forces all of its dynamic server components to run again before
