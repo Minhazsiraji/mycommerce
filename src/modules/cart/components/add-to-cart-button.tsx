@@ -53,6 +53,8 @@ export function AddToCartButton({
       value: unitPrice,
     }
 
+    trackBrowserEvent('AddToCart', tracking, eventId)
+
     startTransition(async () => {
       const result = await addToCart({ variantId, quantity: 1, eventId })
 
@@ -63,9 +65,9 @@ export function AddToCartButton({
 
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
-      trackBrowserEvent('AddToCart', tracking, eventId)
 
       if (redirectTo) {
+        await new Promise((resolve) => window.setTimeout(resolve, 300))
         router.push(redirectTo as Route)
         return
       }
