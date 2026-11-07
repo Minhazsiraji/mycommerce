@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   META_CONSENT_EVENT,
-  META_PIXEL_READY_EVENT,
   META_PRIVACY_OPEN_EVENT,
   type MetaConsent,
 } from '../consent'
@@ -46,9 +45,6 @@ function bootPixel(pixelId: string) {
     const script = document.createElement('script')
     script.async = true
     script.src = 'https://connect.facebook.net/en_US/fbevents.js'
-    script.addEventListener('load', () => {
-      window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
-    }, { once: true })
     document.head.appendChild(script)
   }
 
@@ -58,9 +54,6 @@ function bootPixel(pixelId: string) {
   }
 
   window.fbq('consent', 'grant')
-  if (window.fbq.callMethod) {
-    window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
-  }
 }
 
 /**
