@@ -1,6 +1,7 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { z } from 'zod'
 import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
@@ -25,7 +26,7 @@ import {
 
 export type LookupState = {
   error?: string
-  fieldErrors?: { orderNumber?: string; email?: string }
+  fieldErrors?: { orderNumber?: string; phone?: string }
 }
 
 /**
@@ -43,19 +44,19 @@ export async function lookupGuestOrder(
 
   const parsed = guestLookupSchema.safeParse({
     orderNumber: formData.get('orderNumber'),
-    email: formData.get('email'),
+    phone: formData.get('phone'),
   })
 
   if (!parsed.success) {
     const fieldErrors: LookupState['fieldErrors'] = {}
     for (const issue of parsed.error.issues) {
       const key = issue.path[0]
-      if (key === 'orderNumber' || key === 'email') fieldErrors[key] ??= issue.message
+      if (key === 'orderNumber' || key === 'phone') fieldErrors[key] ??= issue.message
     }
     return { error: 'Check the order number and email address.', fieldErrors }
   }
 
-  const order = await service.lookupGuestOrder(parsed.data.orderNumber, parsed.data.email)
+  const order = await service.lookupGuestOrder(parsed.data.orderNumber, parsed.data.phone)
 
   // One message for both "no such order" and "wrong email" — see the service.
   if (!order) {
@@ -74,6 +75,26 @@ function toResult(error: unknown): ActionResult<never> {
   if (error instanceof CheckoutError) return fail('conflict', error.message)
   if (error instanceof ShippingError) return fail('conflict', error.message)
   throw error
+}
+
+export async function confirmOrderForCourier(orderId: unknown): Promise<ActionResult<null>> {
+  const parsed = z.uuid().safeParse(orderId)
+  if (!parsed.success) return fail('validation', 'Invalid order.')
+  const admin = await requireRole('admin')
+
+  try {
+    await service.confirmOrderForCourier(parsed.data)
+    await recordAudit(admin, {
+      action: 'order.courier_confirmed',
+      entityType: 'order',
+      entityId: parsed.data,
+      detail: { courier: 'Steadfast' },
+    })
+    refresh()
+    return ok(null)
+  } catch (error) {
+    return toResult(error)
+  }
 }
 
 export async function setFulfillmentStatus(input: unknown): Promise<ActionResult<null>> {

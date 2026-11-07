@@ -71,7 +71,7 @@ export function TwoFactorSetup({
     setError(undefined)
     setPending(true)
     try {
-      const { error: authError } = await twoFactor.verifyTotp({ code: code.trim() })
+      const { error: authError } = await twoFactor.verifyTotp({ code: code.trim(), trustDevice: true })
 
       if (authError) {
         setError('That code is not right. Codes change every 30 seconds — check your clock.')

@@ -9,7 +9,7 @@ type NavigationItem = {
   name: string
 }
 
-export function MobileNavigation({ categories }: { categories: NavigationItem[] }) {
+export function MobileNavigation({ categories, alwaysVisible = false }: { categories: NavigationItem[]; alwaysVisible?: boolean }) {
   const [open, setOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -33,7 +33,7 @@ export function MobileNavigation({ categories }: { categories: NavigationItem[] 
   }
 
   return (
-    <div className="lg:hidden">
+    <div className={alwaysVisible ? '' : 'lg:hidden'}>
       <button
         ref={triggerRef}
         type="button"

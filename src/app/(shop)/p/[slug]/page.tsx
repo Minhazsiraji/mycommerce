@@ -12,8 +12,6 @@ import { getCachedProductBySlug, getCachedRelatedProducts } from '@/modules/cata
 import { ProductGallery } from '@/modules/catalog/components/product-gallery'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
 import { VariantPicker } from '@/modules/catalog/components/variant-picker'
-import { ViewContentTracker } from '@/modules/meta/components/event-trackers'
-import { minorToMetaValue } from '@/modules/meta'
 import { VirtualTryOn } from '@/modules/vto'
 
 type Params = {
@@ -83,9 +81,9 @@ export default async function ProductPage({ params, searchParams }: Params) {
   const images = product.images.map((image) => ({
     id: image.id,
     alt: image.alt,
-    url: storage.url(image.r2Key, { width: 1400, height: 1400, fit: 'cover' }),
+    url: storage.url(image.r2Key, { width: 1400, height: 1750, fit: 'contain' }),
     fullUrl: storage.url(image.r2Key, { width: 2000, height: 2000, fit: 'contain' }),
-    thumbUrl: storage.url(image.r2Key, { width: 128, height: 128, fit: 'cover' }),
+    thumbUrl: storage.url(image.r2Key, { width: 128, height: 160, fit: 'contain' }),
   }))
 
 
@@ -158,7 +156,7 @@ export default async function ProductPage({ params, searchParams }: Params) {
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex min-w-0 flex-col gap-10">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c') }}
@@ -168,13 +166,6 @@ export default async function ProductPage({ params, searchParams }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c') }}
       />
 
-      {initialVariant ? (
-        <ViewContentTracker
-          variantId={initialVariant.id}
-          contentName={product.title}
-          value={minorToMetaValue(initialVariant.price)}
-        />
-      ) : null}
       <nav aria-label="Breadcrumb" className="text-sm text-(--color-muted)">
         <Link href="/" className="hover:text-(--color-fg)">
           Home
@@ -191,27 +182,28 @@ export default async function ProductPage({ params, searchParams }: Params) {
         <span aria-current="page">{product.title}</span>
       </nav>
 
-      <div className="storefront-card grid gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
+      <div className="storefront-card grid min-w-0 grid-cols-1 gap-8 p-4 sm:p-6 lg:grid-cols-2 lg:gap-10">
         <ProductGallery images={images} title={product.title} />
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-1">
             {product.brand ? (
               <span className="text-sm text-(--color-muted)">{product.brand}</span>
             ) : null}
-            <h1 className="text-3xl font-semibold tracking-tight">{product.title}</h1>
+            <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">{product.title}</h1>
           </div>
 
           {product.variants.length > 0 ? (
             <VariantPicker
-              title={product.title}
               initialVariantId={initialVariant?.id}
+              directToCart={process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'}
               variants={product.variants.map((v) => ({
                 id: v.id,
                 title: v.title,
                 price: v.price,
                 compareAtPrice: v.compareAtPrice,
                 stock: v.stock,
+                options: v.options,
               }))}
             />
           ) : (

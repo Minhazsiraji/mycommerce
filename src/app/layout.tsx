@@ -16,7 +16,9 @@ const inter = Inter({
 })
 
 const siteDescription = STORE_CONFIG.defaultDescription
-const defaultTitle = `${STORE_CONFIG.name} | Smarter Everyday Shopping in ${STORE_CONFIG.countryName}`
+const defaultTitle = process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+  ? `${STORE_CONFIG.name} | Wear Your Style`
+  : `${STORE_CONFIG.name} | Smarter Everyday Shopping in ${STORE_CONFIG.countryName}`
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -25,6 +27,9 @@ export const metadata: Metadata = {
     template: `%s | ${STORE_CONFIG.name}`,
   },
   description: siteDescription,
+  ...(STORE_CONFIG.canonicalUrl === 'https://moymoy.sirajibd.com' && STORE_CONFIG.name === 'MoyMoy Fashion'
+    ? { verification: { google: 'ixDOpjZrJhC0vPN3G18fRntRl1esusoAbH82QZ0T4Pg' } }
+    : {}),
   /**
    * Resolved by a route rather than Next's `app/icon.svg` convention, so a store
    * configures its own icon in Admin instead of replacing a file in our source.

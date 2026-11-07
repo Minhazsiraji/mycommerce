@@ -3,14 +3,15 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import { Input } from '@/components/ui/input'
+import { bdPhoneSchema } from '@/modules/accounts/validators'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatBdt } from '@/lib/money'
 import { countryPreset } from '@/lib/country-presets'
-import { ratesForDistrict } from '@/lib/shipping-rate-selection'
+import { ratesForDistrict, ratesForMoyMoyAddress } from '@/lib/shipping-rate-selection'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { calculateOrderTotals, showsTaxLine, taxLineLabel } from '@/lib/tax'
 
@@ -20,6 +21,10 @@ const PAYMENT_LABELS: Record<CheckoutPaymentMethod, { title: string; detail: str
   cod: {
     title: 'Cash on delivery',
     detail: 'Pay the courier when your order arrives.',
+  },
+  bkash_manual: {
+    title: 'bKash',
+    detail: 'Send by bKash and submit the transaction ID. We verify it manually.',
   },
   bank_transfer: {
     title: 'Bank transfer',
@@ -37,8 +42,7 @@ import {
   canonicalBdArea,
   canonicalBdCity,
 } from '@/lib/bd-locations'
-import { InitiateCheckoutTracker } from '@/modules/meta/components/event-trackers'
-import type { MetaCustomData } from '@/modules/meta/components/client'
+import { trackAddPaymentInfo, trackInitiateCheckout } from '@/modules/meta/actions'
 
 import { placeOrder } from '../actions'
 import type { CheckoutPaymentMethod } from '../payment-methods'
@@ -69,24 +73,31 @@ export type CheckoutDefaults = {
 
 export function CheckoutForm({
   subtotal,
-  tracking,
   rates,
   defaults,
   signedIn,
   paymentMethods,
+  moymoyShipping = false,
 }: {
   subtotal: number
-  tracking: MetaCustomData
   rates: CheckoutRate[]
   defaults: CheckoutDefaults
   signedIn: boolean
   /** Only what this deployment has credentials for; the server checks again. */
   paymentMethods: CheckoutPaymentMethod[]
+  moymoyShipping?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string>()
+  const initiateCheckoutSent = useRef(false)
+
+  useEffect(() => {
+    if (initiateCheckoutSent.current) return
+    initiateCheckoutSent.current = true
+    void trackInitiateCheckout({})
+  }, [])
 
   const [district, setDistrict] = useState(defaults.district)
   const initialCity = canonicalBdCity(defaults.district, defaults.city)
@@ -112,11 +123,15 @@ export function CheckoutForm({
    * being dangerous.
    */
   const available = useMemo(() => {
-    return ratesForDistrict(rates, district, { regionRequired }).map((rate) => ({
+    const eligible = moymoyShipping
+      ? ratesForMoyMoyAddress(rates, district, city)
+      : ratesForDistrict(rates, district, { regionRequired })
+
+    return eligible.map((rate) => ({
       ...rate,
       isFree: rate.freeOverSubtotal !== null && subtotal >= rate.freeOverSubtotal,
     }))
-  }, [rates, district, subtotal, regionRequired])
+  }, [rates, district, city, subtotal, regionRequired, moymoyShipping])
 
   const [rateId, setRateId] = useState(available[0]?.id ?? '')
   const selectedRate = available.find((r) => r.id === rateId) ?? available[0]
@@ -167,21 +182,19 @@ export function CheckoutForm({
 
   return (
     <form action={onSubmit} className="grid gap-10 lg:grid-cols-[1fr_340px]" noValidate>
-      <InitiateCheckoutTracker data={tracking} />
       <div className="flex flex-col gap-8">
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold text-(--color-muted)">Contact</h2>
           <Input
-            label="Email"
+            label="Email (optional)"
             name="email"
             type="email"
             autoComplete="email"
             defaultValue={defaults.email}
-            required
             error={errors.email}
           />
           <p className="-mt-2 text-xs text-(--color-muted)">
-            Your order confirmation goes here.
+            Add an email only if you want order updates by email. Your mobile number is the primary contact.
           </p>
         </section>
 
@@ -206,6 +219,10 @@ export function CheckoutForm({
               autoComplete="tel"
               defaultValue={defaults.phone}
               required
+              onBlur={(event) => {
+                const parsed = bdPhoneSchema.safeParse(event.currentTarget.value)
+                if (parsed.success) event.currentTarget.value = parsed.data
+              }}
               error={field('phone')}
             />
           </div>
@@ -391,7 +408,10 @@ export function CheckoutForm({
                 type="radio"
                 name="payment"
                 checked={paymentMethod === method}
-                onChange={() => setPaymentMethod(method)}
+                onChange={() => {
+                  setPaymentMethod(method)
+                  void trackAddPaymentInfo({})
+                }}
                 className="mt-0.5"
               />
               <span>

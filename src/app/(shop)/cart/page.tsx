@@ -48,7 +48,14 @@ export default async function CartPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-3xl font-semibold tracking-tight">Your cart</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight">Your cart</h1>
+        {process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true' ? (
+          <Link href="/" className="text-sm font-medium underline underline-offset-4 hover:text-(--text-primary)">
+            Buy more
+          </Link>
+        ) : null}
+      </div>
 
       {/* Lines and summary share one optimistic state, so quantity, line total,
           subtotal and the free-delivery bar all move on the same click. */}

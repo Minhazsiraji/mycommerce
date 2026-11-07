@@ -94,6 +94,7 @@ function itemsTable(order: OrderSummary) {
 }
 
 export function sendOrderConfirmed(order: OrderSummary) {
+  if (!order.email.trim()) return Promise.resolve({ skipped: true })
   return sendMail({
     to: order.email,
     subject: `Order ${order.orderNumber} confirmed`,
@@ -107,6 +108,7 @@ export function sendOrderConfirmed(order: OrderSummary) {
 }
 
 export function sendOrderPlacedCod(order: OrderSummary) {
+  if (!order.email.trim()) return Promise.resolve({ skipped: true })
   return sendMail({
     to: order.email,
     subject: `Order ${order.orderNumber} confirmed`,
@@ -123,6 +125,7 @@ export function sendOrderShipped(
   order: Pick<OrderSummary, 'orderNumber' | 'email' | 'recipient'>,
   parcel: { carrier: string; trackingNumber: string | null },
 ) {
+  if (!order.email.trim()) return Promise.resolve({ skipped: true })
   const tracking = parcel.trackingNumber
     ? `<p style="font-size:15px;margin:0 0 8px">Tracking number: <strong>${escapeHtml(parcel.trackingNumber)}</strong></p>`
     : ''
@@ -142,6 +145,7 @@ export function sendOrderShipped(
 export function sendOrderDelivered(
   order: Pick<OrderSummary, 'orderNumber' | 'email' | 'recipient'>,
 ) {
+  if (!order.email.trim()) return Promise.resolve({ skipped: true })
   return sendMail({
     to: order.email,
     subject: `Order ${order.orderNumber} delivered`,
@@ -159,6 +163,7 @@ export function sendOrderCancelled(
   reason: string,
   wasPaid: boolean,
 ) {
+  if (!order.email.trim()) return Promise.resolve({ skipped: true })
   const refund = wasPaid
     ? `<p style="font-size:15px;margin:0">We received ${formatBdt(order.total)}. The order will not ship; please contact the store while the refund is completed through the original payment method.</p>`
     : `<p style="font-size:15px;margin:0">No successful payment is recorded for this order.</p>`

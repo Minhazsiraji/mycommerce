@@ -77,6 +77,7 @@ export function trackBrowserEvent(
     | 'ViewContent'
     | 'AddToCart'
     | 'InitiateCheckout'
+    | 'AddPaymentInfo'
     | 'Purchase'
     | 'Contact'
     | 'Lead'
@@ -85,6 +86,18 @@ export function trackBrowserEvent(
   eventId?: string,
 ) {
   if (readMetaConsent() !== 'granted' || !window.fbq) return false
+
+  const pixelId = window._commerceMetaPixelId
+
+  if (pixelId) {
+    if (eventId) {
+      window.fbq('trackSingle', pixelId, eventName, customData, { eventID: eventId })
+    } else {
+      window.fbq('trackSingle', pixelId, eventName, customData)
+    }
+    return true
+  }
+
   if (eventId) window.fbq('track', eventName, customData, { eventID: eventId })
   else window.fbq('track', eventName, customData)
   return true

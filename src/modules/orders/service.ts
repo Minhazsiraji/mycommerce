@@ -12,7 +12,7 @@ import {
   sendOrderDelivered,
   sendOrderShipped,
 } from '@/modules/notifications'
-import { resolveRate } from '@/modules/shipping'
+import { bookConfirmedOrderWithSteadfast, resolveRate } from '@/modules/shipping'
 import { assessCheckout } from '@/modules/fraud'
 import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
@@ -47,13 +47,14 @@ export async function placeOrder(input: PlaceOrderInput) {
   const shipping = await resolveRate({
     rateId: input.shippingRateId,
     district: input.address.district,
+    city: input.address.city,
     subtotal: cart.subtotal,
   })
 
   const order = await repo.placeOrder({
     cartId: cart.id,
     userId: session?.user.id ?? null,
-    email: input.email.toLowerCase(),
+    email: input.email.trim().toLowerCase(),
     phone: input.address.phone,
     address: {
       recipient: input.address.recipient,
@@ -155,8 +156,8 @@ async function rememberOrder(orderNumber: string) {
  * instance, so an in-process counter would be security theatre; per-IP limits on
  * this path belong in the Cloudflare WAF rule (docs/04-security.md).
  */
-export async function lookupGuestOrder(orderNumber: string, email: string) {
-  const order = await repo.findGuestOrder(orderNumber.trim(), email.trim().toLowerCase())
+export async function lookupGuestOrder(orderNumber: string, phone: string) {
+  const order = await repo.findGuestOrder(orderNumber.trim(), phone)
   if (!order) return null
 
   await rememberOrder(order.orderNumber)
@@ -173,7 +174,7 @@ async function wasPlacedHere(orderNumber: string) {
 
 /**
  * An order the caller is allowed to see: their own if signed in, or a guest
- * order proven by order number AND matching email.
+ * order proven by order number AND matching mobile number.
  */
 export async function getVisibleOrder(orderNumber: string, email?: string) {
   const session = await getSession()
@@ -237,6 +238,32 @@ export async function notifyOrderPaid(orderId: string) {
       items: order.items,
     }),
   )
+}
+
+export async function confirmOrderForCourier(orderId: string) {
+  const order = await repo.getOrderById(orderId)
+  if (!order) throw new CheckoutError('Order not found.')
+  if (order.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be confirmed.')
+  if (order.status !== 'confirmed') {
+    throw new CheckoutError('Confirm payment before confirming this order for courier.')
+  }
+  if (
+    order.paymentStatus !== 'paid' &&
+    !(order.paymentMethod === 'cod' && order.paymentStatus === 'cod_pending')
+  ) {
+    throw new CheckoutError('Confirm payment before sending this order to Steadfast.')
+  }
+
+  const shipment = await bookConfirmedOrderWithSteadfast(orderId)
+  if (!shipment) {
+    throw new CheckoutError('Steadfast is not configured or the order is not ready for courier.')
+  }
+
+  if (order.fulfillmentStatus === 'unfulfilled') {
+    await repo.setFulfillmentStatus(orderId, 'processing')
+  }
+
+  return shipment
 }
 
 export async function setFulfillmentStatus(orderId: string, status: string) {

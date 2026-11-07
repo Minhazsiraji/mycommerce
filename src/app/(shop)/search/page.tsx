@@ -9,7 +9,7 @@ import {
   productFiltersSchema,
 } from '@/modules/catalog'
 import { ProductGrid } from '@/modules/catalog/components/product-card'
-import { SearchTracker } from '@/modules/meta/components/event-trackers'
+import { SearchEvent } from '@/modules/meta/components/search-event'
 
 export const metadata: Metadata = { title: 'Search' }
 
@@ -101,7 +101,7 @@ export default async function SearchPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <SearchTracker query={filters.q} />
+      <SearchEvent query={filters.q} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
           Results for “{filters.q}”

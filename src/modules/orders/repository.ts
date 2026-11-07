@@ -77,6 +77,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
         variantId: cartItems.variantId,
         quantity: cartItems.quantity,
         price: productVariants.price,
+        costPrice: productVariants.costPrice,
         sku: productVariants.sku,
         variantTitle: productVariants.title,
         variantArchivedAt: productVariants.archivedAt,
@@ -192,6 +193,7 @@ export async function placeOrder(args: PlaceOrderArgs) {
         productSlug: line.productSlug,
         imageKey: line.imageKey,
         unitPrice: line.price,
+        unitCost: line.costPrice,
         quantity: line.quantity,
         lineTotal: line.price * line.quantity,
       })),
@@ -234,9 +236,20 @@ export async function listOrdersForAdmin(filters: OrderFilters) {
     filters.status ? eq(orders.status, filters.status) : undefined,
     filters.paymentStatus ? eq(orders.paymentStatus, filters.paymentStatus) : undefined,
     filters.fulfillmentStatus ? eq(orders.fulfillmentStatus, filters.fulfillmentStatus) : undefined,
-    // Order number or email — the two things a customer can quote on the phone.
+    filters.dateFrom
+      ? sql`${orders.createdAt} >= ${new Date(`${filters.dateFrom}T00:00:00+06:00`)}`
+      : undefined,
+    filters.dateTo
+      ? sql`${orders.createdAt} < ${new Date(new Date(`${filters.dateTo}T00:00:00+06:00`).getTime() + 86_400_000)}`
+      : undefined,
+    // Search by the identifiers support actually uses: order, customer, mobile or email.
     filters.q
-      ? sql`(${orders.orderNumber} ilike ${'%' + filters.q + '%'} or ${orders.email} ilike ${'%' + filters.q + '%'})`
+      ? sql`(
+          ${orders.orderNumber} ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.email}, '') ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.phone}, '') ilike ${'%' + filters.q + '%'}
+          or coalesce(${orders.shippingAddress}->>'recipient', '') ilike ${'%' + filters.q + '%'}
+        )`
       : undefined,
   )
 
@@ -246,6 +259,8 @@ export async function listOrdersForAdmin(filters: OrderFilters) {
         id: orders.id,
         orderNumber: orders.orderNumber,
         email: orders.email,
+        phone: orders.phone,
+        shippingAddress: orders.shippingAddress,
         status: orders.status,
         paymentStatus: orders.paymentStatus,
         fulfillmentStatus: orders.fulfillmentStatus,
@@ -577,9 +592,9 @@ export function listOrdersForUser(userId: string) {
 }
 
 /** Guest lookup needs BOTH, or an order number alone becomes an oracle. */
-export function findGuestOrder(orderNumber: string, email: string) {
+export function findGuestOrder(orderNumber: string, phone: string) {
   return db.query.orders.findFirst({
-    where: and(eq(orders.orderNumber, orderNumber), eq(orders.email, email.toLowerCase())),
+    where: and(eq(orders.orderNumber, orderNumber), eq(orders.phone, phone)),
     with: { items: true },
   })
 }

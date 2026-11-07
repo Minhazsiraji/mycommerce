@@ -95,23 +95,28 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
     if (offerLabel) announcementFacts.push({ key: 'threshold', label: offerLabel })
   }
 
+  const implicitAnalyticsConsent = process.env.STORE_ANALYTICS_CONSENT_MODE?.trim() === 'implicit'
+  const socialCommerceMode = process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'
+  const socialLogoPath = process.env.STORE_SOCIAL_LOGO_PATH?.trim()
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} />
+      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} implicitConsent={implicitAnalyticsConsent} />
       <MetaAttributionCapture enabled={meta.enabled} />
       <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
-      <div className="px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6">
+      <div className={socialCommerceMode ? 'px-3 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-6' : 'px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6'}>
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
             categories={topCategories}
+            compactSocial={socialCommerceMode}
             brand={{
               name: STORE_CONFIG.name,
-              text: STORE_CONFIG.brandText,
-              accent: STORE_CONFIG.brandAccent,
+              text: socialCommerceMode ? 'MoyMoy' : STORE_CONFIG.brandText,
+              accent: socialCommerceMode ? '' : STORE_CONFIG.brandAccent,
               // An uploaded logo replaces the wordmark; unset keeps the text,
               // so a store with no artwork still has a usable header.
-              logoUrl: settings.logoUrl,
+              logoUrl: socialCommerceMode ? socialLogoPath : settings.logoUrl,
             }}
             cart={
               <Suspense fallback={<CartBadgeFallback />}>
@@ -119,27 +124,28 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
               </Suspense>
             }
           />
-          <AnnouncementBar facts={announcementFacts} />
+          {!socialCommerceMode ? <AnnouncementBar facts={announcementFacts} /> : null}
         </div>
       </div>
 
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8"
+        className={socialCommerceMode ? 'mx-auto w-full max-w-(--container-content) flex-1 px-3 py-4 outline-none sm:px-6 sm:py-8 md:py-10 lg:px-8' : 'mx-auto w-full max-w-(--container-content) flex-1 px-4 py-8 outline-none sm:px-6 md:py-10 lg:px-8'}
       >
         {children}
       </main>
 
       <SiteFooter
-        categories={topCategories}
+        categories={socialCommerceMode ? [] : topCategories}
         footer={{
-          brandText: settings.footerBrandText,
-          brandAccent: settings.footerBrandAccent,
-          description: settings.footerDescription,
-          copyright: settings.footerCopyright,
+          brandText: socialCommerceMode ? (process.env.STORE_FOOTER_BRAND_TEXT?.trim() || 'MoyMoy') : settings.footerBrandText,
+          brandAccent: socialCommerceMode ? '' : settings.footerBrandAccent,
+          description: socialCommerceMode ? (process.env.STORE_FOOTER_DESCRIPTION?.trim() || 'Fashion made easy for everyday Bangladesh.') : settings.footerDescription,
+          copyright: socialCommerceMode ? (process.env.STORE_FOOTER_COPYRIGHT?.trim() || '© MoyMoy. All rights reserved.') : settings.footerCopyright,
         }}
-        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} />}
+        hideContact={socialCommerceMode}
+        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} hidden={implicitAnalyticsConsent} />}
       />
     </div>
   )

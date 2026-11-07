@@ -17,7 +17,10 @@ type VariantRow = {
   id?: string
   sku: string
   title: string
+  color: string
+  size: string
   price: string
+  costPrice: string
   compareAtPrice: string
   stock: string
   weightGrams: string
@@ -45,18 +48,23 @@ export type ProductFormInitial = {
     sku: string
     title: string | null
     price: number
+    costPrice: number
     compareAtPrice: number | null
     stock: number
     weightGrams: number
     barcode: string | null
     gtinType: string | null
+    options: Record<string, string>
   }[]
 }
 
 const emptyRow = (): VariantRow => ({
   sku: '',
   title: '',
+  color: '',
+  size: '',
   price: '',
+  costPrice: '0',
   compareAtPrice: '',
   stock: '0',
   weightGrams: '0',
@@ -71,7 +79,10 @@ function toRows(initial?: ProductFormInitial): VariantRow[] {
     id: v.id,
     sku: v.sku,
     title: v.title ?? '',
+    color: v.options.color ?? v.options.colour ?? '',
+    size: v.options.size ?? '',
     price: formatBdtPlain(v.price),
+    costPrice: formatBdtPlain(v.costPrice),
     compareAtPrice: v.compareAtPrice == null ? '' : formatBdtPlain(v.compareAtPrice),
     stock: String(v.stock),
     weightGrams: String(v.weightGrams),
@@ -100,7 +111,10 @@ export function ProductForm({
    * the single row is edited as plain price/stock fields. Making every simple
    * product fill in a table is friction for nothing.
    */
-  const [hasOptions, setHasOptions] = useState((initial?.variants.length ?? 1) > 1)
+  const [hasOptions, setHasOptions] = useState(
+    (initial?.variants.length ?? 1) > 1 ||
+      Boolean(initial?.variants.some((variant) => Object.keys(variant.options).length > 0)),
+  )
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string>()
@@ -134,12 +148,15 @@ export function ProductForm({
           sku: r.sku,
           title: hasOptions ? r.title : '',
           price: r.price,
+          costPrice: r.costPrice,
           compareAtPrice: r.compareAtPrice,
           stock: r.stock,
           weightGrams: r.weightGrams,
           barcode: r.barcode,
           gtinType: r.gtinType || null,
-          options: {},
+          options: hasOptions
+            ? Object.fromEntries([['color', r.color.trim()], ['size', r.size.trim()]].filter(([, value]) => value))
+            : {},
         })),
       }
 
@@ -331,6 +348,14 @@ export function ProductForm({
               error={variantError(0, 'price')}
             />
             <Input
+              label={`Cost price (${CURRENCY_SYMBOL})`}
+              inputMode="decimal"
+              value={rows[0]?.costPrice ?? '0'}
+              onChange={(e) => setRow(0, { costPrice: e.target.value })}
+              required
+              error={variantError(0, 'costPrice')}
+            />
+            <Input
               label={`Compare-at price (${CURRENCY_SYMBOL})`}
               inputMode="decimal"
               placeholder="Optional"
@@ -378,11 +403,16 @@ export function ProductForm({
                 className="grid gap-3 rounded-lg border border-(--color-border) p-4 sm:grid-cols-2 lg:grid-cols-4"
               >
                 <Input
-                  label="Option"
-                  placeholder="e.g. Size 9"
-                  value={row.title}
-                  onChange={(e) => setRow(i, { title: e.target.value })}
-                  error={variantError(i, 'title')}
+                  label="Color"
+                  placeholder="e.g. Grey"
+                  value={row.color}
+                  onChange={(e) => setRow(i, { color: e.target.value, title: [e.target.value, row.size].filter(Boolean).join(' / ') })}
+                />
+                <Input
+                  label="Size"
+                  placeholder="e.g. 28"
+                  value={row.size}
+                  onChange={(e) => setRow(i, { size: e.target.value, title: [row.color, e.target.value].filter(Boolean).join(' / ') })}
                 />
                 <Input
                   label="SKU"
@@ -396,6 +426,13 @@ export function ProductForm({
                   value={row.price}
                   onChange={(e) => setRow(i, { price: e.target.value })}
                   error={variantError(i, 'price')}
+                />
+                <Input
+                  label={`Cost (${CURRENCY_SYMBOL})`}
+                  inputMode="decimal"
+                  value={row.costPrice}
+                  onChange={(e) => setRow(i, { costPrice: e.target.value })}
+                  error={variantError(i, 'costPrice')}
                 />
                 <Input
                   label="Compare-at"

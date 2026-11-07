@@ -101,6 +101,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
               collectOnDelivery={
                 order.paymentMethod === 'cod' && order.paymentStatus === 'cod_pending'
               }
+              courierBooked={parcels.some((parcel) => parcel.carrier === 'Steadfast')}
             />
           </section>
         </div>

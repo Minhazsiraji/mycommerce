@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-import { metaEventIdSchema } from '@/modules/meta/validators'
-
 /** Shared by client and server. No Drizzle imports — see modules/catalog/validators.ts. */
 
 /**
@@ -16,7 +14,6 @@ export const MAX_LINE_QUANTITY = 99
 export const addToCartSchema = z.object({
   variantId: z.uuid(),
   quantity: z.coerce.number().int().min(1).max(MAX_LINE_QUANTITY).default(1),
-  eventId: metaEventIdSchema.optional(),
 })
 
 export const updateLineSchema = z.object({

@@ -65,7 +65,10 @@ export const resetPasswordSchema = z.object({
 export const phoneSchema = z
   .string()
   .trim()
-  .transform((value) => value.replace(/[\s-]/g, ''))
+  .transform((value) => {
+    const compact = value.replace(/[\s().-]/g, '')
+    return compact.startsWith('00880') ? `+880${compact.slice(5)}` : compact
+  })
   .refine((value) => PRESET.phone.pattern.test(value), { message: PRESET.phone.message })
   // Stored in one canonical form so support can search for a number and find it.
   .transform(PRESET.phone.normalize)

@@ -50,6 +50,7 @@ export const variantInputSchema = z
     sku: z.string().trim().min(1, 'Required').max(64),
     title: z.string().trim().max(120).optional(),
     price: bdtAmount,
+    costPrice: bdtAmount.default(0),
     compareAtPrice: optionalBdtAmount,
     stock: z.coerce.number().int().min(0, 'Cannot be negative').max(1_000_000),
     weightGrams: z.coerce.number().int().min(0).max(1_000_000).default(0),

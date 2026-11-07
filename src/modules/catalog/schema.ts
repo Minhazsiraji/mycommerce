@@ -131,6 +131,8 @@ export const productVariants = pgTable(
     title: text('title'),
     /** Integer poisha. Never a float — see docs/02-data-model.md decision 1. */
     price: integer('price').notNull(),
+    /** Landed/unit cost in poisha for finance reporting. Never shown to customers. */
+    costPrice: integer('cost_price').notNull().default(0),
     compareAtPrice: integer('compare_at_price'),
     /**
      * A cached projection of the inventory_movements ledger (P2), maintained

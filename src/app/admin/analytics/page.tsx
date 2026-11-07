@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { formatBdt } from '@/lib/money'
 import { analyticsFiltersSchema, getAnalytics } from '@/modules/analytics'
 
-export const metadata: Metadata = { title: 'Analytics' }
+export const metadata: Metadata = { title: 'Sales & finance' }
 
 const PRESETS = [
   ['today', 'Today'],
@@ -62,7 +62,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sales analytics</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Sales & finance</h1>
           <p className="mt-1 text-sm text-(--color-muted)">
             Paid, non-cancelled sales · grouped in Bangladesh time
           </p>
@@ -120,6 +120,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
       <section aria-label="Key performance indicators" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="Collected sales" value={formatBdt(data.current.sales)} detail={`${data.current.salesOrders} paid orders`} change={<Change current={data.current.sales} previous={data.previous?.sales} />} />
+        <Kpi label="COGS" value={formatBdt(data.current.cogs)} detail="Frozen product cost on paid orders" />
+        <Kpi label="Gross profit" value={formatBdt(data.current.grossProfit)} detail={data.current.itemSales ? `${((data.current.grossProfit / data.current.itemSales) * 100).toFixed(1)}% gross margin` : 'No merchandise sales'} />
         <Kpi label="Units sold" value={data.units.toLocaleString('en-BD')} detail="Paid, non-cancelled items" change={<Change current={data.units} previous={data.previous?.units} />} />
         <Kpi label="Average order value" value={formatBdt(data.current.averageOrderValue)} change={<Change current={data.current.averageOrderValue} previous={data.previous?.averageOrderValue} />} />
         <Kpi label="Customers" value={data.current.uniqueCustomers.toLocaleString('en-BD')} detail={`${data.current.repeatCustomers} repeat in this period`} />
@@ -152,8 +154,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           <p className="text-xs text-(--color-muted)">Top 20 by merchandise sales</p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-lg text-sm">
-              <thead className="text-left text-xs text-(--color-muted)"><tr><th className="pb-3 font-medium">Product</th><th className="pb-3 text-right font-medium">Qty</th><th className="pb-3 text-right font-medium">Sales</th></tr></thead>
-              <tbody>{data.products.map((item) => <tr key={`${item.productId}-${item.product}`} className="border-t border-(--color-border)"><td className="py-3 pr-3"><span className="line-clamp-1 font-medium">{item.product}</span><span className="mt-1 block h-1.5 rounded-full bg-(--color-surface)"><span className="block h-full rounded-full bg-(--color-accent)" style={{ width: `${Math.max(2, (item.sales / maxProduct) * 100)}%` }} /></span></td><td className="py-3 text-right tabular-nums">{item.units}</td><td className="py-3 text-right font-medium tabular-nums">{formatBdt(item.sales)}</td></tr>)}</tbody>
+              <thead className="text-left text-xs text-(--color-muted)"><tr><th className="pb-3 font-medium">Product</th><th className="pb-3 text-right font-medium">Qty</th><th className="pb-3 text-right font-medium">Sales</th><th className="pb-3 text-right font-medium">COGS</th><th className="pb-3 text-right font-medium">Profit</th></tr></thead>
+              <tbody>{data.products.map((item) => <tr key={`${item.productId}-${item.product}`} className="border-t border-(--color-border)"><td className="py-3 pr-3"><span className="line-clamp-1 font-medium">{item.product}</span><span className="mt-1 block h-1.5 rounded-full bg-(--color-surface)"><span className="block h-full rounded-full bg-(--color-accent)" style={{ width: `${Math.max(2, (item.sales / maxProduct) * 100)}%` }} /></span></td><td className="py-3 text-right tabular-nums">{item.units}</td><td className="py-3 text-right font-medium tabular-nums">{formatBdt(item.sales)}</td><td className="py-3 text-right tabular-nums">{formatBdt(item.cogs)}</td><td className="py-3 text-right font-medium tabular-nums">{formatBdt(item.profit)}</td></tr>)}</tbody>
             </table>
             {!data.products.length ? <p className="py-10 text-center text-sm text-(--color-muted)">No product sales.</p> : null}
           </div>

@@ -34,6 +34,7 @@ type EventName =
   | 'ViewContent'
   | 'AddToCart'
   | 'InitiateCheckout'
+  | 'AddPaymentInfo'
   | 'Contact'
   | 'Lead'
   | 'Purchase'
@@ -77,13 +78,21 @@ async function requestContext(fallbackPath: string): Promise<RequestContext | nu
 
   const [jar, requestHeaders] = await Promise.all([cookies(), headers()])
   const forwarded = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
+  // Consent-gated first-party ad attribution can recover a genuine Meta click ID
+  // for early funnel CAPI events when the browser has not created _fbc.
+  // Never fabricate _fbc for visits without a real fbclid.
+  const attribution = parseAttributionCookie(jar.get(META_ATTRIBUTION_COOKIE)?.value)
+  const fbc = capIdentifier(jar.get('_fbc')?.value) ??
+    (attribution?.fbclid
+      ? synthesizeFbc(attribution.fbclid, attribution.capturedAt ?? Date.now())
+      : null)
 
   return {
     clientIpAddress: requestHeaders.get('cf-connecting-ip') ?? forwarded ?? null,
     clientUserAgent: cleanUserAgent(requestHeaders.get('user-agent')),
     eventSourceUrl: safeSourceUrl(requestHeaders.get('referer'), fallbackPath),
     fbp: capIdentifier(jar.get('_fbp')?.value),
-    fbc: capIdentifier(jar.get('_fbc')?.value),
+    fbc,
   }
 }
 
@@ -155,15 +164,18 @@ async function sendRequestEvent(
   eventId: string,
   customData: MetaCustomData,
   fallbackPath: string,
-) {
-  if (!(await configured())) return
+  explicitSourceUrl?: string,
+): Promise<boolean> {
+  if (!(await configured())) return false
   const context = await requestContext(fallbackPath)
-  if (!context?.clientUserAgent) return
+  if (!context?.clientUserAgent) return false
 
-  await postEvent({
+  const result = await postEvent({
     eventName,
     eventId,
-    eventSourceUrl: context.eventSourceUrl,
+    eventSourceUrl: explicitSourceUrl
+      ? safeSourceUrl(explicitSourceUrl, fallbackPath)
+      : context.eventSourceUrl,
     customData,
     userData: {
       client_ip_address: context.clientIpAddress ?? undefined,
@@ -172,13 +184,18 @@ async function sendRequestEvent(
       fbc: context.fbc ?? undefined,
     },
   })
+  return result.sent
 }
 
-export async function trackViewContent(eventId: string, variantId: string) {
+export async function trackViewContent(
+  eventId: string,
+  variantId: string,
+  eventSourceUrl: string,
+): Promise<boolean> {
   const variant = await repo.findVariantForTracking(variantId)
-  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return
+  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return false
 
-  await sendRequestEvent(
+  return sendRequestEvent(
     'ViewContent',
     eventId,
     {
@@ -190,6 +207,7 @@ export async function trackViewContent(eventId: string, variantId: string) {
       value: minorToMetaValue(variant.price),
     },
     '/p',
+    eventSourceUrl,
   )
 }
 
@@ -225,6 +243,29 @@ export async function trackInitiateCheckout(
 ) {
   await sendRequestEvent(
     'InitiateCheckout',
+    eventId,
+    {
+      content_ids: cart.lines.map((line) => line.variantId),
+      content_type: 'product',
+      contents: cart.lines.map((line) => ({
+        id: line.variantId,
+        quantity: line.quantity,
+        item_price: minorToMetaValue(line.unitPrice),
+      })),
+      currency: CURRENCY,
+      num_items: cart.itemCount,
+      value: minorToMetaValue(cart.subtotal),
+    },
+    '/checkout',
+  )
+}
+
+export async function trackAddPaymentInfo(
+  eventId: string,
+  cart: { lines: CartLine[]; subtotal: number; itemCount: number },
+) {
+  await sendRequestEvent(
+    'AddPaymentInfo',
     eventId,
     {
       content_ids: cart.lines.map((line) => line.variantId),
@@ -330,6 +371,12 @@ async function deliverPurchase(eventId: string) {
   }
 
   const { order, attribution, items } = context
+  // A queued/retried marketing event must not count an order that was
+  // cancelled, refunded or reverted to unpaid after it entered the queue.
+  if (order.paymentStatus !== 'paid' || order.status !== 'confirmed') {
+    await repo.markDeliveryFailed(eventId, 'Purchase not eligible at delivery time')
+    return
+  }
   const city = normalizeCity(order.shippingAddress.city)
   const country = normalizeCountry(order.shippingAddress.country)
   const region = normalizeRegion(order.shippingAddress.district ?? '')
@@ -349,7 +396,7 @@ async function deliverPurchase(eventId: string) {
       '/orders',
     ),
     userData: {
-      em: [hashUserData(normalizeEmail(order.email))],
+      em: order.email ? [hashUserData(normalizeEmail(order.email))] : undefined,
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
       fn: firstName ? [hashUserData(firstName)] : undefined,
       ln: lastName ? [hashUserData(lastName)] : undefined,
