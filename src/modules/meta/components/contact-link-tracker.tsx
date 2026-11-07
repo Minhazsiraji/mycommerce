@@ -4,9 +4,9 @@ import { useEffect } from 'react'
 
 import { trackContact } from '../actions'
 import {
-  emitMetaBrowserEvent,
   newBrowserEventId,
   readMetaConsent,
+  trackBrowserEvent,
 } from './client'
 
 type ContactMethod = 'email' | 'phone' | 'whatsapp' | 'messenger'
@@ -81,11 +81,7 @@ export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
 
       if (shouldDelayNavigation) event.preventDefault()
 
-      emitMetaBrowserEvent({
-        eventName: 'Contact',
-        eventId,
-        data: { content_name: method },
-      })
+      trackBrowserEvent('Contact', { content_name: method }, eventId)
 
       void (async () => {
         await Promise.race([
