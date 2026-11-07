@@ -4,14 +4,8 @@ import type { Route } from 'next'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 
-import { CURRENCY } from '@/lib/money'
-
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
-import {
-  newBrowserEventId,
-  trackBrowserEvent,
-} from '@/modules/meta/components/client'
 
 /**
  * Deliberately not optimistic about persistence: "Added" is shown only after
@@ -43,20 +37,8 @@ export function AddToCartButton({
   function onClick() {
     setError(undefined)
 
-    const eventId = newBrowserEventId('addtocart')
-    const tracking = {
-        content_ids: [variantId],
-        content_name: contentName,
-        content_type: 'product' as const,
-        contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
-        currency: CURRENCY,
-      value: unitPrice,
-    }
-
-    trackBrowserEvent('AddToCart', tracking, eventId)
-
     startTransition(async () => {
-      const result = await addToCart({ variantId, quantity: 1, eventId })
+      const result = await addToCart({ variantId, quantity: 1 })
 
       if (!result.ok) {
         setError(result.error.message)
@@ -67,7 +49,6 @@ export function AddToCartButton({
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
 
       if (redirectTo) {
-        await new Promise((resolve) => window.setTimeout(resolve, 300))
         router.push(redirectTo as Route)
         return
       }
