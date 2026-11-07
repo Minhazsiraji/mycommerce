@@ -7,7 +7,6 @@ import {
   META_CONSENT_DENIED,
   META_CONSENT_EVENT,
   META_CONSENT_GRANTED,
-  META_PIXEL_READY_EVENT,
   parseMetaConsent,
   type MetaConsent,
 } from '../consent'
