@@ -149,12 +149,6 @@ async function OrderDetail({
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       {isPaidConfirmed ? (
         <>
-          {/* Same builder the CAPI delivery uses, so browser and server cannot
-              describe the same sale differently. */}
-          <MetaPurchasePayload
-            eventId={purchaseEventId(order.id)}
-            data={buildMetaPurchaseData(order)}
-          />
           <GooglePurchaseTracker
             enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
             order={order}
