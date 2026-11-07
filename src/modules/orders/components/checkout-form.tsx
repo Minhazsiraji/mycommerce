@@ -3,7 +3,7 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import { Input } from '@/components/ui/input'
 import { bdPhoneSchema } from '@/modules/accounts/validators'
@@ -42,7 +42,7 @@ import {
   canonicalBdArea,
   canonicalBdCity,
 } from '@/lib/bd-locations'
-import { trackAddPaymentInfo } from '@/modules/meta/actions'
+import { trackAddPaymentInfo, trackInitiateCheckout } from '@/modules/meta/actions'
 
 import { placeOrder } from '../actions'
 import type { CheckoutPaymentMethod } from '../payment-methods'
@@ -91,6 +91,13 @@ export function CheckoutForm({
   const [pending, startTransition] = useTransition()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string>()
+  const initiateCheckoutSent = useRef(false)
+
+  useEffect(() => {
+    if (initiateCheckoutSent.current) return
+    initiateCheckoutSent.current = true
+    void trackInitiateCheckout({})
+  }, [])
 
   const [district, setDistrict] = useState(defaults.district)
   const initialCity = canonicalBdCity(defaults.district, defaults.city)
