@@ -8,7 +8,11 @@ import { CURRENCY } from '@/lib/money'
 
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
-import { newBrowserEventId, trackBrowserEventWhenReadyAsync } from '@/modules/meta/components/client'
+import {
+  newBrowserEventId,
+  trackBrowserEvent,
+  trackBrowserEventWhenReadyAsync,
+} from '@/modules/meta/components/client'
 
 /**
  * Deliberately not optimistic about persistence: "Added" is shown only after
@@ -51,8 +55,6 @@ export function AddToCartButton({
         value: unitPrice,
       }
 
-      await trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
-
       const result = await addToCart({ variantId, quantity: 1, eventId })
 
       if (!result.ok) {
@@ -62,6 +64,11 @@ export function AddToCartButton({
 
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
+
+      const browserSent = trackBrowserEvent('AddToCart', tracking, eventId)
+      if (!browserSent) {
+        await trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
+      }
 
       if (redirectTo) {
         router.push(redirectTo as Route)
