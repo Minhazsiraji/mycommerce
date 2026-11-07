@@ -18,7 +18,7 @@ export const viewContentEventSchema = z.object({
 })
 
 export const initiateCheckoutEventSchema = z.object({
-  eventId: metaEventIdSchema,
+  eventId: metaEventIdSchema.optional(),
 })
 
 export const addPaymentInfoEventSchema = initiateCheckoutEventSchema
@@ -27,7 +27,7 @@ export const addPaymentInfoEventSchema = initiateCheckoutEventSchema
 export const contactMethodSchema = z.enum(['email', 'phone', 'whatsapp', 'messenger'])
 
 export const contactEventSchema = z.object({
-  eventId: metaEventIdSchema,
+  eventId: metaEventIdSchema.optional(),
   method: contactMethodSchema,
 })
 
