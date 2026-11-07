@@ -44,17 +44,22 @@ export function AddToCartButton({
   function onClick() {
     setError(undefined)
 
-    startTransition(async () => {
-      const eventId = newBrowserEventId('addtocart')
-      const tracking = {
+    const eventId = newBrowserEventId('addtocart')
+    const tracking = {
         content_ids: [variantId],
         content_name: contentName,
         content_type: 'product' as const,
         contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
         currency: CURRENCY,
-        value: unitPrice,
-      }
+      value: unitPrice,
+    }
 
+    const browserSent = trackBrowserEvent('AddToCart', tracking, eventId)
+    if (!browserSent) {
+      void trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
+    }
+
+    startTransition(async () => {
       const result = await addToCart({ variantId, quantity: 1, eventId })
 
       if (!result.ok) {
@@ -64,11 +69,6 @@ export function AddToCartButton({
 
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
-
-      const browserSent = trackBrowserEvent('AddToCart', tracking, eventId)
-      if (!browserSent) {
-        await trackBrowserEventWhenReadyAsync('AddToCart', tracking, eventId, 5_000)
-      }
 
       if (redirectTo) {
         router.push(redirectTo as Route)
