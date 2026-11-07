@@ -17,16 +17,12 @@ export function AddToCartButton({
   disabled,
   className = '',
   children = 'Add to cart',
-  contentName,
-  unitPrice,
   redirectTo,
 }: {
   variantId: string
   disabled?: boolean
   className?: string
   children?: React.ReactNode
-  contentName: string
-  unitPrice: number
   redirectTo?: string
 }) {
   const router = useRouter()
