@@ -9,12 +9,6 @@ import {
   type MetaConsent,
 } from '../consent'
 import {
-  legacyMetaPurchaseStorageKey,
-  META_PURCHASE_ELEMENT_ID,
-  metaPurchaseStorageKey,
-  parseMetaPurchasePayload,
-} from '../purchase-payload'
-import {
   migrateLegacyConsent,
   readMetaConsent,
   trackBrowserEvent,
@@ -55,11 +49,8 @@ function bootPixel(pixelId: string) {
 }
 
 /**
- * Emits the order-page Meta Purchase at most once per stable event ID.
- *
- * The order detail subtree is known not to hydrate. Reading an inert JSON block
- * from the layout keeps browser Pixel reporting aligned with the server-side
- * CAPI event without depending on a dead page-level useEffect.
+ * Product views remain dual-sent because this path is already verified.
+ * Commerce actions after the product view are CAPI-only.
  */
 async function emitProductView(pathname: string): Promise<boolean> {
   if (!pathname.startsWith('/p/')) return false
@@ -82,27 +73,6 @@ async function emitProductView(pathname: string): Promise<boolean> {
     // Browser event already fired. Server delivery remains best effort.
   }
 
-  return true
-}
-
-function emitMetaPurchaseOnce(): boolean {
-  const block = document.getElementById(META_PURCHASE_ELEMENT_ID)
-  const payload = parseMetaPurchasePayload(block?.textContent)
-  if (!payload || !window.fbq) return false
-
-  const storageKey = metaPurchaseStorageKey(payload.eventId)
-  try {
-    if (localStorage.getItem(storageKey)) return true
-    if (localStorage.getItem(legacyMetaPurchaseStorageKey(payload.eventId))) return true
-    // Prefer one lost browser event over duplicate reported revenue if the
-    // tracking call itself throws. CAPI still carries the stable event ID.
-    localStorage.setItem(storageKey, '1')
-  } catch {
-    // Hardened browsers can deny storage. Meta can still deduplicate with the
-    // event ID shared by Pixel and CAPI.
-  }
-
-  window.fbq('track', 'Purchase', payload.data, { eventID: payload.eventId })
   return true
 }
 
@@ -156,15 +126,6 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       void emitProductView(pathname)
     }
 
-    if (emitMetaPurchaseOnce()) return
-
-    // Dynamic order content can stream in after the layout hydrated. Observe
-    // for the inert purchase block instead of guessing a timeout.
-    const observer = new MutationObserver(() => {
-      if (emitMetaPurchaseOnce()) observer.disconnect()
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
-    return () => observer.disconnect()
   }, [consent, pathname, pixelId])
 
   if (!enabled || implicitConsent || (consent !== 'unset' && !choicesOpen)) return null
