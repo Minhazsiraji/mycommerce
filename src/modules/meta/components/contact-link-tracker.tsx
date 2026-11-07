@@ -3,11 +3,7 @@
 import { useEffect } from 'react'
 
 import { trackContact } from '../actions'
-import {
-  newBrowserEventId,
-  readMetaConsent,
-  trackBrowserEvent,
-} from './client'
+import { readMetaConsent } from './client'
 
 type ContactMethod = 'email' | 'phone' | 'whatsapp' | 'messenger'
 
@@ -46,8 +42,7 @@ export function classifyContactHref(href: string): ContactMethod | null {
  *
  * A single delegated listener watches every click; when it lands on a
  * contact-intent link and analytics consent is granted, it emits one Meta
- * `Contact` event. Browser Pixel and server CAPI are handed the same `eventId`
- * so Meta deduplicates the pair. Each channel fires at most once per page load
+ * `Contact` event through server-side CAPI. Each channel fires at most once per page load
  * to keep an impatient double-click from double-counting.
  */
 export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
@@ -68,8 +63,6 @@ export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
       if (readMetaConsent() !== 'granted') return
 
       fired.add(method)
-      const eventId = newBrowserEventId('contact')
-
       const shouldDelayNavigation =
         !event.defaultPrevented &&
         event.button === 0 &&
@@ -81,11 +74,9 @@ export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
 
       if (shouldDelayNavigation) event.preventDefault()
 
-      trackBrowserEvent('Contact', { content_name: method }, eventId)
-
       void (async () => {
         await Promise.race([
-          trackContact({ eventId, method }),
+          trackContact({ method }),
           new Promise((resolve) => window.setTimeout(resolve, 500)),
         ])
         if (shouldDelayNavigation) window.location.href = href
