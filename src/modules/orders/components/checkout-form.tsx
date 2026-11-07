@@ -46,6 +46,7 @@ import { trackAddPaymentInfo } from '@/modules/meta/actions'
 import {
   newBrowserEventId,
   readMetaConsent,
+  trackBrowserEvent,
   trackBrowserEventWhenReadyAsync,
 } from '@/modules/meta/components/client'
 import type { MetaCustomData } from '@/modules/meta/components/client'
@@ -414,11 +415,19 @@ export function CheckoutForm({
                   if (readMetaConsent() !== 'granted') return
                   const eventId = newBrowserEventId('addpaymentinfo')
                   void (async () => {
-                    await trackBrowserEventWhenReadyAsync(
+                    const browserSent = trackBrowserEvent(
                       'AddPaymentInfo',
                       tracking,
                       eventId,
                     )
+                    if (!browserSent) {
+                      await trackBrowserEventWhenReadyAsync(
+                        'AddPaymentInfo',
+                        tracking,
+                        eventId,
+                        5_000,
+                      )
+                    }
                     await trackAddPaymentInfo({ eventId })
                   })()
                 }}
