@@ -79,7 +79,10 @@ export async function trackInitiateCheckout(input: unknown): Promise<ActionResul
   const cart = await readCart()
   if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
 
-  await service.trackInitiateCheckout(parsed.data.eventId, cart)
+  await service.trackInitiateCheckout(
+    parsed.data.eventId ?? `initiatecheckout:${crypto.randomUUID()}`,
+    cart,
+  )
   return ok(null)
 }
 
@@ -94,7 +97,10 @@ export async function trackAddPaymentInfo(input: unknown): Promise<ActionResult<
   const cart = await readCart()
   if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
 
-  await service.trackAddPaymentInfo(parsed.data.eventId, cart)
+  await service.trackAddPaymentInfo(
+    parsed.data.eventId ?? `addpaymentinfo:${crypto.randomUUID()}`,
+    cart,
+  )
   return ok(null)
 }
 
@@ -106,7 +112,10 @@ export async function trackContact(input: unknown): Promise<ActionResult<null>> 
   const limit = await rateLimit('meta-contact', 30, 3600)
   if (!limit.ok) return ok(null)
 
-  await service.trackContact(parsed.data.eventId, parsed.data.method)
+  await service.trackContact(
+    parsed.data.eventId ?? `contact:${crypto.randomUUID()}`,
+    parsed.data.method,
+  )
   return ok(null)
 }
 
