@@ -6,6 +6,7 @@ import { trackContact } from '../actions'
 import {
   newBrowserEventId,
   readMetaConsent,
+  trackBrowserEvent,
   trackBrowserEventWhenReadyAsync,
 } from './client'
 
@@ -84,12 +85,21 @@ export function ContactLinkTracker({ enabled }: { enabled: boolean }) {
       void (async () => {
         await Promise.race([
           Promise.all([
-            trackBrowserEventWhenReadyAsync(
-              'Contact',
-              { content_name: method },
-              eventId,
-              500,
-            ),
+            (async () => {
+              const browserSent = trackBrowserEvent(
+                'Contact',
+                { content_name: method },
+                eventId,
+              )
+              if (!browserSent) {
+                await trackBrowserEventWhenReadyAsync(
+                  'Contact',
+                  { content_name: method },
+                  eventId,
+                  2_000,
+                )
+              }
+            })(),
             trackContact({ eventId, method }),
           ]),
           new Promise((resolve) => window.setTimeout(resolve, 600)),
