@@ -195,7 +195,6 @@ export default async function ProductPage({ params, searchParams }: Params) {
 
           {product.variants.length > 0 ? (
             <VariantPicker
-              title={product.title}
               initialVariantId={initialVariant?.id}
               directToCart={process.env.STORE_SOCIAL_COMMERCE_MODE?.trim() === 'true'}
               variants={product.variants.map((v) => ({
