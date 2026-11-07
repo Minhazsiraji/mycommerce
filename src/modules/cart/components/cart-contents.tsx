@@ -144,9 +144,8 @@ export function CartContents({
           type="button"
           disabled={hasIssues || checkoutPending}
           onClick={() => {
-            startCheckout(async () => {
-              const eventId = newBrowserEventId('initiatecheckout')
-              const tracking = {
+            const eventId = newBrowserEventId('initiatecheckout')
+            const tracking = {
                 content_ids: lines.map((line) => line.variantId),
                 content_type: 'product' as const,
                 contents: lines.map((line) => ({
@@ -156,22 +155,24 @@ export function CartContents({
                 })),
                 currency: CURRENCY,
                 num_items: itemCount,
-                value: minorToMetaValue(subtotal),
-              }
+              value: minorToMetaValue(subtotal),
+            }
 
-              const browserSent = trackBrowserEvent(
+            const browserSent = trackBrowserEvent(
+              'InitiateCheckout',
+              tracking,
+              eventId,
+            )
+            if (!browserSent) {
+              void trackBrowserEventWhenReadyAsync(
                 'InitiateCheckout',
                 tracking,
                 eventId,
+                5_000,
               )
-              if (!browserSent) {
-                await trackBrowserEventWhenReadyAsync(
-                  'InitiateCheckout',
-                  tracking,
-                  eventId,
-                  5_000,
-                )
-              }
+            }
+
+            startCheckout(async () => {
               await trackInitiateCheckout({ eventId })
               router.push('/checkout')
             })
