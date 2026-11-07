@@ -9,8 +9,8 @@ import { CURRENCY } from '@/lib/money'
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
 import {
-  emitMetaBrowserEvent,
   newBrowserEventId,
+  trackBrowserEvent,
 } from '@/modules/meta/components/client'
 
 /**
@@ -63,11 +63,7 @@ export function AddToCartButton({
 
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
-      emitMetaBrowserEvent({
-        eventName: 'AddToCart',
-        eventId,
-        data: tracking,
-      })
+      trackBrowserEvent('AddToCart', tracking, eventId)
 
       if (redirectTo) {
         router.push(redirectTo as Route)
