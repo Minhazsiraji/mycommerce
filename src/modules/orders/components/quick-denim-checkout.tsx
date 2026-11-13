@@ -9,6 +9,7 @@ import { QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS, quickDenimShipping, taka
 import { updateLineQuantity, removeLine } from '@/modules/cart/actions'
 import { addQuickDenimVariant, placeQuickDenimCod } from '@/modules/orders/actions'
 import { trackInitiateCheckout } from '@/modules/meta/actions'
+import { readMetaConsent, writeMetaConsent } from '@/modules/meta/components/client'
 
 type Line = {
   id: string
@@ -46,15 +47,20 @@ export function QuickDenimCheckout({
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [email, setEmail] = useState('')
+  const [analyticsConsent, setAnalyticsConsent] = useState(false)
   const availableVariants = variants.filter(v => v.stock > 0 && v.price === QUICK_DENIM_UNIT_PRICE)
   const [extraId, setExtraId] = useState(availableVariants[0]?.id ?? '')
   const initiated = useRef(false)
 
   useEffect(() => {
-    if (initiated.current) return
+    setAnalyticsConsent(readMetaConsent() === 'granted')
+  }, [])
+
+  useEffect(() => {
+    if (!analyticsConsent || initiated.current) return
     initiated.current = true
     void trackInitiateCheckout({})
-  }, [])
+  }, [analyticsConsent])
 
   const thanaChoices = useMemo(() => {
     if (!district) return []
@@ -221,6 +227,15 @@ export function QuickDenimCheckout({
           <p>পণ্য হাতে পেয়ে কুরিয়ার কর্মীকে টাকা পরিশোধ করবেন।</p>
           <p className="mt-2">এক পিসে ঢাকা সিটির ডেলিভারি ৳৮০, অন্য সব জায়গায় ৳১২০। দুই বা তার বেশি পিসে ডেলিভারি ফ্রি।</p>
         </div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-(--color-border) p-3 text-xs leading-5 text-(--color-muted)">
+          <input type="checkbox" className="mt-1 h-4 w-4" checked={analyticsConsent}
+            onChange={e => {
+              const allow = e.target.checked
+              setAnalyticsConsent(allow)
+              writeMetaConsent(allow ? 'granted' : 'denied')
+            }} />
+          <span>ঐচ্ছিক: Meta ও Google Analytics ব্যবহার করে পণ্যের ভিউ, অর্ডার এবং বিজ্ঞাপনের ফলাফল পরিমাপের অনুমতি দিচ্ছি। এটি ছাড়াও অর্ডার করা যাবে।</span>
+        </label>
         {error ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
         <button type="submit" disabled={disabled}
           className="min-h-14 w-full rounded-xl bg-stone-950 px-4 text-base font-bold text-white disabled:opacity-50">
