@@ -8,7 +8,7 @@ export function isIndexableEnvironment(vercelEnv = process.env.VERCEL_ENV) {
   if (vercelEnv === 'production') return true
   return vercelEnv === 'preview' &&
     process.env.VERCEL_GIT_COMMIT_REF === 'agent/moymoy-storefront' &&
-    process.env.STORE_CANONICAL_URL?.replace(/\/$/, '') === 'https://moymoy.sirajibd.com' &&
+    process.env.STORE_CANONICAL_URL?.replace(/\/$/, '') === getSiteUrl().origin &&
     process.env.STORE_NAME === 'MoyMoy Fashion'
 }
 
