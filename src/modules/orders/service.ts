@@ -3,6 +3,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 import { env } from '@/lib/env'
+import { isQuickDenimProduct, QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS, quickDenimShipping } from '@/lib/moymoy-quick-cod'
 import { getSession, saveAddress } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
 import {
@@ -25,7 +26,7 @@ import type { PlaceOrderInput } from './validators'
 export class CheckoutError extends Error {}
 export { OutOfStockError }
 
-export async function placeOrder(input: PlaceOrderInput) {
+export async function placeOrder(input: PlaceOrderInput, options?: { quickDenimSlug: string }) {
   const session = await getSession()
   const cart = await readCart()
 
@@ -37,6 +38,21 @@ export async function placeOrder(input: PlaceOrderInput) {
     throw new CheckoutError('Some items changed. Review your cart before continuing.')
   }
 
+  if (options?.quickDenimSlug) {
+    const productSlug = options.quickDenimSlug
+    if (
+      cart.lines.length === 0 ||
+      cart.itemCount > QUICK_DENIM_MAX_ITEMS ||
+      cart.lines.some((line) =>
+        line.productSlug !== productSlug ||
+        !isQuickDenimProduct(line.productTitle) ||
+        line.unitPrice !== QUICK_DENIM_UNIT_PRICE
+      )
+    ) {
+      throw new CheckoutError('এই অর্ডারে শুধু ৭৫০ টাকার নির্বাচিত ডেনিম প্যান্ট রাখা যাবে।')
+    }
+  }
+
   const assessment = await assessCheckout({ email: input.email, phone: input.address.phone })
   if (!assessment.allowed) throw new CheckoutError(assessment.message)
 
@@ -44,12 +60,16 @@ export async function placeOrder(input: PlaceOrderInput) {
    * Delivery is re-quoted from the database for this destination and subtotal.
    * The client sent an id; it never sends a cost. Same rule as item prices.
    */
-  const shipping = await resolveRate({
-    rateId: input.shippingRateId,
-    district: input.address.district,
-    city: input.address.city,
-    subtotal: cart.subtotal,
-  })
+  // The Messenger fast lane uses a quantity-based offer, not the storefront's
+  // amount-based free-shipping thresholds. Pricing is always server-authoritative.
+  const shipping = options?.quickDenimSlug
+    ? quickDenimShipping(cart.itemCount, input.address.district, input.address.city)
+    : await resolveRate({
+        rateId: input.shippingRateId,
+        district: input.address.district,
+        city: input.address.city,
+        subtotal: cart.subtotal,
+      })
 
   const order = await repo.placeOrder({
     cartId: cart.id,
