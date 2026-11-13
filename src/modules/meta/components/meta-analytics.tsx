@@ -135,7 +135,11 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
 
   }, [consent, pathname, pixelId])
 
-  if (!enabled || implicitConsent || (consent !== 'unset' && !choicesOpen)) return null
+  // In the dedicated Bangla COD journey, never cover the buying controls with
+  // a fixed banner. Optional analytics stay OFF unless actively enabled at
+  // checkout or via the footer privacy control. Prior consent is respected.
+  const quickDenim = pathname.startsWith('/order/denim')
+  if (!enabled || implicitConsent || (quickDenim && !choicesOpen) || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
@@ -170,6 +174,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
 }
 
 export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boolean; hidden?: boolean }) {
+  const pathname = usePathname()
   if (!enabled || hidden) return null
 
   return (
@@ -178,7 +183,7 @@ export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boo
       onClick={() => window.dispatchEvent(new Event(META_PRIVACY_OPEN_EVENT))}
       className="min-h-11 text-xs underline underline-offset-4 hover:text-(--text-primary)"
     >
-      Privacy choices
+      {pathname.startsWith('/order/denim') ? 'কুকি ও গোপনীয়তার পছন্দ' : 'Privacy choices'}
     </button>
   )
 }
