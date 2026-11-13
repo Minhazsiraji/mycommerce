@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
 import { BD_DISTRICTS, bdAreasFor, bdCitiesFor } from '@/lib/bd-locations'
-import { QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS, quickDenimShipping, taka } from '@/lib/moymoy-quick-cod'
+import { QUICK_DENIM_MAX_ITEMS, quickDenimShipping, taka } from '@/lib/moymoy-quick-cod'
 import { updateLineQuantity, removeLine } from '@/modules/cart/actions'
-import { addQuickDenimVariant, placeQuickDenimCod } from '@/modules/orders/actions'
+import { placeQuickDenimCod } from '@/modules/orders/actions'
 
 type Line = {
   id: string
@@ -45,8 +45,6 @@ export function QuickDenimCheckout({
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [email, setEmail] = useState('')
-  const availableVariants = variants.filter(v => v.stock > 0 && v.price === QUICK_DENIM_UNIT_PRICE)
-  const [extraId, setExtraId] = useState(availableVariants[0]?.id ?? '')
 
   const thanaChoices = useMemo(() => {
     if (!district) return []
@@ -75,17 +73,6 @@ export function QuickDenimCheckout({
       const response = quantity > 0
         ? await updateLineQuantity({ lineId: id, quantity })
         : await removeLine({ lineId: id })
-      if (!response.ok) return setError(response.error.message)
-      router.refresh()
-    })
-  }
-
-  function addAnother() {
-    const extraVariant = variants.find(v => v.id === extraId)
-    if (!extraVariant || count >= QUICK_DENIM_MAX_ITEMS) return
-    setError('')
-    startTransition(async () => {
-      const response = await addQuickDenimVariant({ slug: extraVariant.slug, variantId: extraId, quantity: 1 })
       if (!response.ok) return setError(response.error.message)
       router.refresh()
     })
@@ -157,17 +144,20 @@ export function QuickDenimCheckout({
             </div>
           </div>
         ))}
-        <div className="space-y-2 rounded-xl bg-(--color-bg) p-3">
-          <label htmlFor="quick-extra-variant" className="block text-sm font-semibold">অন্য কালার বা সাইজের প্যান্ট যোগ করুন</label>
-          <div className="flex gap-2">
-            <select id="quick-extra-variant" className="min-w-0 flex-1 rounded-lg border border-(--color-border) bg-(--color-bg) px-2 text-sm"
-              value={extraId} onChange={e => setExtraId(e.target.value)}>
-              {availableVariants.map(v => <option key={v.id} value={v.id}>{label(v)}</option>)}
-            </select>
-            <button type="button" disabled={pending || !extraId || count >= QUICK_DENIM_MAX_ITEMS}
-              onClick={addAnother} className="min-h-11 rounded-lg bg-stone-900 px-3 text-sm font-semibold text-white disabled:opacity-50">+ যোগ করুন</button>
+        {count < QUICK_DENIM_MAX_ITEMS ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+            <p className="text-sm font-bold">আরেকটি প্যান্ট নিতে চান?</p>
+            <p className="mt-1 text-xs leading-5">নতুন প্যান্টের ছবি দেখে কালার ও সাইজ বেছে নিন। আপনার আগের প্যান্টগুলো অর্ডারে থাকবে।</p>
+            <Link href={`/order/denim?add=1&return=${encodeURIComponent(slug)}`}
+              className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stone-950 px-4 py-3 text-center text-sm font-bold text-white hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-950">
+              <span aria-hidden="true">＋</span> আরেকটি প্যান্ট যোগ করুন <span aria-hidden="true">→</span>
+            </Link>
           </div>
-        </div>
+        ) : (
+          <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+            এক অর্ডারে সর্বোচ্চ {QUICK_DENIM_MAX_ITEMS} পিস নেওয়া যাবে।
+          </p>
+        )}
         <div className="space-y-2 rounded-xl border border-(--color-border) p-4 text-sm">
           <div className="flex justify-between"><span>পণ্যের মূল্য ({count} পিস)</span><strong>{taka(subtotal)}</strong></div>
           <div className="flex justify-between"><span>ডেলিভারি চার্জ</span><strong className={count >= 2 ? 'text-emerald-700' : ''}>{count >= 2 ? 'ফ্রি' : shipping === null ? 'ঠিকানা দিলে দেখাবে' : taka(shipping)}</strong></div>
