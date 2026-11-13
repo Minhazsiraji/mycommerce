@@ -5,6 +5,7 @@ describe('MoyMoy quick COD pricing', () => {
   it('recognises denim names', () => {
     expect(isQuickDenimProduct('Men Semi Baggy Pant')).toBe(true)
     expect(isQuickDenimProduct('Cotton Shirt')).toBe(false)
+    expect(isQuickDenimProduct('Girls Baggy Jeans')).toBe(false)
   })
   it('quotes Dhaka City one-piece delivery at Tk 80', () => {
     expect(quickDenimShipping(1, 'Dhaka', 'Dhaka City').cost).toBe(8000)
