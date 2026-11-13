@@ -367,7 +367,8 @@ export async function placeQuickDenimCod(
     }, { quickDenimSlug: parsed.data.slug })
     // A placed COD order is a lead, not a paid Purchase. Existing payment flow owns Purchase.
     after(() =>
-      trackLead(`cod-order:${order.id}`, {
+      trackLead({
+        eventId: `cod-order:${order.id}`,
         value: order.total / 100,
         currency: 'BDT',
         contentName: 'MoyMoy COD order submitted',
