@@ -1,0 +1,55 @@
+name: MoyMoy one-time dependency remediation
+on:
+  push:
+    branches:
+      - agent/moymoy-quick-cod-bn
+    paths:
+      - .github/workflows/moymoy-security-refresh.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/agent/moymoy-quick-cod-bn'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install existing pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Refresh vulnerable first-party dependencies within the current major versions
+        run: |
+          set -euxo pipefail
+          pnpm up 'next@^16.4.1' 'eslint-config-next@^16.4.1' 'better-auth@^1.7.7' 'zod@^4.6.6'
+          pnpm audit --fix || true
+          pnpm install --lockfile-only
+      - name: Report remaining high or critical advisories
+        run: |
+          pnpm audit --audit-level high > /tmp/moymoy-audit.txt 2>&1 || true
+          echo "AUDIT_SUMMARY_BEGIN"
+          grep -E 'vulnerabilities found|Severity:|Patched versions|Vulnerable versions|Package[[:space:]]+│' /tmp/moymoy-audit.txt | tail -n 80 || true
+          echo "AUDIT_SUMMARY_END"
+          echo 'Updated versions:'
+          node -e 'const p = require("./package.json"); for (const k of ["next","eslint-config-next","better-auth","zod"]) console.log(k,p.dependencies?.[k]||p.devDependencies?.[k]);'
+      - name: Commit updated lockfile and manifests to ONLY feature branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json pnpm-lock.yaml pnpm-workspace.yaml
+          if git diff --cached --quiet; then
+            echo 'No dependency changes to commit.'
+            exit 1
+          fi
+          git commit -m 'security: refresh vulnerable dependencies for MoyMoy COD checkout'
+          git -c credential.helper='!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' push https://github.com/Minhazsiraji/mycommerce.git HEAD:refs/heads/agent/moymoy-quick-cod-bn
