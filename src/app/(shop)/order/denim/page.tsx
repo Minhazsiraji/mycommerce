@@ -28,7 +28,8 @@ export default async function DenimOrderLanding() {
       return true
     })
 
-  if (products.length === 1) redirect(`/order/denim/${products[0].slug}`)
+  const onlyProduct = products[0]
+  if (products.length === 1 && onlyProduct) redirect(`/order/denim/${onlyProduct.slug}`)
 
   return (
     <section lang="bn" className="mx-auto max-w-3xl space-y-5 pb-16">
