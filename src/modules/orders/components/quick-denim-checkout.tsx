@@ -19,6 +19,8 @@ type Line = {
   unitPrice: number
 }
 type Variant = {
+  slug: string
+  productTitle: string
   id: string
   title: string | null
   stock: number
@@ -85,10 +87,11 @@ export function QuickDenimCheckout({
   }
 
   function addAnother() {
-    if (!extraId || count >= QUICK_DENIM_MAX_ITEMS) return
+    const extraVariant = variants.find(v => v.id === extraId)
+    if (!extraVariant || count >= QUICK_DENIM_MAX_ITEMS) return
     setError('')
     startTransition(async () => {
-      const response = await addQuickDenimVariant({ slug, variantId: extraId, quantity: 1 })
+      const response = await addQuickDenimVariant({ slug: extraVariant.slug, variantId: extraId, quantity: 1 })
       if (!response.ok) return setError(response.error.message)
       router.refresh()
     })
