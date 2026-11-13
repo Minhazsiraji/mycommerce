@@ -39,12 +39,10 @@ export async function placeOrder(input: PlaceOrderInput, options?: { quickDenimS
   }
 
   if (options?.quickDenimSlug) {
-    const productSlug = options.quickDenimSlug
     if (
       cart.lines.length === 0 ||
       cart.itemCount > QUICK_DENIM_MAX_ITEMS ||
       cart.lines.some((line) =>
-        line.productSlug !== productSlug ||
         !isQuickDenimProduct(line.productTitle) ||
         line.unitPrice !== QUICK_DENIM_UNIT_PRICE
       )
