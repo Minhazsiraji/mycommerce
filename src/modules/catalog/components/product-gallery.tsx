@@ -72,13 +72,13 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-3">
       <div
         ref={frameRef}
         onMouseEnter={() => setZooming(true)}
         onMouseLeave={() => setZooming(false)}
         onMouseMove={onMove}
-        className="storefront-card-soft group relative aspect-square cursor-zoom-in overflow-hidden"
+        className="storefront-card-soft group relative aspect-[4/5] w-full min-w-0 cursor-zoom-in overflow-hidden sm:aspect-square"
       >
         <button
           type="button"
@@ -94,7 +94,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
           sizes="(max-width: 1024px) 100vw, 50vw"
           // Largest element above the fold, so never lazy-loaded.
           priority
-          className="object-cover transition-transform duration-200 ease-out"
+          className="object-contain p-2 transition-transform duration-200 ease-out sm:p-3"
           style={{
             transform: zooming ? `scale(${ZOOM})` : 'scale(1)',
             transformOrigin: origin,
@@ -107,9 +107,9 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
       </div>
 
       {images.length > 1 ? (
-        <ul className="flex gap-3 overflow-x-auto pb-1">
+        <ul className="flex w-full min-w-0 max-w-full gap-3 overflow-x-auto overscroll-x-contain pb-1">
           {images.map((image, i) => (
-            <li key={image.id}>
+            <li key={image.id} className="shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveId(image.id)}
@@ -119,7 +119,7 @@ export function ProductGallery({ images, title }: { images: GalleryImage[]; titl
                   image.id === active.id ? 'border-(--color-accent)' : 'border-transparent'
                 }`}
               >
-                <Image src={image.thumbUrl} alt="" fill sizes="64px" className="object-cover" />
+                <Image src={image.thumbUrl} alt="" fill sizes="64px" className="object-contain p-0.5" />
               </button>
             </li>
           ))}

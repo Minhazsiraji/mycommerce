@@ -7,20 +7,27 @@ export const metaEventIdSchema = z
   .max(120)
   .regex(/^[a-z][a-z0-9_-]*:[0-9a-f-]{36}$/i, 'Invalid analytics event id')
 
+export const viewContentPrepareSchema = z.object({
+  slug: z.string().trim().min(1).max(200).regex(/^[a-z0-9-]+$/),
+})
+
 export const viewContentEventSchema = z.object({
   eventId: metaEventIdSchema,
   variantId: z.uuid(),
+  eventSourceUrl: z.string().url().max(2048),
 })
 
 export const initiateCheckoutEventSchema = z.object({
-  eventId: metaEventIdSchema,
+  eventId: metaEventIdSchema.optional(),
 })
+
+export const addPaymentInfoEventSchema = initiateCheckoutEventSchema
 
 /** Contact-intent channels a storefront link can express. */
 export const contactMethodSchema = z.enum(['email', 'phone', 'whatsapp', 'messenger'])
 
 export const contactEventSchema = z.object({
-  eventId: metaEventIdSchema,
+  eventId: metaEventIdSchema.optional(),
   method: contactMethodSchema,
 })
 

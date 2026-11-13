@@ -1,4 +1,4 @@
-export const CHECKOUT_PAYMENT_METHODS = ['cod', 'bank_transfer', 'sslcommerz'] as const
+export const CHECKOUT_PAYMENT_METHODS = ['cod', 'bkash_manual', 'bank_transfer', 'sslcommerz'] as const
 
 export type CheckoutPaymentMethod = (typeof CHECKOUT_PAYMENT_METHODS)[number]
 
@@ -17,7 +17,7 @@ export function initialPaymentState(method: CheckoutPaymentMethod) {
     }
   }
 
-  if (method === 'bank_transfer') {
+  if (method === 'bank_transfer' || method === 'bkash_manual') {
     return {
       orderStatus: 'pending' as const,
       paymentStatus: 'awaiting_transfer' as const,
@@ -32,6 +32,10 @@ export function initialPaymentState(method: CheckoutPaymentMethod) {
     paymentAttemptStatus: 'pending' as const,
     holdMinutes: 30,
   }
+}
+
+export function isManualTransferMethod(method: string) {
+  return method === 'bank_transfer' || method === 'bkash_manual'
 }
 
 export function canFulfilBeforeCollection(paymentMethod: string, paymentStatus: string) {
@@ -53,10 +57,12 @@ export function canFulfilBeforeCollection(paymentMethod: string, paymentStatus: 
 export function availablePaymentMethods(configured: {
   sslcommerz: boolean
   bankTransfer: boolean
+  manualBkash?: boolean
   cod?: boolean
 }): CheckoutPaymentMethod[] {
   const methods: CheckoutPaymentMethod[] = []
   if (configured.cod ?? true) methods.push('cod')
+  if (configured.manualBkash) methods.push('bkash_manual')
   if (configured.bankTransfer) methods.push('bank_transfer')
   if (configured.sslcommerz) methods.push('sslcommerz')
   return methods

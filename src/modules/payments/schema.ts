@@ -14,7 +14,7 @@ import {
 import { users } from '@/modules/accounts/schema'
 import { orders } from '@/modules/orders/schema'
 
-export const PAYMENT_PROVIDERS = ['sslcommerz', 'bank_transfer', 'cod'] as const
+export const PAYMENT_PROVIDERS = ['sslcommerz', 'bkash_manual', 'bank_transfer', 'cod'] as const
 
 /**
  * One row per payment *attempt*, not per order.
@@ -45,13 +45,13 @@ export const payments = pgTable(
     /** Full provider response, kept for disputes and reconciliation. */
     rawPayload: jsonb('raw_payload'),
 
-    /* --- manual bank transfer only, null for gateway payments --- */
+    /* --- manually verified payment only (bank/bKash), null for gateway/COD --- */
 
     /** Transaction reference the customer typed in. */
     submittedReference: text('submitted_reference'),
     /** Storage key of the uploaded receipt. Evidence for a human, never proof. */
     proofKey: text('proof_key'),
-    /** Admin who confirmed it against the bank statement. */
+    /** Admin who confirmed it against the relevant payment account. */
     verifiedBy: text('verified_by').references(() => users.id, { onDelete: 'set null' }),
     verifiedAt: timestamp('verified_at'),
     /** Amount the admin actually observed, checked against the order total. */

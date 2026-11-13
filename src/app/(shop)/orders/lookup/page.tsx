@@ -31,8 +31,7 @@ export default function OrderLookupPage({
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Find your order</h1>
         <p className="text-sm text-(--color-muted)">
-          Enter the order number from your confirmation email, along with the email address you
-          ordered with.
+          Enter your order number and the mobile number used at checkout.
         </p>
       </div>
 

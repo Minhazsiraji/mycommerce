@@ -4,6 +4,7 @@ export {
   queuePurchase,
   retryPendingPurchases,
   trackAddToCart,
+  trackCodOrderLead,
 } from './service'
 export { getEffectiveMetaConfig, getMetaAdminState } from './integration-config'
 export { purchaseEventId } from './event-id'

@@ -46,6 +46,17 @@ export type CountryPreset = {
 
 const stripSeparators = (value: string) => value.replace(/[\s-]/g, '')
 
+function normalizeBdLocalPhone(value: string) {
+  let digits = value.replace(/\D/g, '')
+  if (digits.startsWith('00880')) digits = digits.slice(5)
+  else if (digits.startsWith('880')) digits = digits.slice(3)
+  if (digits.startsWith('88') && digits.slice(2).startsWith('01')) digits = digits.slice(2)
+  // +8801XXXXXXXXX and 008801XXXXXXXXX lose the leading domestic zero
+  // when the country prefix is stripped; restore it for courier-ready 01 numbers.
+  if (/^1[3-9]\d{8}$/.test(digits)) digits = `0${digits}`
+  return digits
+}
+
 const BANGLADESH: CountryPreset = {
   addressModel: 'bd-administrative',
   labels: {
@@ -61,13 +72,10 @@ const BANGLADESH: CountryPreset = {
     postalCode: 'optional',
   },
   phone: {
-    // 01XXXXXXXXX, +8801XXXXXXXXX and 8801XXXXXXXXX, since customers type all three.
-    pattern: /^(?:\+?880|0)1[3-9]\d{8}$/,
-    message: 'Enter a valid mobile number, e.g. 01712345678',
-    normalize: (value) => {
-      const clean = stripSeparators(value)
-      return clean.startsWith('0') ? `+88${clean}` : `+${clean.replace(/^\+/, '')}`
-    },
+    // Accept local and common international forms, but always store/display 01XXXXXXXXX.
+    pattern: /^(?:\+?880|00880|0)1[3-9]\d{8}$/,
+    message: 'Enter a valid Bangladesh mobile number, e.g. 01636057402',
+    normalize: normalizeBdLocalPhone,
   },
 }
 

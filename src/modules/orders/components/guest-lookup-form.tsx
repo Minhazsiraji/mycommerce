@@ -26,13 +26,14 @@ export function GuestLookupForm({ defaultOrderNumber }: { defaultOrderNumber?: s
       />
 
       <Input
-        name="email"
-        type="email"
-        label="Email address"
-        placeholder="The address you ordered with"
+        name="phone"
+        type="tel"
+        inputMode="tel"
+        label="Mobile number"
+        placeholder="01636057402"
         required
-        autoComplete="email"
-        error={state.fieldErrors?.email}
+        autoComplete="tel"
+        error={state.fieldErrors?.phone}
       />
 
       <Button type="submit" disabled={pending}>

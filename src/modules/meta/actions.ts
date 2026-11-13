@@ -3,25 +3,69 @@
 import { ok, fromZodError, type ActionResult } from '@/lib/action-result'
 import { rateLimit } from '@/lib/rate-limit'
 import { readCart } from '@/modules/cart'
+import { getProductBySlug } from '@/modules/catalog'
+import { CURRENCY } from '@/lib/money'
 
 import * as service from './service'
 import {
+  addPaymentInfoEventSchema,
   contactEventSchema,
   initiateCheckoutEventSchema,
   leadEventSchema,
   viewContentEventSchema,
+  viewContentPrepareSchema,
 } from './validators'
 
-export async function trackViewContent(input: unknown): Promise<ActionResult<null>> {
+export async function prepareViewContent(input: unknown): Promise<ActionResult<{
+  eventId: string
+  variantId: string
+  data: {
+    content_ids: string[]
+    content_name: string
+    content_type: 'product'
+    contents: { id: string; quantity: number; item_price: number }[]
+    currency: string
+    value: number
+  }
+} | null>> {
+  const parsed = viewContentPrepareSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+
+  const product = await getProductBySlug(parsed.data.slug)
+  if (!product || product.status !== 'active') return ok(null)
+
+  const variant = product.variants.find((item) => item.stock > 0) ?? product.variants[0]
+  if (!variant) return ok(null)
+
+  const value = variant.price / 100
+  return ok({
+    eventId: `viewcontent:${crypto.randomUUID()}`,
+    variantId: variant.id,
+    data: {
+      content_ids: [variant.id],
+      content_name: product.title,
+      content_type: 'product',
+      contents: [{ id: variant.id, quantity: 1, item_price: value }],
+      currency: CURRENCY,
+      value,
+    },
+  })
+}
+
+export async function trackViewContent(input: unknown): Promise<ActionResult<boolean>> {
   const parsed = viewContentEventSchema.safeParse(input)
   if (!parsed.success) return fromZodError(parsed.error)
-  if (!(await service.isCapiConfigured())) return ok(null)
+  if (!(await service.isCapiConfigured())) return ok(false)
 
   const limit = await rateLimit('meta-view-content', 120, 3600)
-  if (!limit.ok) return ok(null)
+  if (!limit.ok) return ok(false)
 
-  await service.trackViewContent(parsed.data.eventId, parsed.data.variantId)
-  return ok(null)
+  const sent = await service.trackViewContent(
+    parsed.data.eventId,
+    parsed.data.variantId,
+    parsed.data.eventSourceUrl,
+  )
+  return ok(sent)
 }
 
 export async function trackInitiateCheckout(input: unknown): Promise<ActionResult<null>> {
@@ -35,7 +79,28 @@ export async function trackInitiateCheckout(input: unknown): Promise<ActionResul
   const cart = await readCart()
   if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
 
-  await service.trackInitiateCheckout(parsed.data.eventId, cart)
+  await service.trackInitiateCheckout(
+    parsed.data.eventId ?? `initiatecheckout:${crypto.randomUUID()}`,
+    cart,
+  )
+  return ok(null)
+}
+
+export async function trackAddPaymentInfo(input: unknown): Promise<ActionResult<null>> {
+  const parsed = addPaymentInfoEventSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+  if (!(await service.isCapiConfigured())) return ok(null)
+
+  const limit = await rateLimit('meta-add-payment-info', 30, 3600)
+  if (!limit.ok) return ok(null)
+
+  const cart = await readCart()
+  if (!cart.id || cart.lines.length === 0 || cart.hasIssues) return ok(null)
+
+  await service.trackAddPaymentInfo(
+    parsed.data.eventId ?? `addpaymentinfo:${crypto.randomUUID()}`,
+    cart,
+  )
   return ok(null)
 }
 
@@ -47,7 +112,10 @@ export async function trackContact(input: unknown): Promise<ActionResult<null>> 
   const limit = await rateLimit('meta-contact', 30, 3600)
   if (!limit.ok) return ok(null)
 
-  await service.trackContact(parsed.data.eventId, parsed.data.method)
+  await service.trackContact(
+    parsed.data.eventId ?? `contact:${crypto.randomUUID()}`,
+    parsed.data.method,
+  )
   return ok(null)
 }
 

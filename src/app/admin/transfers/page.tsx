@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { listPendingTransfers } from '@/modules/payments'
 import { TransferQueue } from '@/modules/payments/components/transfer-queue'
 
-export const metadata: Metadata = { title: 'Bank transfers' }
+export const metadata: Metadata = { title: 'Manual payments' }
 
 export default async function AdminTransfersPage() {
   await connection()
@@ -14,10 +14,10 @@ export default async function AdminTransfersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Bank transfers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Manual payments</h1>
         <p className="text-sm text-(--color-muted)">
-          Customers who say they have paid. Check each against your bank statement before
-          confirming — the reference they typed is a claim, not proof.
+          Customers who submitted a bank or bKash transaction reference. Check each against
+          the relevant account records before confirming — the reference is a claim, not proof.
         </p>
       </div>
 

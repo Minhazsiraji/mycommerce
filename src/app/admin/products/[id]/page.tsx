@@ -74,11 +74,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
             sku: v.sku,
             title: v.title,
             price: v.price,
+            costPrice: v.costPrice,
             compareAtPrice: v.compareAtPrice,
             stock: v.stock,
             weightGrams: v.weightGrams,
             barcode: v.barcode,
             gtinType: v.gtinType,
+            options: v.options,
           })),
         }}
       />

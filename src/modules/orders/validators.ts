@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { addressInputSchema } from '@/modules/accounts/validators'
+import { addressInputSchema, bdPhoneSchema } from '@/modules/accounts/validators'
 
 import { CHECKOUT_PAYMENT_METHODS } from './payment-methods'
 
@@ -14,8 +14,12 @@ import { CHECKOUT_PAYMENT_METHODS } from './payment-methods'
  * most security-relevant shape in the codebase.
  */
 export const placeOrderSchema = z.object({
-  /** Required even when signed in: the confirmation has to reach someone. */
-  email: z.string().trim().toLowerCase().pipe(z.email('Enter a valid email address')),
+  /** Optional for MoyMoy fast checkout. Mobile remains the required contact. */
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((value) => value === '' || z.email().safeParse(value).success, 'Enter a valid email address'),
   address: addressInputSchema,
   /** Id only — the cost is looked up and re-quoted on the server. */
   shippingRateId: z.uuid(),
@@ -38,7 +42,7 @@ export const placeOrderSchema = z.object({
 export const guestLookupSchema = z.object({
   orderNumber: z.string().trim().min(4).max(32),
   // Both required: an order number alone would let anyone enumerate orders.
-  email: z.string().trim().toLowerCase().pipe(z.email()),
+  phone: bdPhoneSchema,
 })
 
 export const submitTransferSchema = z.object({
@@ -53,6 +57,8 @@ export const orderFiltersSchema = z.object({
     .enum(['unpaid', 'cod_pending', 'awaiting_transfer', 'awaiting_verification', 'paid', 'failed', 'refunded'])
     .optional(),
   fulfillmentStatus: z.enum(['unfulfilled', 'processing', 'shipped', 'delivered']).optional(),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   page: z.coerce.number().int().min(1).default(1),
 })
 

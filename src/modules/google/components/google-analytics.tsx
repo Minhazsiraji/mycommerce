@@ -25,11 +25,15 @@ function googleWindow() {
   return window as GoogleWindow
 }
 
-function bootGoogleTag(tagId: string) {
+function bootGoogleTag(tagId: string, debugMode: boolean) {
   const w = googleWindow()
   w.dataLayer ??= []
-  w.gtag ??= (...args: unknown[]) => {
-    w.dataLayer!.push(args)
+  // Google tag commands MUST push the actual Arguments object, not a rest-parameter array.
+  // gtag.js silently ignores plain arrays for 'config' and 'event' commands.
+  // Keep this a normal function, not an arrow function.
+  w.gtag ??= function (..._args: unknown[]) {
+    // eslint-disable-next-line prefer-rest-params
+    w.dataLayer!.push(arguments as unknown as unknown[])
   }
 
   if (!document.querySelector(`script[data-google-tag="${tagId}"]`)) {
@@ -42,7 +46,7 @@ function bootGoogleTag(tagId: string) {
 
   if (w._commerceGoogleTagId !== tagId) {
     w.gtag('js', new Date())
-    w.gtag('config', tagId, { send_page_view: false })
+    w.gtag('config', tagId, { send_page_view: false, ...(debugMode ? { debug_mode: true } : {}) })
     w._commerceGoogleTagId = tagId
   }
 
@@ -96,11 +100,15 @@ export function GoogleAnalytics({ tagId, enabled }: { tagId?: string; enabled: b
   useEffect(() => {
     if (!enabled || !tagId || consent !== 'granted') return
 
-    bootGoogleTag(tagId)
+    // Opt-in diagnostics only: GA4 DebugView receives events when a tester opens ?ga_debug=1.
+    // The existing analytics-consent requirement is still enforced above.
+    const debugMode = new URLSearchParams(window.location.search).get('ga_debug') === '1'
+    bootGoogleTag(tagId, debugMode)
     if (lastPage.current !== pathname) {
       googleWindow().gtag?.('event', 'page_view', {
         page_location: window.location.href,
         page_path: pathname,
+        ...(debugMode ? { debug_mode: true } : {}),
       })
       lastPage.current = pathname
     }

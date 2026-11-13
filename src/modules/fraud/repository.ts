@@ -40,7 +40,7 @@ export async function countRecentProblemOrders(input: { phone: string; email: st
   const result = await db.execute<{ phone_count: number; email_count: number; ip_count: number }>(sql`
     select
       count(*) filter (where phone = ${input.phone})::int as phone_count,
-      count(*) filter (where email = ${input.email})::int as email_count,
+      count(*) filter (where ${input.email} <> '' and email = ${input.email})::int as email_count,
       count(*) filter (where checkout_ip = ${input.ip})::int as ip_count
     from ${orders}
     where created_at >= now() - interval '7 days'

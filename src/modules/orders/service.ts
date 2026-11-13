@@ -3,6 +3,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 import { env } from '@/lib/env'
+import { isQuickDenimProduct, QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS, quickDenimShipping } from '@/lib/moymoy-quick-cod'
 import { getSession, saveAddress } from '@/modules/accounts'
 import { readCart } from '@/modules/cart'
 import {
@@ -12,7 +13,7 @@ import {
   sendOrderDelivered,
   sendOrderShipped,
 } from '@/modules/notifications'
-import { resolveRate } from '@/modules/shipping'
+import { bookConfirmedOrderWithSteadfast, resolveRate } from '@/modules/shipping'
 import { assessCheckout } from '@/modules/fraud'
 import { captureOrderAttribution, queuePurchase } from '@/modules/meta'
 
@@ -25,7 +26,7 @@ import type { PlaceOrderInput } from './validators'
 export class CheckoutError extends Error {}
 export { OutOfStockError }
 
-export async function placeOrder(input: PlaceOrderInput) {
+export async function placeOrder(input: PlaceOrderInput, options?: { quickDenimSlug: string }) {
   const session = await getSession()
   const cart = await readCart()
 
@@ -37,6 +38,19 @@ export async function placeOrder(input: PlaceOrderInput) {
     throw new CheckoutError('Some items changed. Review your cart before continuing.')
   }
 
+  if (options?.quickDenimSlug) {
+    if (
+      cart.lines.length === 0 ||
+      cart.itemCount > QUICK_DENIM_MAX_ITEMS ||
+      cart.lines.some((line) =>
+        !isQuickDenimProduct(line.productTitle) ||
+        line.unitPrice !== QUICK_DENIM_UNIT_PRICE
+      )
+    ) {
+      throw new CheckoutError('এই অর্ডারে শুধু ৭৫০ টাকার নির্বাচিত ডেনিম প্যান্ট রাখা যাবে।')
+    }
+  }
+
   const assessment = await assessCheckout({ email: input.email, phone: input.address.phone })
   if (!assessment.allowed) throw new CheckoutError(assessment.message)
 
@@ -44,16 +58,21 @@ export async function placeOrder(input: PlaceOrderInput) {
    * Delivery is re-quoted from the database for this destination and subtotal.
    * The client sent an id; it never sends a cost. Same rule as item prices.
    */
-  const shipping = await resolveRate({
-    rateId: input.shippingRateId,
-    district: input.address.district,
-    subtotal: cart.subtotal,
-  })
+  // The Messenger fast lane uses a quantity-based offer, not the storefront's
+  // amount-based free-shipping thresholds. Pricing is always server-authoritative.
+  const shipping = options?.quickDenimSlug
+    ? quickDenimShipping(cart.itemCount, input.address.district, input.address.city)
+    : await resolveRate({
+        rateId: input.shippingRateId,
+        district: input.address.district,
+        city: input.address.city,
+        subtotal: cart.subtotal,
+      })
 
   const order = await repo.placeOrder({
     cartId: cart.id,
     userId: session?.user.id ?? null,
-    email: input.email.toLowerCase(),
+    email: input.email.trim().toLowerCase(),
     phone: input.address.phone,
     address: {
       recipient: input.address.recipient,
@@ -155,8 +174,8 @@ async function rememberOrder(orderNumber: string) {
  * instance, so an in-process counter would be security theatre; per-IP limits on
  * this path belong in the Cloudflare WAF rule (docs/04-security.md).
  */
-export async function lookupGuestOrder(orderNumber: string, email: string) {
-  const order = await repo.findGuestOrder(orderNumber.trim(), email.trim().toLowerCase())
+export async function lookupGuestOrder(orderNumber: string, phone: string) {
+  const order = await repo.findGuestOrder(orderNumber.trim(), phone)
   if (!order) return null
 
   await rememberOrder(order.orderNumber)
@@ -173,7 +192,7 @@ async function wasPlacedHere(orderNumber: string) {
 
 /**
  * An order the caller is allowed to see: their own if signed in, or a guest
- * order proven by order number AND matching email.
+ * order proven by order number AND matching mobile number.
  */
 export async function getVisibleOrder(orderNumber: string, email?: string) {
   const session = await getSession()
@@ -237,6 +256,32 @@ export async function notifyOrderPaid(orderId: string) {
       items: order.items,
     }),
   )
+}
+
+export async function confirmOrderForCourier(orderId: string) {
+  const order = await repo.getOrderById(orderId)
+  if (!order) throw new CheckoutError('Order not found.')
+  if (order.status === 'cancelled') throw new CheckoutError('A cancelled order cannot be confirmed.')
+  if (order.status !== 'confirmed') {
+    throw new CheckoutError('Confirm payment before confirming this order for courier.')
+  }
+  if (
+    order.paymentStatus !== 'paid' &&
+    !(order.paymentMethod === 'cod' && order.paymentStatus === 'cod_pending')
+  ) {
+    throw new CheckoutError('Confirm payment before sending this order to Steadfast.')
+  }
+
+  const shipment = await bookConfirmedOrderWithSteadfast(orderId)
+  if (!shipment) {
+    throw new CheckoutError('Steadfast is not configured or the order is not ready for courier.')
+  }
+
+  if (order.fulfillmentStatus === 'unfulfilled') {
+    await repo.setFulfillmentStatus(orderId, 'processing')
+  }
+
+  return shipment
 }
 
 export async function setFulfillmentStatus(orderId: string, status: string) {

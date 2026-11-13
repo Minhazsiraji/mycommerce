@@ -3,6 +3,7 @@ type SearchBarProps = {
   className?: string
   label?: string
   placeholder?: string
+  compact?: boolean
 }
 
 export function SearchBar({
@@ -10,6 +11,7 @@ export function SearchBar({
   className = '',
   label = 'Search products',
   placeholder = 'Search products',
+  compact = false,
 }: SearchBarProps) {
   return (
     <form action="/search" role="search" aria-label={label} className={className}>
@@ -23,7 +25,7 @@ export function SearchBar({
           name="q"
           type="search"
           placeholder={placeholder}
-          className="h-12 w-full rounded-(--input-radius) border border-(--border-subtle) bg-(--surface-primary) pr-4 pl-11 text-base text-(--text-primary) outline-none transition-colors placeholder:text-(--text-muted) hover:border-(--border-strong) focus-visible:border-(--border-interactive) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+          className={`${compact ? 'h-10 pl-10 text-sm' : 'h-12 pl-11 text-base'} w-full rounded-(--input-radius) border border-(--border-subtle) bg-(--surface-primary) pr-4 text-(--text-primary) outline-none transition-colors placeholder:text-(--text-muted) hover:border-(--border-strong) focus-visible:border-(--border-interactive) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)`}
         />
       </div>
     </form>

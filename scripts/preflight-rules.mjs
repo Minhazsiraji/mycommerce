@@ -114,10 +114,19 @@ export function preflight(env) {
     warnings.push('Production is running SSLCommerz in sandbox mode; no real payment can complete')
   }
 
-  // Identity: a clone must never point at the original store's origin.
+  // Identity: a clone must never point at the original store's exact origin.
+  // Branded subdomains (for example moymoy.sirajibd.com) are allowed when
+  // intentionally assigned to a separate storefront/branch.
   if (canonical && !isProduction) {
+    let canonicalHost = ''
+    try {
+      canonicalHost = new URL(canonical).hostname.toLowerCase()
+    } catch {
+      canonicalHost = canonical.toLowerCase()
+    }
+
     for (const origin of SOURCE_ORIGINS) {
-      if (canonical.toLowerCase().includes(origin)) {
+      if (canonicalHost === origin) {
         errors.push(
           `STORE_CANONICAL_URL points at ${origin} on a non-production deployment; a clone must use its own domain`,
         )

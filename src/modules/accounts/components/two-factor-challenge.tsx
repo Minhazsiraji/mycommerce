@@ -32,8 +32,8 @@ export function TwoFactorChallenge({ next }: { next?: string | undefined }) {
 
       const { error: authError } =
         mode === 'totp'
-          ? await twoFactor.verifyTotp({ code: trimmed })
-          : await twoFactor.verifyBackupCode({ code: trimmed })
+          ? await twoFactor.verifyTotp({ code: trimmed, trustDevice: true })
+          : await twoFactor.verifyBackupCode({ code: trimmed, trustDevice: true })
 
       if (authError) {
         // The plugin locks the factor after repeated failures; say so rather

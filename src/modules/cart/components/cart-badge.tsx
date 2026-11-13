@@ -12,7 +12,7 @@ import { readCart } from '../service'
  */
 export async function CartBadge() {
   const cart = await readCart()
-  return <CartBadgeClient initialCount={cart.itemCount} />
+  return <CartBadgeClient key={cart.itemCount} initialCount={cart.itemCount} />
 }
 
 /** Identical footprint, so the header does not shift when the real badge lands. */

@@ -3,7 +3,7 @@ import 'server-only'
 import { and, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm'
 
 import { db } from '@/lib/db'
-import { getVisibleOrder, notifyOrderPaid } from '@/modules/orders'
+import { getVisibleOrder, isManualTransferMethod, notifyOrderPaid } from '@/modules/orders'
 // Tables come from the schema barrel, not another module's folder — see CLAUDE.md.
 import { orders } from '@/lib/db/schema'
 
@@ -242,11 +242,11 @@ export async function switchToBankTransfer(orderNumber: string) {
  * that row precisely so a dispute can be reconstructed; overwriting it defeats
  * the reason it exists.
  */
-async function currentTransfer(orderId: string) {
+async function currentTransfer(orderId: string, provider: string) {
   const [row] = await db
     .select({ id: payments.id, status: payments.status, reference: payments.submittedReference })
     .from(payments)
-    .where(and(eq(payments.orderId, orderId), eq(payments.provider, 'bank_transfer')))
+    .where(and(eq(payments.orderId, orderId), eq(payments.provider, provider)))
     .orderBy(desc(payments.createdAt))
     .limit(1)
 
@@ -258,13 +258,13 @@ export async function submitTransferReference(orderNumber: string, reference: st
   const order = await getVisibleOrder(orderNumber)
   if (!order) throw new PaymentError('Order not found.')
 
-  if (order.paymentMethod !== 'bank_transfer') {
-    throw new PaymentError('This order is not being paid by transfer.')
+  if (!isManualTransferMethod(order.paymentMethod)) {
+    throw new PaymentError('This order is not using a manually verified payment.')
   }
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
 
-  const attempt = await currentTransfer(order.id)
+  const attempt = await currentTransfer(order.id, order.paymentMethod)
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
 
   await db.transaction(async (tx) => {
@@ -277,7 +277,7 @@ export async function submitTransferReference(orderNumber: string, reference: st
         and(
           eq(orders.id, order.id),
           eq(orders.status, 'pending'),
-          eq(orders.paymentMethod, 'bank_transfer'),
+          eq(orders.paymentMethod, order.paymentMethod),
           inArray(orders.paymentStatus, ['awaiting_transfer', 'awaiting_verification']),
           gt(orders.stockHoldExpiresAt, new Date()),
         ),
@@ -309,7 +309,7 @@ export async function listPendingTransfers() {
     .innerJoin(orders, eq(payments.orderId, orders.id))
     .where(
       and(
-        eq(payments.provider, 'bank_transfer'),
+        inArray(payments.provider, ['bank_transfer', 'bkash_manual']),
         eq(payments.status, 'awaiting_verification'),
         eq(orders.status, 'pending'),
         eq(orders.paymentStatus, 'awaiting_verification'),
@@ -342,8 +342,8 @@ export async function confirmTransfer(input: {
    * no longer has. Refund it and let the customer reorder — that is a bad
    * afternoon; silently overselling is a bad reputation.
    */
-  if (order.paymentMethod !== 'bank_transfer') {
-    throw new PaymentError('This order is not being paid by transfer.')
+  if (!isManualTransferMethod(order.paymentMethod)) {
+    throw new PaymentError('This order is not using a manually verified payment.')
   }
   if (order.status === 'cancelled') {
     throw new PaymentError(
@@ -358,7 +358,7 @@ export async function confirmTransfer(input: {
     )
   }
 
-  const attempt = await currentTransfer(order.id)
+  const attempt = await currentTransfer(order.id, order.paymentMethod)
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
   if (attempt.status !== 'awaiting_verification' || !attempt.reference) {
     throw new PaymentError('Wait for the customer to submit a transfer reference.')
@@ -379,7 +379,7 @@ export async function confirmTransfer(input: {
         and(
           eq(orders.id, order.id),
           eq(orders.status, 'pending'),
-          eq(orders.paymentMethod, 'bank_transfer'),
+          eq(orders.paymentMethod, order.paymentMethod),
           eq(orders.paymentStatus, 'awaiting_verification'),
           gt(orders.stockHoldExpiresAt, new Date()),
         ),
@@ -418,7 +418,11 @@ export async function rejectTransfer(orderId: string, reason: string) {
   if (order.status === 'cancelled') throw new PaymentError('This order was cancelled.')
   if (order.paymentStatus === 'paid') throw new PaymentError('This order is already paid.')
 
-  const attempt = await currentTransfer(orderId)
+  if (!isManualTransferMethod(order.paymentMethod)) {
+    throw new PaymentError('This order is not using a manually verified payment.')
+  }
+
+  const attempt = await currentTransfer(orderId, order.paymentMethod)
   if (!attempt) throw new PaymentError('No transfer is pending on this order.')
 
   await db.transaction(async (tx) => {

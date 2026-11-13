@@ -1,12 +1,11 @@
 'use client'
 
+import type { Route } from 'next'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-
-import { CURRENCY } from '@/lib/money'
 
 import { addToCart } from '../actions'
 import { CART_INCREMENT_EVENT } from './cart-badge-client'
-import { newBrowserEventId, trackBrowserEvent } from '@/modules/meta/components/client'
 
 /**
  * Deliberately not optimistic about persistence: "Added" is shown only after
@@ -18,16 +17,15 @@ export function AddToCartButton({
   disabled,
   className = '',
   children = 'Add to cart',
-  contentName,
-  unitPrice,
+  redirectTo,
 }: {
   variantId: string
   disabled?: boolean
   className?: string
   children?: React.ReactNode
-  contentName: string
-  unitPrice: number
+  redirectTo?: string
 }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [state, setState] = useState<'idle' | 'added'>('idle')
   const [error, setError] = useState<string>()
@@ -36,8 +34,7 @@ export function AddToCartButton({
     setError(undefined)
 
     startTransition(async () => {
-      const eventId = newBrowserEventId('addtocart')
-      const result = await addToCart({ variantId, quantity: 1, eventId })
+      const result = await addToCart({ variantId, quantity: 1 })
 
       if (!result.ok) {
         setError(result.error.message)
@@ -47,18 +44,10 @@ export function AddToCartButton({
       setState('added')
       window.dispatchEvent(new CustomEvent(CART_INCREMENT_EVENT, { detail: 1 }))
 
-      trackBrowserEvent(
-        'AddToCart',
-        {
-          content_ids: [variantId],
-          content_name: contentName,
-          content_type: 'product',
-          contents: [{ id: variantId, quantity: 1, item_price: unitPrice }],
-          currency: CURRENCY,
-          value: unitPrice,
-        },
-        eventId,
-      )
+      if (redirectTo) {
+        router.push(redirectTo as Route)
+        return
+      }
 
       setTimeout(() => setState('idle'), 2000)
     })

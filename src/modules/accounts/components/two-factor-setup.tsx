@@ -48,7 +48,7 @@ export function TwoFactorSetup({
     setError(undefined)
     setPending(true)
     try {
-      const { data, error: authError } = await twoFactor.enable({ password })
+      const { data, error: authError } = await twoFactor.enable({ password, method: 'totp' })
 
       if (authError || !data) {
         setError(
@@ -56,6 +56,11 @@ export function TwoFactorSetup({
             ? 'That password is not correct.'
             : (authError?.message ?? 'Could not start setup.'),
         )
+        return
+      }
+
+      if (data.method !== 'totp') {
+        setError('The authenticator could not be initialized. Please try again.')
         return
       }
 
@@ -71,7 +76,7 @@ export function TwoFactorSetup({
     setError(undefined)
     setPending(true)
     try {
-      const { error: authError } = await twoFactor.verifyTotp({ code: code.trim() })
+      const { error: authError } = await twoFactor.verifyTotp({ code: code.trim(), trustDevice: true })
 
       if (authError) {
         setError('That code is not right. Codes change every 30 seconds — check your clock.')

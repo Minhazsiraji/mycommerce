@@ -16,5 +16,15 @@ describe('checkout payment methods', () => {
     expect(canFulfilBeforeCollection('cod', 'cod_pending')).toBe(true)
     expect(canFulfilBeforeCollection('sslcommerz', 'unpaid')).toBe(false)
     expect(canFulfilBeforeCollection('bank_transfer', 'awaiting_transfer')).toBe(false)
+    expect(canFulfilBeforeCollection('bkash_manual', 'awaiting_transfer')).toBe(false)
+  })
+
+  it('keeps manual bKash pending until an owner verifies the transaction', () => {
+    expect(initialPaymentState('bkash_manual')).toEqual({
+      orderStatus: 'pending',
+      paymentStatus: 'awaiting_transfer',
+      paymentAttemptStatus: 'awaiting_verification',
+      holdMinutes: 72 * 60,
+    })
   })
 })

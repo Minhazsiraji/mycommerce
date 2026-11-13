@@ -1,11 +1,13 @@
 import type { MetadataRoute } from 'next'
+import { headers } from 'next/headers'
 
-import { getSiteUrl, isIndexableEnvironment } from '@/lib/site-metadata'
+import { getSiteUrl, isCanonicalRequestHost, isIndexableEnvironment } from '@/lib/site-metadata'
 import { STORE_TRUST_ROUTES } from '@/lib/store-policies'
 import { listActiveProductSlugs, listIndexableCategories } from '@/modules/catalog'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  if (!isIndexableEnvironment()) return []
+  const host = (await headers()).get('host')?.split(':')[0] ?? ''
+  if (!isIndexableEnvironment() || !isCanonicalRequestHost(host)) return []
 
   const siteUrl = getSiteUrl()
   const [categories, productSlugs] = await Promise.all([

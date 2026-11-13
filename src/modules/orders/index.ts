@@ -25,6 +25,7 @@ export {
 export { orderFiltersSchema, type OrderFilters } from './validators'
 
 export { configuredPaymentMethods } from './configured-payments'
+export { isManualTransferMethod } from './payment-methods'
 export type { CheckoutPaymentMethod } from './payment-methods'
 
 export {
@@ -40,3 +41,5 @@ export {
 
 export type { AddressSnapshot, Order, OrderItem } from './schema'
 export { placeOrderSchema, guestLookupSchema, type PlaceOrderInput } from './validators'
+
+export { listQuickDenimProducts } from './quick-denim-catalog'

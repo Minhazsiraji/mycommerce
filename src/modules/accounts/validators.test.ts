@@ -71,12 +71,13 @@ const validAddress = {
 
 describe('Bangladesh checkout validation', () => {
   it('normalises a local mobile number', () => {
-    expect(bdPhoneSchema.parse('01712 345678')).toBe('+8801712345678')
+    expect(bdPhoneSchema.parse('01712 345678')).toBe('01712345678')
+    expect(bdPhoneSchema.parse('+8801712345678')).toBe('01712345678')
   })
 
   it('accepts a complete Bangladesh delivery address', () => {
     expect(addressInputSchema.parse(validAddress)).toMatchObject({
-      phone: '+8801712345678',
+      phone: '01712345678',
       district: 'Dhaka',
       upazila: 'Savar',
     })

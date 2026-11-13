@@ -10,18 +10,27 @@ import {
   type MetaConsent,
 } from '../consent'
 import {
-  legacyMetaPurchaseStorageKey,
-  META_PURCHASE_ELEMENT_ID,
-  metaPurchaseStorageKey,
-  parseMetaPurchasePayload,
-} from '../purchase-payload'
-import { migrateLegacyConsent, readMetaConsent, writeMetaConsent } from './client'
+  migrateLegacyConsent,
+  readMetaConsent,
+  trackBrowserEvent,
+  writeMetaConsent,
+} from './client'
+import {
+  prepareViewContent,
+  trackViewContent,
+} from '../actions'
 
 function bootPixel(pixelId: string) {
   if (!window.fbq) {
-    const fbq: NonNullable<Window['fbq']> = (...args: unknown[]) => {
+    // Match Meta's official Pixel bootstrap: queue the real Arguments object.
+    // fbevents.js expects queued commands in that shape, not a rest array.
+    const fbq: NonNullable<Window['fbq']> = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args)
-      else (fbq.queue ??= []).push(args)
+      else {
+        // Meta's bootstrap intentionally stores the actual Arguments object.
+        // eslint-disable-next-line prefer-rest-params
+        (fbq.queue ??= []).push(arguments as unknown as unknown[])
+      }
     }
     fbq.loaded = true
     fbq.version = '2.0'
@@ -42,38 +51,43 @@ function bootPixel(pixelId: string) {
   }
 
   window.fbq('consent', 'grant')
+  // Let route-specific, opt-in funnel events wait for the Pixel bootstrap.
   window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
 }
 
 /**
- * Emits the order-page Meta Purchase at most once per stable event ID.
- *
- * The order detail subtree is known not to hydrate. Reading an inert JSON block
- * from the layout keeps browser Pixel reporting aligned with the server-side
- * CAPI event without depending on a dead page-level useEffect.
+ * Product views remain dual-sent because this path is already verified.
+ * Commerce actions after the product view are CAPI-only.
  */
-function emitMetaPurchaseOnce(): boolean {
-  const block = document.getElementById(META_PURCHASE_ELEMENT_ID)
-  const payload = parseMetaPurchasePayload(block?.textContent)
-  if (!payload || !window.fbq) return false
+async function emitProductView(pathname: string): Promise<boolean> {
+  const slug = pathname.startsWith('/p/')
+    ? pathname.slice(3).split('/')[0]
+    : pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout'
+      && !pathname.startsWith('/order/denim/thanks/')
+      ? pathname.slice('/order/denim/'.length).split('/')[0]
+      : ''
+  if (!slug) return false
 
-  const storageKey = metaPurchaseStorageKey(payload.eventId)
+  const prepared = await prepareViewContent({ slug })
+  if (!prepared.ok || !prepared.data) return false
+
+  const payload = prepared.data
+  if (!trackBrowserEvent('ViewContent', payload.data, payload.eventId)) return false
+
   try {
-    if (localStorage.getItem(storageKey)) return true
-    if (localStorage.getItem(legacyMetaPurchaseStorageKey(payload.eventId))) return true
-    // Prefer one lost browser event over duplicate reported revenue if the
-    // tracking call itself throws. CAPI still carries the stable event ID.
-    localStorage.setItem(storageKey, '1')
+    await trackViewContent({
+      eventId: payload.eventId,
+      variantId: payload.variantId,
+      eventSourceUrl: window.location.href,
+    })
   } catch {
-    // Hardened browsers can deny storage. Meta can still deduplicate with the
-    // event ID shared by Pixel and CAPI.
+    // Browser event already fired. Server delivery remains best effort.
   }
 
-  window.fbq('track', 'Purchase', payload.data, { eventID: payload.eventId })
   return true
 }
 
-export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled: boolean }) {
+export function MetaAnalytics({ pixelId, enabled, implicitConsent = false, hideConsentUi = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean; hideConsentUi?: boolean }) {
   const pathname = usePathname()
   const consent = useSyncExternalStore(
     (onChange) => {
@@ -85,12 +99,14 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   )
   const [choicesOpen, setChoicesOpen] = useState(false)
   const lastPage = useRef<string | undefined>(undefined)
+  const lastProductView = useRef<string | undefined>(undefined)
 
   // Before anything reads consent, carry a pre-rename choice across so the
   // visitor is neither re-prompted nor silently re-tracked.
   useEffect(() => {
     migrateLegacyConsent()
-  }, [])
+    if (implicitConsent && readMetaConsent() === 'unset') writeMetaConsent('granted')
+  }, [implicitConsent])
 
   useEffect(() => {
     const openChoices = () => setChoicesOpen(true)
@@ -105,7 +121,7 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   }, [])
 
   useEffect(() => {
-    if (!pixelId || consent !== 'granted') {
+    if (!enabled || !pixelId || consent !== 'granted') {
       if (consent === 'denied' && window.fbq) window.fbq('consent', 'revoke')
       return
     }
@@ -116,18 +132,21 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
       lastPage.current = pathname
     }
 
-    if (emitMetaPurchaseOnce()) return
+    if ((pathname.startsWith('/p/') ||
+      (pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout' &&
+        !pathname.startsWith('/order/denim/thanks/'))) &&
+      lastProductView.current !== pathname) {
+      lastProductView.current = pathname
+      void emitProductView(pathname)
+    }
 
-    // Dynamic order content can stream in after the layout hydrated. Observe
-    // for the inert purchase block instead of guessing a timeout.
-    const observer = new MutationObserver(() => {
-      if (emitMetaPurchaseOnce()) observer.disconnect()
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [consent, pathname, pixelId])
+  }, [consent, enabled, pathname, pixelId])
 
-  if (!enabled || (consent !== 'unset' && !choicesOpen)) return null
+  // In the dedicated Bangla COD journey, never cover the buying controls with
+  // a fixed banner. Optional analytics stay OFF unless actively enabled at
+  // checkout or via the footer privacy control. Prior consent is respected.
+  const quickDenim = pathname.startsWith('/order/denim')
+  if (!enabled || implicitConsent || hideConsentUi || (quickDenim && !choicesOpen) || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
@@ -161,8 +180,9 @@ export function MetaAnalytics({ pixelId, enabled }: { pixelId?: string; enabled:
   )
 }
 
-export function PrivacyChoicesButton({ enabled }: { enabled: boolean }) {
-  if (!enabled) return null
+export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boolean; hidden?: boolean }) {
+  const pathname = usePathname()
+  if (!enabled || hidden) return null
 
   return (
     <button
@@ -170,7 +190,7 @@ export function PrivacyChoicesButton({ enabled }: { enabled: boolean }) {
       onClick={() => window.dispatchEvent(new Event(META_PRIVACY_OPEN_EVENT))}
       className="min-h-11 text-xs underline underline-offset-4 hover:text-(--text-primary)"
     >
-      Privacy choices
+      {pathname.startsWith('/order/denim') ? 'কুকি ও গোপনীয়তার পছন্দ' : 'Privacy choices'}
     </button>
   )
 }

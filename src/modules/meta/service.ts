@@ -14,6 +14,7 @@ import {
 } from './attribution'
 import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
+import { buildConsentedCodLeadMatch } from './lead-match'
 import { getEffectiveMetaConfig } from './integration-config'
 import {
   hashUserData,
@@ -34,6 +35,7 @@ type EventName =
   | 'ViewContent'
   | 'AddToCart'
   | 'InitiateCheckout'
+  | 'AddPaymentInfo'
   | 'Contact'
   | 'Lead'
   | 'Purchase'
@@ -77,13 +79,21 @@ async function requestContext(fallbackPath: string): Promise<RequestContext | nu
 
   const [jar, requestHeaders] = await Promise.all([cookies(), headers()])
   const forwarded = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
+  // Consent-gated first-party ad attribution can recover a genuine Meta click ID
+  // for early funnel CAPI events when the browser has not created _fbc.
+  // Never fabricate _fbc for visits without a real fbclid.
+  const attribution = parseAttributionCookie(jar.get(META_ATTRIBUTION_COOKIE)?.value)
+  const fbc = capIdentifier(jar.get('_fbc')?.value) ??
+    (attribution?.fbclid
+      ? synthesizeFbc(attribution.fbclid, attribution.capturedAt ?? Date.now())
+      : null)
 
   return {
     clientIpAddress: requestHeaders.get('cf-connecting-ip') ?? forwarded ?? null,
     clientUserAgent: cleanUserAgent(requestHeaders.get('user-agent')),
     eventSourceUrl: safeSourceUrl(requestHeaders.get('referer'), fallbackPath),
     fbp: capIdentifier(jar.get('_fbp')?.value),
-    fbc: capIdentifier(jar.get('_fbc')?.value),
+    fbc,
   }
 }
 
@@ -155,15 +165,18 @@ async function sendRequestEvent(
   eventId: string,
   customData: MetaCustomData,
   fallbackPath: string,
-) {
-  if (!(await configured())) return
+  explicitSourceUrl?: string,
+): Promise<boolean> {
+  if (!(await configured())) return false
   const context = await requestContext(fallbackPath)
-  if (!context?.clientUserAgent) return
+  if (!context?.clientUserAgent) return false
 
-  await postEvent({
+  const result = await postEvent({
     eventName,
     eventId,
-    eventSourceUrl: context.eventSourceUrl,
+    eventSourceUrl: explicitSourceUrl
+      ? safeSourceUrl(explicitSourceUrl, fallbackPath)
+      : context.eventSourceUrl,
     customData,
     userData: {
       client_ip_address: context.clientIpAddress ?? undefined,
@@ -172,13 +185,18 @@ async function sendRequestEvent(
       fbc: context.fbc ?? undefined,
     },
   })
+  return result.sent
 }
 
-export async function trackViewContent(eventId: string, variantId: string) {
+export async function trackViewContent(
+  eventId: string,
+  variantId: string,
+  eventSourceUrl: string,
+): Promise<boolean> {
   const variant = await repo.findVariantForTracking(variantId)
-  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return
+  if (!variant || variant.productStatus !== 'active' || variant.archivedAt) return false
 
-  await sendRequestEvent(
+  return sendRequestEvent(
     'ViewContent',
     eventId,
     {
@@ -190,6 +208,7 @@ export async function trackViewContent(eventId: string, variantId: string) {
       value: minorToMetaValue(variant.price),
     },
     '/p',
+    eventSourceUrl,
   )
 }
 
@@ -242,6 +261,29 @@ export async function trackInitiateCheckout(
   )
 }
 
+export async function trackAddPaymentInfo(
+  eventId: string,
+  cart: { lines: CartLine[]; subtotal: number; itemCount: number },
+) {
+  await sendRequestEvent(
+    'AddPaymentInfo',
+    eventId,
+    {
+      content_ids: cart.lines.map((line) => line.variantId),
+      content_type: 'product',
+      contents: cart.lines.map((line) => ({
+        id: line.variantId,
+        quantity: line.quantity,
+        item_price: minorToMetaValue(line.unitPrice),
+      })),
+      currency: CURRENCY,
+      num_items: cart.itemCount,
+      value: minorToMetaValue(cart.subtotal),
+    },
+    '/checkout',
+  )
+}
+
 /**
  * Contact — a customer starting a conversation through a contact-intent link
  * (email, phone, WhatsApp, Messenger). Dual-sent: the browser Pixel and this
@@ -275,6 +317,48 @@ export async function trackLead(
     data.currency = custom.currency
   }
   await sendRequestEvent('Lead', eventId, data, '/')
+}
+
+/**
+ * Send a qualified COD order as a Lead, using hashed matching data from
+ * the VERIFIED persisted order rather than arbitrary untrusted browser input.
+ * Never send if the visitor has not granted analytics consent or no consented
+ * order attribution was recorded. Purchase remains exclusively payment-led.
+ */
+export async function trackCodOrderLead(orderId: string): Promise<boolean> {
+  if (!(await configured()) || !(await hasConsent())) return false
+
+  const context = await repo.getPurchaseContext(orderId)
+  if (!context || context.order.paymentMethod !== 'cod' || context.order.status !== 'confirmed') {
+    return false
+  }
+
+  const { order, attribution } = context
+  const result = await postEvent({
+    eventName: 'Lead',
+    eventId: `cod-order:${order.id}`,
+    eventSourceUrl: safeSourceUrl(attribution.eventSourceUrl, '/order/denim/checkout'),
+    customData: {
+      content_name: 'MoyMoy COD order submitted',
+      currency: CURRENCY,
+      value: minorToMetaValue(order.total),
+    },
+    userData: buildConsentedCodLeadMatch({
+      recipient: order.shippingAddress.recipient ?? '',
+      email: order.email,
+      phone: order.phone,
+      city: order.shippingAddress.city,
+      district: order.shippingAddress.district ?? '',
+      country: order.shippingAddress.country,
+      postalCode: order.shippingAddress.postalCode ?? null,
+      userId: order.userId,
+      clientIpAddress: order.checkoutIp,
+      clientUserAgent: attribution.clientUserAgent,
+      fbp: attribution.fbp,
+      fbc: attribution.fbc,
+    }),
+  })
+  return result.sent
 }
 
 /** Best-effort and called only after the commercial order transaction commits. */
@@ -330,6 +414,12 @@ async function deliverPurchase(eventId: string) {
   }
 
   const { order, attribution, items } = context
+  // A queued/retried marketing event must not count an order that was
+  // cancelled, refunded or reverted to unpaid after it entered the queue.
+  if (order.paymentStatus !== 'paid' || order.status !== 'confirmed') {
+    await repo.markDeliveryFailed(eventId, 'Purchase not eligible at delivery time')
+    return
+  }
   const city = normalizeCity(order.shippingAddress.city)
   const country = normalizeCountry(order.shippingAddress.country)
   const region = normalizeRegion(order.shippingAddress.district ?? '')
@@ -349,7 +439,7 @@ async function deliverPurchase(eventId: string) {
       '/orders',
     ),
     userData: {
-      em: [hashUserData(normalizeEmail(order.email))],
+      em: order.email ? [hashUserData(normalizeEmail(order.email))] : undefined,
       ph: order.phone ? [hashUserData(normalizeBdPhone(order.phone))] : undefined,
       fn: firstName ? [hashUserData(firstName)] : undefined,
       ln: lastName ? [hashUserData(lastName)] : undefined,

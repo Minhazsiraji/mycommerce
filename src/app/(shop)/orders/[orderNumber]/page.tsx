@@ -12,18 +12,17 @@ import { getEffectiveGoogleConfig } from '@/modules/google'
 import { GooglePurchaseTracker } from '@/modules/google/components/purchase-tracker'
 import { getVisibleOrder, listShipments } from '@/modules/orders'
 import { isOnlineGateway } from '@/modules/payments'
-import { MetaPurchasePayload } from '@/modules/meta/components/meta-purchase-payload'
-import { buildMetaPurchaseData, purchaseEventId } from '@/modules/meta'
 import { BankTransferInstructions } from '@/modules/payments/components/bank-transfer-instructions'
 import { PayNowPanel } from '@/modules/payments/components/pay-now-panel'
 import { PaymentConfirmingRefresh } from '@/modules/payments/components/payment-confirming-refresh'
+import { getSteadfastStatus } from '@/modules/shipping'
 
 export const metadata: Metadata = { title: 'Your order', robots: { index: false } }
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
   cod_pending: {
-    title: 'Order confirmed — cash on delivery',
-    body: 'Pay the total to the courier when your order arrives. We will email you when it ships.',
+    title: 'Order placed — cash on delivery',
+    body: 'We received your order and will confirm it shortly. Pay the total to the courier when it arrives.',
   },
   awaiting_transfer: {
     title: 'Order placed — awaiting your transfer',
@@ -31,7 +30,7 @@ const STATUS_COPY: Record<string, { title: string; body: string }> = {
   },
   awaiting_verification: {
     title: 'Reference received',
-    body: 'We are checking your transfer against our bank statement. You will get an email once it clears.',
+    body: 'We are checking your payment reference against our records. You will get an email once it clears.',
   },
   unpaid: {
     title: 'Order placed — payment pending',
@@ -115,6 +114,15 @@ async function OrderDetail({
       purchaseTrackingEnabled: false,
     })),
   ])
+  const steadfastStatusByShipment = new Map<string, string | null>()
+  await Promise.all(
+    shipments.map(async (shipment) => {
+      if (shipment.carrier !== 'Steadfast' || !shipment.trackingNumber) return
+      const status = await getSteadfastStatus(shipment.trackingNumber).catch(() => null)
+      steadfastStatusByShipment.set(shipment.id, status)
+    }),
+  )
+
   const confirmingPayment = returnStatus === 'success' && order.paymentStatus === 'unpaid'
   const fulfilment = fulfilmentCopy(order.fulfillmentStatus, order.paymentMethod)
   const copy = order.status === 'cancelled'
@@ -141,12 +149,6 @@ async function OrderDetail({
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
       {isPaidConfirmed ? (
         <>
-          {/* Same builder the CAPI delivery uses, so browser and server cannot
-              describe the same sale differently. */}
-          <MetaPurchasePayload
-            eventId={purchaseEventId(order.id)}
-            data={buildMetaPurchaseData(order)}
-          />
           <GooglePurchaseTracker
             enabled={googleConfig.enabled && googleConfig.purchaseTrackingEnabled}
             order={order}
@@ -174,15 +176,19 @@ async function OrderDetail({
               ? 'This order was cancelled and the payment was refunded.'
               : 'This order was cancelled. No successful payment is recorded.'}
         </p>
-      ) : order.paymentMethod === 'bank_transfer' && order.paymentStatus === 'awaiting_transfer' ? (
+      ) : (order.paymentMethod === 'bank_transfer' || order.paymentMethod === 'bkash_manual') && order.paymentStatus === 'awaiting_transfer' ? (
         <BankTransferInstructions
+          kind={order.paymentMethod === 'bkash_manual' ? 'bkash' : 'bank'}
           orderNumber={order.orderNumber}
           amount={order.total}
           bank={{
-            accountName: env.BANK_ACCOUNT_NAME ?? null,
-            accountNumber: env.BANK_ACCOUNT_NUMBER ?? null,
-            bankName: env.BANK_NAME ?? null,
-            branch: env.BANK_BRANCH ?? null,
+            accountName: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_NAME ?? null) : (env.BANK_ACCOUNT_NAME ?? null),
+            accountNumber: order.paymentMethod === 'bkash_manual' ? (env.BKASH_NUMBER ?? null) : (env.BANK_ACCOUNT_NUMBER ?? null),
+            bankName: order.paymentMethod === 'bkash_manual' ? 'bKash' : (env.BANK_NAME ?? null),
+            branch: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_BRANCH ?? null),
+            branchDistrict: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_BRANCH_DISTRICT ?? null),
+            routingNumber: order.paymentMethod === 'bkash_manual' ? null : (env.BANK_ROUTING_NUMBER ?? null),
+            accountType: order.paymentMethod === 'bkash_manual' ? (env.BKASH_ACCOUNT_TYPE ?? null) : null,
           }}
         />
       ) : isOnlineGateway(order.paymentMethod) &&
@@ -204,9 +210,18 @@ async function OrderDetail({
               <li key={shipment.id} className="flex flex-col gap-1">
                 <span className="font-medium">{shipment.carrier}</span>
                 {shipment.trackingNumber ? (
-                  <span className="text-(--color-muted)">
-                    Tracking number: <span className="font-medium text-(--color-text)">{shipment.trackingNumber}</span>
-                  </span>
+                  <>
+                    <span className="text-(--color-muted)">
+                      Tracking number: <span className="font-medium text-(--color-text)">{shipment.trackingNumber}</span>
+                    </span>
+                    {shipment.carrier === 'Steadfast' ? (
+                      <span className="text-(--color-muted)">
+                        Courier status: <span className="font-medium capitalize text-(--color-text)">{steadfastStatusByShipment.get(shipment.id)?.replaceAll('_', ' ') ?? 'Booked'}</span>
+                        {' · '}
+                        <a href={`/track?code=${encodeURIComponent(shipment.trackingNumber)}`} className="underline underline-offset-4">Track live</a>
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
                   <span className="text-(--color-muted)">Tracking number will be added when available.</span>
                 )}

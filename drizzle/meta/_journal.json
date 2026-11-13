@@ -197,6 +197,13 @@
       "when": 1788923529125,
       "tag": "0027_rare_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793117734488,
+      "tag": "0028_lively_boomerang",
+      "breakpoints": true
     }
   ]
 }
