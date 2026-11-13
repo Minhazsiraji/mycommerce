@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
 import { getCachedProductBySlug } from '@/modules/catalog'
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 export default async function DirectDenimProduct({ params }: {
   params: Promise<{ slug: string }>
 }) {
+  await connection()
   const { slug } = await params
   const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active' || !isQuickDenimProduct(product.title) ||
