@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
-import { listActiveProducts } from '@/modules/catalog'
-import { QUICK_DENIM_UNIT_PRICE, isQuickDenimProduct, taka } from '@/lib/moymoy-quick-cod'
+import { listQuickDenimProducts } from '@/modules/orders/quick-denim-catalog'
+import { QUICK_DENIM_UNIT_PRICE, taka } from '@/lib/moymoy-quick-cod'
 import { storage } from '@/lib/storage'
 
 export const metadata: Metadata = {
@@ -14,19 +14,7 @@ export const metadata: Metadata = {
 
 export default async function DenimOrderLanding() {
   await connection()
-  // Discover live inventory; no hard-coded product IDs or fake colour choices.
-  const searches = await Promise.all([
-    listActiveProducts({ q: 'denim', sort: 'relevance', page: 1 }, { limit: 24 }),
-    listActiveProducts({ q: 'baggy', sort: 'relevance', page: 1 }, { limit: 24 }),
-    listActiveProducts({ sort: 'newest', page: 1 }, { limit: 24 }),
-  ])
-  const seen = new Set<string>()
-  const products = searches.flatMap(result => result.rows)
-    .filter(p => {
-      if (seen.has(p.id) || !isQuickDenimProduct(p.title) || p.fromPrice !== QUICK_DENIM_UNIT_PRICE || p.totalStock < 1) return false
-      seen.add(p.id)
-      return true
-    })
+  const products = await listQuickDenimProducts()
 
   const onlyProduct = products[0]
   if (products.length === 1 && onlyProduct) redirect(`/order/denim/${onlyProduct.slug}`)
@@ -49,7 +37,7 @@ export default async function DenimOrderLanding() {
           {products.map(p => (
             <Link key={p.id} href={`/order/denim/${p.slug}`}
               className="overflow-hidden rounded-2xl border border-(--color-border) bg-(--color-surface) p-3 shadow-sm">
-              {p.imageKey && <img src={storage.url(p.imageKey, { width: 720, height: 720, fit: 'contain' })}
+              {p.images[0] && <img src={storage.url(p.images[0].r2Key, { width: 720, height: 720, fit: 'contain' })}
                 className="h-56 w-full rounded-xl bg-white object-contain" alt={p.title} />}
               <h2 className="mt-3 text-lg font-bold">{p.title}</h2>
               <p className="mt-1 font-semibold">{taka(QUICK_DENIM_UNIT_PRICE)}</p>
