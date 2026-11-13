@@ -107,7 +107,8 @@ describe('Bangladesh remains one preset, not the base case', () => {
   it('keeps its own rules when configured', async () => {
     const { addressInputSchema, phoneSchema } = await withCountry('BD')
 
-    expect(phoneSchema.parse('01712345678')).toBe('+8801712345678')
+    expect(phoneSchema.parse('01712345678')).toBe('01712345678')
+    expect(phoneSchema.parse('+8801712345678')).toBe('01712345678')
     expect(() =>
       addressInputSchema.parse({ ...usAddress, country: 'BD' }),
     ).toThrow()
