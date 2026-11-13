@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-import { startQuickDenim } from '@/modules/orders/actions'
+import { addQuickDenimVariant, startQuickDenim } from '@/modules/orders/actions'
 import { taka, QUICK_DENIM_UNIT_PRICE } from '@/lib/moymoy-quick-cod'
 
 type Variant = {
@@ -23,11 +24,15 @@ export function QuickDenimSelector({
   title,
   images,
   variants,
+  addMode = false,
+  returnSlug,
 }: {
   slug: string
   title: string
   images: { url: string; alt: string }[]
   variants: Variant[]
+  addMode?: boolean
+  returnSlug?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -51,12 +56,17 @@ export function QuickDenimSelector({
     if (!selected) return
     setError('')
     startTransition(async () => {
-      const response = await startQuickDenim({ slug, variantId: selected.id, quantity: 1 })
+      // Adding a second product must preserve every existing line. A normal
+      // first-purchase selection still begins a fresh Quick COD order.
+      const response = addMode
+        ? await addQuickDenimVariant({ slug, variantId: selected.id, quantity: 1 })
+        : await startQuickDenim({ slug, variantId: selected.id, quantity: 1 })
       if (!response.ok) {
         setError(response.error.message)
         return
       }
-      router.push(`/order/denim/checkout?product=${encodeURIComponent(slug)}`)
+      const checkoutSlug = addMode && returnSlug ? returnSlug : slug
+      router.push(`/order/denim/checkout?product=${encodeURIComponent(checkoutSlug)}`)
     })
   }
 
@@ -64,6 +74,7 @@ export function QuickDenimSelector({
     <div lang="bn" className="mx-auto max-w-2xl space-y-5 pb-24">
       <div className="text-center">
         <p className="text-xs font-semibold tracking-widest text-(--color-muted)">MOYMOY FASHION</p>
+        {addMode ? <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">আগের প্যান্টগুলো অর্ডারে আছে। এখন আরেকটি কালার ও সাইজ বেছে নিন।</p> : null}
         <h1 className="mt-2 text-2xl font-bold leading-snug sm:text-3xl">{title}</h1>
         <p className="mt-2 text-3xl font-bold">{taka(QUICK_DENIM_UNIT_PRICE)} <span className="text-base font-medium text-(--color-muted)">/ পিস</span></p>
         <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">🎁 যেকোনো ২ পিস নিলেই সারা দেশে ডেলিভারি ফ্রি!</p>
@@ -118,8 +129,12 @@ export function QuickDenimSelector({
         {error ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
         <button type="button" onClick={proceed} disabled={pending || !selected}
           className="min-h-13 w-full rounded-xl bg-stone-950 px-4 py-4 text-base font-bold text-white disabled:opacity-50">
-          {pending ? 'অপেক্ষা করুন…' : 'অর্ডার করতে এগিয়ে যান →'}
+          {pending ? 'অপেক্ষা করুন…' : addMode ? '＋ অর্ডারে এই প্যান্ট যোগ করুন →' : 'অর্ডার করতে এগিয়ে যান →'}
         </button>
+        {addMode && returnSlug ? (
+          <Link href={`/order/denim/checkout?product=${encodeURIComponent(returnSlug)}`}
+            className="block py-2 text-center text-sm font-semibold text-(--color-muted) underline underline-offset-4">আগের অর্ডারে ফিরে যান</Link>
+        ) : null}
       </section>
     </div>
   )

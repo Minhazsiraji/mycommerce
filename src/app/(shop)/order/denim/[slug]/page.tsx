@@ -12,11 +12,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function DirectDenimProduct({ params }: {
+export default async function DirectDenimProduct({ params, searchParams }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ add?: string; return?: string }>
 }) {
   await connection()
   const { slug } = await params
+  const { add, return: origin } = await searchParams
+  const addMode = add === '1' && typeof origin === 'string' && /^[a-z0-9-]{2,180}$/.test(origin)
   const product = await getCachedProductBySlug(slug)
   if (!product || product.status !== 'active' || !isQuickDenimProduct(product.title) ||
       !product.variants.some(v => v.price === QUICK_DENIM_UNIT_PRICE && v.stock > 0)) notFound()
@@ -24,6 +27,8 @@ export default async function DirectDenimProduct({ params }: {
   return (
     <QuickDenimSelector
       slug={product.slug}
+      addMode={addMode}
+      returnSlug={addMode ? origin : undefined}
       title={product.title}
       images={product.images.map(image => ({
         url: storage.url(image.r2Key, { width: 1200, height: 1400, fit: 'contain' }),
