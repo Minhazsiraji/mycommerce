@@ -338,7 +338,7 @@ export async function addQuickDenimVariant(input: unknown): Promise<ActionResult
     return fail('validation', 'নির্বাচিত কালার বা সাইজ পাওয়া যাচ্ছে না।')
   }
   const cart = await cartService.readCart()
-  if (!cart.id || cart.lines.length === 0 || cart.lines.some((l) => l.productSlug !== slug)) {
+  if (!cart.id || cart.lines.length === 0 || cart.lines.some((l) => !isQuickDenimProduct(l.productTitle) || l.unitPrice !== QUICK_DENIM_UNIT_PRICE)) {
     return fail('validation', 'আগে একটি ডেনিম প্যান্ট নির্বাচন করুন।')
   }
   if (cart.itemCount + quantity > QUICK_DENIM_MAX_ITEMS) {
