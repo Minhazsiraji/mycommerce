@@ -25,7 +25,11 @@ function bootPixel(pixelId: string) {
     // fbevents.js expects queued commands in that shape, not a rest array.
     const fbq: NonNullable<Window['fbq']> = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args)
-      else (fbq.queue ??= []).push(arguments as unknown as unknown[])
+      else {
+        // Meta's bootstrap intentionally stores the actual Arguments object.
+        // eslint-disable-next-line prefer-rest-params
+        (fbq.queue ??= []).push(arguments as unknown as unknown[])
+      }
     }
     fbq.loaded = true
     fbq.version = '2.0'
@@ -53,8 +57,12 @@ function bootPixel(pixelId: string) {
  * Commerce actions after the product view are CAPI-only.
  */
 async function emitProductView(pathname: string): Promise<boolean> {
-  if (!pathname.startsWith('/p/')) return false
-  const slug = pathname.slice(3).split('/')[0]
+  const slug = pathname.startsWith('/p/')
+    ? pathname.slice(3).split('/')[0]
+    : pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout'
+      && !pathname.startsWith('/order/denim/thanks/')
+      ? pathname.slice('/order/denim/'.length).split('/')[0]
+      : ''
   if (!slug) return false
 
   const prepared = await prepareViewContent({ slug })
@@ -76,7 +84,7 @@ async function emitProductView(pathname: string): Promise<boolean> {
   return true
 }
 
-export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean }) {
+export function MetaAnalytics({ pixelId, enabled, implicitConsent = false, hideConsentUi = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean; hideConsentUi?: boolean }) {
   const pathname = usePathname()
   const consent = useSyncExternalStore(
     (onChange) => {
@@ -121,14 +129,21 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       lastPage.current = pathname
     }
 
-    if (pathname.startsWith('/p/') && lastProductView.current !== pathname) {
+    if ((pathname.startsWith('/p/') ||
+      (pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout' &&
+        !pathname.startsWith('/order/denim/thanks/'))) &&
+      lastProductView.current !== pathname) {
       lastProductView.current = pathname
       void emitProductView(pathname)
     }
 
   }, [consent, pathname, pixelId])
 
-  if (!enabled || implicitConsent || (consent !== 'unset' && !choicesOpen)) return null
+  // In the dedicated Bangla COD journey, never cover the buying controls with
+  // a fixed banner. Optional analytics stay OFF unless actively enabled at
+  // checkout or via the footer privacy control. Prior consent is respected.
+  const quickDenim = pathname.startsWith('/order/denim')
+  if (!enabled || implicitConsent || hideConsentUi || (quickDenim && !choicesOpen) || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
@@ -163,6 +178,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
 }
 
 export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boolean; hidden?: boolean }) {
+  const pathname = usePathname()
   if (!enabled || hidden) return null
 
   return (
@@ -171,7 +187,7 @@ export function PrivacyChoicesButton({ enabled, hidden = false }: { enabled: boo
       onClick={() => window.dispatchEvent(new Event(META_PRIVACY_OPEN_EVENT))}
       className="min-h-11 text-xs underline underline-offset-4 hover:text-(--text-primary)"
     >
-      Privacy choices
+      {pathname.startsWith('/order/denim') ? 'কুকি ও গোপনীয়তার পছন্দ' : 'Privacy choices'}
     </button>
   )
 }

@@ -32,6 +32,7 @@ function bootGoogleTag(tagId: string, debugMode: boolean) {
   // gtag.js silently ignores plain arrays for 'config' and 'event' commands.
   // Keep this a normal function, not an arrow function.
   w.gtag ??= function (..._args: unknown[]) {
+    // eslint-disable-next-line prefer-rest-params
     w.dataLayer!.push(arguments as unknown as unknown[])
   }
 

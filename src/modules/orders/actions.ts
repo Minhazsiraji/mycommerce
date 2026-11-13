@@ -1,7 +1,14 @@
 'use server'
 
 import { refresh } from 'next/cache'
+import { after } from 'next/server'
 import { z } from 'zod'
+import { getProductBySlug } from '@/modules/catalog'
+import { readCart as readQuickCart, removeLine as removeQuickLine } from '@/modules/cart'
+import { addToCart as addToCartAction } from '@/modules/cart/actions'
+import { addressInputSchema } from '@/modules/accounts'
+import { trackLead } from '@/modules/meta/actions'
+import { isQuickDenimProduct, QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS } from '@/lib/moymoy-quick-cod'
 import { redirect } from 'next/navigation'
 
 import { fail, fromZodError, ok, type ActionResult } from '@/lib/action-result'
@@ -276,6 +283,104 @@ export async function placeOrder(
       // than Next.js replacing the entire page with a generic error screen.
       console.error('[orders] place order failed', unexpected)
       return fail('unexpected', 'We could not place your order. Please try again.')
+    }
+  }
+}
+
+/** Dedicated Messenger link checkout. Does not modify the ordinary checkout route. */
+const quickSelectionSchema = z.object({
+  slug: z.string().trim().min(2).max(180),
+  variantId: z.uuid(),
+  quantity: z.number().int().min(1).max(QUICK_DENIM_MAX_ITEMS),
+})
+
+const quickCodSchema = z.object({
+  slug: z.string().trim().min(2).max(180),
+  email: z.string().trim().toLowerCase().refine(
+    (value) => !value || z.email().safeParse(value).success,
+    'সঠিক ইমেইল লিখুন অথবা খালি রাখুন',
+  ),
+  address: addressInputSchema,
+})
+
+async function validQuickVariant(slug: string, variantId: string) {
+  const product = await getProductBySlug(slug)
+  if (!product || product.status !== 'active' || !isQuickDenimProduct(product.title)) return false
+  const variant = product.variants.find((v) => v.id === variantId)
+  return Boolean(variant && variant.stock > 0 && variant.price === QUICK_DENIM_UNIT_PRICE)
+}
+
+/** Starting a new fast order intentionally replaces this visitor's old cart. */
+export async function startQuickDenim(input: unknown): Promise<ActionResult<null>> {
+  const parsed = quickSelectionSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+  const { slug, variantId, quantity } = parsed.data
+  if (!(await validQuickVariant(slug, variantId))) {
+    return fail('validation', 'এই কালার/সাইজ এখন উপলব্ধ নেই। অন্যটি নির্বাচন করুন।')
+  }
+  const limiter = await rateLimit('quick-denim-select', 50, 3600)
+  if (!limiter.ok) return fail('conflict', tooManyRequests(limiter.retryAfter))
+  try {
+    const existing = await readQuickCart()
+    for (const line of existing.lines) await removeQuickLine(line.id)
+    return await addToCartAction({ variantId, quantity })
+  } catch {
+    return fail('unexpected', 'পণ্য নির্বাচন করা যায়নি। আবার চেষ্টা করুন।')
+  }
+}
+
+/** Add a second colour/size on the checkout screen without a separate cart page. */
+export async function addQuickDenimVariant(input: unknown): Promise<ActionResult<null>> {
+  const parsed = quickSelectionSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+  const { slug, variantId, quantity } = parsed.data
+  if (!(await validQuickVariant(slug, variantId))) {
+    return fail('validation', 'নির্বাচিত কালার বা সাইজ পাওয়া যাচ্ছে না।')
+  }
+  const cart = await readQuickCart()
+  if (!cart.id || cart.lines.length === 0 || cart.lines.some((l) => !isQuickDenimProduct(l.productTitle) || l.unitPrice !== QUICK_DENIM_UNIT_PRICE)) {
+    return fail('validation', 'আগে একটি ডেনিম প্যান্ট নির্বাচন করুন।')
+  }
+  if (cart.itemCount + quantity > QUICK_DENIM_MAX_ITEMS) {
+    return fail('validation', 'এক অর্ডারে সর্বোচ্চ ১০ পিস নেওয়া যাবে।')
+  }
+  return addToCartAction({ variantId, quantity })
+}
+
+export async function placeQuickDenimCod(
+  input: unknown,
+): Promise<ActionResult<{ orderNumber: string }>> {
+  const parsed = quickCodSchema.safeParse(input)
+  if (!parsed.success) return fromZodError(parsed.error)
+  if (!configuredPaymentMethods().includes('cod')) {
+    return fail('validation', 'এই মুহূর্তে ক্যাশ অন ডেলিভারি পাওয়া যাচ্ছে না।')
+  }
+  const limiter = await rateLimit('quick-denim-cod', 10, 3600)
+  if (!limiter.ok) return fail('conflict', tooManyRequests(limiter.retryAfter))
+  try {
+    const order = await service.placeOrder({
+      email: parsed.data.email,
+      address: parsed.data.address,
+      shippingRateId: '00000000-0000-4000-8000-000000000000', // not used in trusted quick-COD path
+      paymentMethod: 'cod',
+      saveAddress: false,
+    }, { quickDenimSlug: parsed.data.slug })
+    // A placed COD order is a lead, not a paid Purchase. Existing payment flow owns Purchase.
+    after(() =>
+      trackLead({
+        eventId: `cod-order:${order.id}`,
+        value: order.total / 100,
+        currency: 'BDT',
+        contentName: 'MoyMoy COD order submitted',
+      }).catch((error) => console.error('[meta] COD order lead failed', error)),
+    )
+    return ok({ orderNumber: order.orderNumber })
+  } catch (error) {
+    try {
+      return toResult(error)
+    } catch (unexpected) {
+      console.error('[quick-denim] checkout failed', unexpected)
+      return fail('unexpected', 'অর্ডার সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।')
     }
   }
 }

@@ -27,6 +27,7 @@ export {
 export type { Role, User, Session } from './schema'
 export {
   emailSchema,
+  addressInputSchema,
   passwordSchema,
   registerSchema,
   loginSchema,
