@@ -80,7 +80,7 @@ async function emitProductView(pathname: string): Promise<boolean> {
   return true
 }
 
-export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean }) {
+export function MetaAnalytics({ pixelId, enabled, implicitConsent = false, hideConsentUi = false }: { pixelId?: string; enabled: boolean; implicitConsent?: boolean; hideConsentUi?: boolean }) {
   const pathname = usePathname()
   const consent = useSyncExternalStore(
     (onChange) => {
@@ -139,7 +139,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
   // a fixed banner. Optional analytics stay OFF unless actively enabled at
   // checkout or via the footer privacy control. Prior consent is respected.
   const quickDenim = pathname.startsWith('/order/denim')
-  if (!enabled || implicitConsent || (quickDenim && !choicesOpen) || (consent !== 'unset' && !choicesOpen)) return null
+  if (!enabled || implicitConsent || hideConsentUi || (quickDenim && !choicesOpen) || (consent !== 'unset' && !choicesOpen)) return null
 
   return (
     <section
