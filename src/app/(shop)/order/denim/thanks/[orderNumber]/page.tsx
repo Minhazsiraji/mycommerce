@@ -32,6 +32,16 @@ export default async function QuickDenimThanks({
         <div className="flex justify-between"><span>ডেলিভারি চার্জ</span><strong>{order.shippingCost === 0 ? 'ফ্রি' : taka(order.shippingCost)}</strong></div>
         <div className="flex justify-between border-t border-(--color-border) pt-3 text-lg font-bold"><span>মোট পরিশোধ</span><span>{taka(order.total)}</span></div>
         <p className="rounded-lg bg-(--color-bg) p-3 text-sm">পেমেন্ট পদ্ধতি: Cash on Delivery — পণ্য হাতে পেয়ে টাকা পরিশোধ করবেন।</p>
+        <div role="note" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm leading-6 text-red-800">
+          <p className="font-bold">⚠️ রিটার্নের ডেলিভারি চার্জ</p>
+          <p className="mt-1">
+            ব্যক্তিগত কারণে পণ্য ফেরত দিতে চাইলে রিটার্ন ডেলিভারি চার্জ আপনাকে বহন করতে হবে।
+            ভুল বা ত্রুটিপূর্ণ পণ্য পেলে এই চার্জ প্রযোজ্য নয়।
+          </p>
+          <Link href="/returns" className="mt-1 inline-block font-semibold underline underline-offset-2">
+            রিটার্ন নীতি দেখুন
+          </Link>
+        </div>
       </div>
       <p className="text-sm text-(--color-muted)">আপনার অর্ডার নম্বরটি সংরক্ষণ করুন।</p>
       <Link href="/order/denim" className="inline-block rounded-xl bg-stone-950 px-6 py-3 font-semibold text-white">আরও ডেনিম দেখুন</Link>
