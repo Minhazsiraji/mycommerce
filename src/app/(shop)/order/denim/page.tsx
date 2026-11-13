@@ -28,7 +28,7 @@ export default async function DenimOrderLanding({ searchParams }: {
     <section lang="bn" className="mx-auto max-w-3xl space-y-5 pb-16">
       <div className="text-center">
         <p className="text-xs font-bold tracking-widest text-(--color-muted)">MOYMOY FASHION</p>
-        <h1 className="mt-2 text-2xl font-bold">{addMode ? 'আরেকটি প্যান্ট নির্বাচন করুন' : 'Men\u0026apos;s Semi-Baggy Denim'}</h1>
+        <h1 className="mt-2 text-2xl font-bold">{addMode ? 'আরেকটি প্যান্ট নির্বাচন করুন' : "Men's Semi-Baggy Denim"}</h1>
         {addMode ? (
           <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
             <p className="font-semibold">✓ আগের নির্বাচিত প্যান্টগুলো অর্ডারে থাকবে। ছবি দেখে নতুন কালার নির্বাচন করুন।</p>
