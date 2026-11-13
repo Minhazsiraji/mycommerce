@@ -350,7 +350,7 @@ export async function trackCodOrderLead(orderId: string): Promise<boolean> {
       city: order.shippingAddress.city,
       district: order.shippingAddress.district ?? '',
       country: order.shippingAddress.country,
-      postalCode: order.shippingAddress.postalCode,
+      postalCode: order.shippingAddress.postalCode ?? null,
       userId: order.userId,
       clientIpAddress: order.checkoutIp,
       clientUserAgent: attribution.clientUserAgent,
