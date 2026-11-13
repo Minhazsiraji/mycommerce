@@ -53,8 +53,12 @@ function bootPixel(pixelId: string) {
  * Commerce actions after the product view are CAPI-only.
  */
 async function emitProductView(pathname: string): Promise<boolean> {
-  if (!pathname.startsWith('/p/')) return false
-  const slug = pathname.slice(3).split('/')[0]
+  const slug = pathname.startsWith('/p/')
+    ? pathname.slice(3).split('/')[0]
+    : pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout'
+      && !pathname.startsWith('/order/denim/thanks/')
+      ? pathname.slice('/order/denim/'.length).split('/')[0]
+      : ''
   if (!slug) return false
 
   const prepared = await prepareViewContent({ slug })
@@ -121,7 +125,10 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false }: { p
       lastPage.current = pathname
     }
 
-    if (pathname.startsWith('/p/') && lastProductView.current !== pathname) {
+    if ((pathname.startsWith('/p/') ||
+      (pathname.startsWith('/order/denim/') && pathname !== '/order/denim/checkout' &&
+        !pathname.startsWith('/order/denim/thanks/'))) &&
+      lastProductView.current !== pathname) {
       lastProductView.current = pathname
       void emitProductView(pathname)
     }
