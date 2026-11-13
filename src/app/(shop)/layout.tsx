@@ -101,7 +101,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} implicitConsent={implicitAnalyticsConsent} />
+      <MetaAnalytics pixelId={meta.pixelId} enabled={analyticsEnabled} implicitConsent={implicitAnalyticsConsent} hideConsentUi={socialCommerceMode} />
       <MetaAttributionCapture enabled={meta.enabled} />
       <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
@@ -145,7 +145,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           copyright: socialCommerceMode ? (process.env.STORE_FOOTER_COPYRIGHT?.trim() || '© MoyMoy. All rights reserved.') : settings.footerCopyright,
         }}
         hideContact={socialCommerceMode}
-        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} hidden={implicitAnalyticsConsent} />}
+        privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} hidden={implicitAnalyticsConsent || socialCommerceMode} />}
       />
     </div>
   )
