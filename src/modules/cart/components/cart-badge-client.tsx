@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export const CART_INCREMENT_EVENT = 'mycommerce:cart-increment'
 
 export function CartBadgeClient({ initialCount }: { initialCount: number }) {
+  const pathname = usePathname()
   const [count, setCount] = useState(initialCount)
 
   useEffect(() => {
@@ -21,6 +23,10 @@ export function CartBadgeClient({ initialCount }: { initialCount: number }) {
     window.addEventListener(CART_INCREMENT_EVENT, onIncrement)
     return () => window.removeEventListener(CART_INCREMENT_EVENT, onIncrement)
   }, [])
+
+  // The Messenger-to-COD flow deliberately has no separate cart screen.
+  // The old global cart takes customers out of the short Bangla checkout.
+  if (pathname.startsWith('/order/denim')) return null
 
   return (
     <Link
