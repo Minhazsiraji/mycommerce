@@ -5,7 +5,7 @@ export const QUICK_DENIM_UNIT_PRICE = 75_000
 export const QUICK_DENIM_MAX_ITEMS = 10
 
 export function isQuickDenimProduct(title: string): boolean {
-  return /(?:denim|jeans|baggy)/i.test(title) && /(?:men'?s?|gents|male|semi[ -]?baggy)/i.test(title)
+  return /(?:denim|jeans|baggy)/i.test(title) && /\b(?:men|mens|men's|gents|male|semi[ -]?baggy)\b/i.test(title)
 }
 
 export function isDhakaCity(district: string, city: string): boolean {
