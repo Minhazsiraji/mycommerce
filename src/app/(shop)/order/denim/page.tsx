@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
 import { listActiveProducts } from '@/modules/catalog'
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 }
 
 export default async function DenimOrderLanding() {
+  await connection()
   // Discover live inventory; no hard-coded product IDs or fake colour choices.
   const searches = await Promise.all([
     listActiveProducts({ q: 'denim', sort: 'relevance', page: 1 }, { limit: 24 }),
