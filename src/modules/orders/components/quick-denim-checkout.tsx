@@ -2,14 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 
 import { BD_DISTRICTS, bdAreasFor, bdCitiesFor } from '@/lib/bd-locations'
 import { QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS, quickDenimShipping, taka } from '@/lib/moymoy-quick-cod'
 import { updateLineQuantity, removeLine } from '@/modules/cart/actions'
 import { addQuickDenimVariant, placeQuickDenimCod } from '@/modules/orders/actions'
-import { trackInitiateCheckout } from '@/modules/meta/actions'
-import { readMetaConsent, writeMetaConsent } from '@/modules/meta/components/client'
 
 type Line = {
   id: string
@@ -47,20 +45,8 @@ export function QuickDenimCheckout({
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [email, setEmail] = useState('')
-  const [analyticsConsent, setAnalyticsConsent] = useState(false)
   const availableVariants = variants.filter(v => v.stock > 0 && v.price === QUICK_DENIM_UNIT_PRICE)
   const [extraId, setExtraId] = useState(availableVariants[0]?.id ?? '')
-  const initiated = useRef(false)
-
-  useEffect(() => {
-    setAnalyticsConsent(readMetaConsent() === 'granted')
-  }, [])
-
-  useEffect(() => {
-    if (!analyticsConsent || initiated.current) return
-    initiated.current = true
-    void trackInitiateCheckout({})
-  }, [analyticsConsent])
 
   const thanaChoices = useMemo(() => {
     if (!district) return []
@@ -79,7 +65,9 @@ export function QuickDenimCheckout({
     ? quickDenimShipping(count, district, chosenArea.city).cost
     : count >= 2 ? 0 : null
   const total = shipping === null ? null : subtotal + shipping
-  const disabled = pending || !chosenArea || count < 1 || count > QUICK_DENIM_MAX_ITEMS
+  // Never disable the COD button for missing address fields: native form
+  // validation or a Bengali inline message must explain what to select.
+  const disabled = pending || count < 1 || count > QUICK_DENIM_MAX_ITEMS
 
   function changeQuantity(id: string, quantity: number) {
     setError('')
@@ -105,7 +93,14 @@ export function QuickDenimCheckout({
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (disabled || !chosenArea) return
+    if (disabled) return
+    if (!chosenArea) {
+      setError(!district
+        ? 'অর্ডার নিশ্চিত করতে আপনার জেলা নির্বাচন করুন।'
+        : 'অর্ডার নিশ্চিত করতে থানা / উপজেলা নির্বাচন করুন।')
+      document.getElementById(district ? 'quick-thana' : 'quick-district')?.focus()
+      return
+    }
     setError('')
     startTransition(async () => {
       const result = await placeQuickDenimCod({
@@ -197,7 +192,7 @@ export function QuickDenimCheckout({
         </div>
         <div>
           <label htmlFor="quick-district" className="mb-1 block text-sm font-semibold">জেলা *</label>
-          <select id="quick-district" required value={district} onChange={e=>{setDistrict(e.target.value);setThanaKey('')}}
+          <select id="quick-district" required value={district} onChange={e=>{setDistrict(e.target.value);setThanaKey('');setError('')}}
             className="h-12 w-full rounded-lg border border-(--color-border) bg-(--color-bg) px-3">
             <option value="">জেলা নির্বাচন করুন</option>
             {BD_DISTRICTS.map(d=><option key={d} value={d}>{d}</option>)}
@@ -205,7 +200,7 @@ export function QuickDenimCheckout({
         </div>
         <div>
           <label htmlFor="quick-thana" className="mb-1 block text-sm font-semibold">থানা / উপজেলা / পোস্ট এলাকা *</label>
-          <select id="quick-thana" required disabled={!district} value={thanaKey} onChange={e=>setThanaKey(e.target.value)}
+          <select id="quick-thana" required disabled={!district} value={thanaKey} onChange={e=>{setThanaKey(e.target.value);setError('')}}
             className="h-12 w-full rounded-lg border border-(--color-border) bg-(--color-bg) px-3 disabled:opacity-50">
             <option value="">থানা নির্বাচন করুন</option>
             {thanaChoices.map(row=><option key={row.key} value={row.key}>{row.upazila} — {row.city}</option>)}
@@ -227,15 +222,7 @@ export function QuickDenimCheckout({
           <p>পণ্য হাতে পেয়ে কুরিয়ার কর্মীকে টাকা পরিশোধ করবেন।</p>
           <p className="mt-2">এক পিসে ঢাকা সিটির ডেলিভারি ৳৮০, অন্য সব জায়গায় ৳১২০। দুই বা তার বেশি পিসে ডেলিভারি ফ্রি।</p>
         </div>
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-(--color-border) p-3 text-xs leading-5 text-(--color-muted)">
-          <input type="checkbox" className="mt-1 h-4 w-4" checked={analyticsConsent}
-            onChange={e => {
-              const allow = e.target.checked
-              setAnalyticsConsent(allow)
-              writeMetaConsent(allow ? 'granted' : 'denied')
-            }} />
-          <span>ঐচ্ছিক: Meta ও Google Analytics ব্যবহার করে পণ্যের ভিউ, অর্ডার এবং বিজ্ঞাপনের ফলাফল পরিমাপের অনুমতি দিচ্ছি। এটি ছাড়াও অর্ডার করা যাবে।</span>
-        </label>
+        {district && !chosenArea ? <p className="rounded-lg bg-amber-50 p-3 text-sm font-medium text-amber-800" role="status">জেলা নির্বাচন করেছেন। এবার উপরের থানা / উপজেলা নির্বাচন করুন, তারপর COD অর্ডার কনফার্ম করুন।</p> : null}
         {error ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
         <button type="submit" disabled={disabled}
           className="min-h-14 w-full rounded-xl bg-stone-950 px-4 text-base font-bold text-white disabled:opacity-50">
