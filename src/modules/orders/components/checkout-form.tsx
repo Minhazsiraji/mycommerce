@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import { Input } from '@/components/ui/input'
+// Client-safe pure schema: the accounts barrel also exports server-only code.
+// eslint-disable-next-line boundaries/entry-point
 import { bdPhoneSchema } from '@/modules/accounts/validators'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'

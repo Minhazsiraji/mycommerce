@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
-import { listQuickDenimProducts } from '@/modules/orders/quick-denim-catalog'
+import { listQuickDenimProducts } from '@/modules/orders'
 import { QUICK_DENIM_UNIT_PRICE, taka } from '@/lib/moymoy-quick-cod'
 import { storage } from '@/lib/storage'
 
@@ -23,7 +23,7 @@ export default async function DenimOrderLanding() {
     <section lang="bn" className="mx-auto max-w-3xl space-y-5 pb-16">
       <div className="text-center">
         <p className="text-xs font-bold tracking-widest text-(--color-muted)">MOYMOY FASHION</p>
-        <h1 className="mt-2 text-2xl font-bold">Men's Semi-Baggy Denim</h1>
+        <h1 className="mt-2 text-2xl font-bold">Men&apos;s Semi-Baggy Denim</h1>
         <p className="mt-2 text-lg font-semibold">মাত্র {taka(QUICK_DENIM_UNIT_PRICE)} / পিস</p>
         <p className="mt-2 text-sm font-semibold text-emerald-700">২ পিসে সারা দেশে Free Delivery</p>
       </div>

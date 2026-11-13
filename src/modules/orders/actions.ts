@@ -4,9 +4,9 @@ import { refresh } from 'next/cache'
 import { after } from 'next/server'
 import { z } from 'zod'
 import { getProductBySlug } from '@/modules/catalog'
-import * as cartService from '@/modules/cart/service'
+import { readCart as readQuickCart, removeLine as removeQuickLine } from '@/modules/cart'
 import { addToCart as addToCartAction } from '@/modules/cart/actions'
-import { addressInputSchema } from '@/modules/accounts/validators'
+import { addressInputSchema } from '@/modules/accounts'
 import { trackLead } from '@/modules/meta/actions'
 import { isQuickDenimProduct, QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS } from '@/lib/moymoy-quick-cod'
 import { redirect } from 'next/navigation'
@@ -321,8 +321,8 @@ export async function startQuickDenim(input: unknown): Promise<ActionResult<null
   const limiter = await rateLimit('quick-denim-select', 50, 3600)
   if (!limiter.ok) return fail('conflict', tooManyRequests(limiter.retryAfter))
   try {
-    const existing = await cartService.readCart()
-    for (const line of existing.lines) await cartService.removeLine(line.id)
+    const existing = await readQuickCart()
+    for (const line of existing.lines) await removeQuickLine(line.id)
     return await addToCartAction({ variantId, quantity })
   } catch {
     return fail('unexpected', 'পণ্য নির্বাচন করা যায়নি। আবার চেষ্টা করুন।')
@@ -337,7 +337,7 @@ export async function addQuickDenimVariant(input: unknown): Promise<ActionResult
   if (!(await validQuickVariant(slug, variantId))) {
     return fail('validation', 'নির্বাচিত কালার বা সাইজ পাওয়া যাচ্ছে না।')
   }
-  const cart = await cartService.readCart()
+  const cart = await readQuickCart()
   if (!cart.id || cart.lines.length === 0 || cart.lines.some((l) => !isQuickDenimProduct(l.productTitle) || l.unitPrice !== QUICK_DENIM_UNIT_PRICE)) {
     return fail('validation', 'আগে একটি ডেনিম প্যান্ট নির্বাচন করুন।')
   }

@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 import { readCart } from '@/modules/cart'
 import { getCachedProductBySlug } from '@/modules/catalog'
-import { listQuickDenimProducts } from '@/modules/orders/quick-denim-catalog'
+import { listQuickDenimProducts } from '@/modules/orders'
 import { QuickDenimCheckout } from '@/modules/orders/components/quick-denim-checkout'
 import { QUICK_DENIM_UNIT_PRICE, isQuickDenimProduct } from '@/lib/moymoy-quick-cod'
 

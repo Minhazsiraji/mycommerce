@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
-import { getVisibleOrder } from '@/modules/orders/service'
+import { getVisibleOrder } from '@/modules/orders'
 import { taka } from '@/lib/moymoy-quick-cod'
 
 export const metadata: Metadata = {

@@ -25,7 +25,11 @@ function bootPixel(pixelId: string) {
     // fbevents.js expects queued commands in that shape, not a rest array.
     const fbq: NonNullable<Window['fbq']> = function (...args: unknown[]) {
       if (fbq.callMethod) fbq.callMethod(...args)
-      else (fbq.queue ??= []).push(arguments as unknown as unknown[])
+      else {
+        // Meta's bootstrap intentionally stores the actual Arguments object.
+        // eslint-disable-next-line prefer-rest-params
+        (fbq.queue ??= []).push(arguments as unknown as unknown[])
+      }
     }
     fbq.loaded = true
     fbq.version = '2.0'

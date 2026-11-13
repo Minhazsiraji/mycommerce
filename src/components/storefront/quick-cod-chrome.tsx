@@ -35,7 +35,7 @@ export function ShopHeaderByRoute({
           )}
           <span className="min-w-0">
             <span className="block text-lg font-extrabold leading-5 tracking-tight sm:text-xl">MoyMoy <span className="text-amber-700">Fashion</span></span>
-            <span className="block text-[11px] font-medium leading-4 text-slate-500">Men's Denim Collection</span>
+            <span className="block text-[11px] font-medium leading-4 text-slate-500">Men&apos;s Denim Collection</span>
           </span>
         </Link>
         <div className="flex shrink-0 items-center gap-1.5 text-right text-[11px] font-semibold text-emerald-800 sm:text-sm">

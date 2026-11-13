@@ -11,10 +11,6 @@ export function CartBadgeClient({ initialCount }: { initialCount: number }) {
   const [count, setCount] = useState(initialCount)
 
   useEffect(() => {
-    setCount(initialCount)
-  }, [initialCount])
-
-  useEffect(() => {
     function onIncrement(event: Event) {
       const quantity = event instanceof CustomEvent && typeof event.detail === 'number' ? event.detail : 1
       setCount((current) => Math.min(99, current + quantity))
