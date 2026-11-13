@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
 import { readCart } from '@/modules/cart'
@@ -14,12 +15,13 @@ export const metadata: Metadata = {
 export default async function DenimQuickCheckout({ searchParams }: {
   searchParams: Promise<{ product?: string }>
 }) {
+  await connection()
   const { product: slug } = await searchParams
   if (!slug || !/^[a-z0-9-]{2,180}$/.test(slug)) redirect('/order/denim')
 
   const [cart, product] = await Promise.all([readCart(), getCachedProductBySlug(slug)])
   if (!product || product.status !== 'active' || !isQuickDenimProduct(product.title)) redirect('/order/denim')
-  if (!cart.id || !cart.lines.length || cart.lines.some(line =>
+  if (!cart.id || !cart.lines.length || cart.hasIssues || cart.lines.some(line =>
       line.productSlug !== product.slug || line.unitPrice !== QUICK_DENIM_UNIT_PRICE || line.unavailable
     )) redirect(`/order/denim/${product.slug}`)
 
