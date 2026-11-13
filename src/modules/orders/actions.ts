@@ -7,7 +7,7 @@ import { getProductBySlug } from '@/modules/catalog'
 import { readCart as readQuickCart, removeLine as removeQuickLine } from '@/modules/cart'
 import { addToCart as addToCartAction } from '@/modules/cart/actions'
 import { addressInputSchema } from '@/modules/accounts'
-import { trackLead } from '@/modules/meta/actions'
+import { trackCodOrderLead } from '@/modules/meta'
 import { isQuickDenimProduct, QUICK_DENIM_UNIT_PRICE, QUICK_DENIM_MAX_ITEMS } from '@/lib/moymoy-quick-cod'
 import { redirect } from 'next/navigation'
 
@@ -365,14 +365,12 @@ export async function placeQuickDenimCod(
       paymentMethod: 'cod',
       saveAddress: false,
     }, { quickDenimSlug: parsed.data.slug })
-    // A placed COD order is a lead, not a paid Purchase. Existing payment flow owns Purchase.
+    // An accepted COD order is a Lead, not a paid Purchase. Send customer
+    // matching only when the order has persisted consented attribution.
     after(() =>
-      trackLead({
-        eventId: `cod-order:${order.id}`,
-        value: order.total / 100,
-        currency: 'BDT',
-        contentName: 'MoyMoy COD order submitted',
-      }).catch((error) => console.error('[meta] COD order lead failed', error)),
+      trackCodOrderLead(order.id).catch((error) =>
+        console.error('[meta] COD order Lead delivery failed', error),
+      ),
     )
     return ok({ orderNumber: order.orderNumber })
   } catch (error) {

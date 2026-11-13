@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   META_CONSENT_EVENT,
+  META_PIXEL_READY_EVENT,
   META_PRIVACY_OPEN_EVENT,
   type MetaConsent,
 } from '../consent'
@@ -50,6 +51,8 @@ function bootPixel(pixelId: string) {
   }
 
   window.fbq('consent', 'grant')
+  // Let route-specific, opt-in funnel events wait for the Pixel bootstrap.
+  window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
 }
 
 /**
@@ -118,7 +121,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false, hideC
   }, [])
 
   useEffect(() => {
-    if (!pixelId || consent !== 'granted') {
+    if (!enabled || !pixelId || consent !== 'granted') {
       if (consent === 'denied' && window.fbq) window.fbq('consent', 'revoke')
       return
     }
@@ -137,7 +140,7 @@ export function MetaAnalytics({ pixelId, enabled, implicitConsent = false, hideC
       void emitProductView(pathname)
     }
 
-  }, [consent, pathname, pixelId])
+  }, [consent, enabled, pathname, pixelId])
 
   // In the dedicated Bangla COD journey, never cover the buying controls with
   // a fixed banner. Optional analytics stay OFF unless actively enabled at
