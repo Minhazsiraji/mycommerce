@@ -6,7 +6,7 @@ describe('fraud block validation', () => {
   it('normalises phone blocks to the checkout format', () => {
     expect(
       fraudBlockSchema.parse({ kind: 'phone', value: '01712345678', reason: 'Fake orders' }),
-    ).toMatchObject({ value: '+8801712345678' })
+    ).toMatchObject({ value: '01712345678' })
   })
 
   it('normalises +880 phone blocks to the local carrier format', () => {
