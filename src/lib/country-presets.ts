@@ -53,7 +53,7 @@ function normalizeBdLocalPhone(value: string) {
   if (digits.startsWith('88') && digits.slice(2).startsWith('01')) digits = digits.slice(2)
   // +8801XXXXXXXXX and 008801XXXXXXXXX lose the leading domestic zero
   // when the country prefix is stripped; restore it for courier-ready 01 numbers.
-  if (/^1[3-9]\\d{8}$/.test(digits)) digits = `0${digits}`
+  if (/^1[3-9]\d{8}$/.test(digits)) digits = `0${digits}`
   return digits
 }
 
