@@ -8,6 +8,9 @@ import { BD_DISTRICTS, bdAreasFor, bdCitiesFor } from '@/lib/bd-locations'
 import { QUICK_DENIM_MAX_ITEMS, quickDenimShipping, taka } from '@/lib/moymoy-quick-cod'
 import { updateLineQuantity, removeLine } from '@/modules/cart/actions'
 import { placeQuickDenimCod } from '@/modules/orders/actions'
+// This narrow cross-module client import avoids bundling the server-only Meta barrel.
+// eslint-disable-next-line boundaries/entry-point
+import { QuickCodFunnelTracker } from '@/modules/meta/components/quick-cod-funnel-tracker'
 
 type Line = {
   id: string
@@ -116,6 +119,7 @@ export function QuickDenimCheckout({
 
   return (
     <div lang="bn" className="mx-auto max-w-2xl space-y-5 pb-28">
+      <QuickCodFunnelTracker lines={lines} />
       <div className="text-center">
         <p className="text-xs font-semibold tracking-widest text-(--color-muted)">MOYMOY FASHION</p>
         <h1 className="mt-2 text-2xl font-bold">আপনার অর্ডার সম্পন্ন করুন</h1>

@@ -14,6 +14,7 @@ import {
 } from './attribution'
 import { LEGACY_CONSENT_COOKIE, META_CONSENT_COOKIE, META_CONSENT_GRANTED } from './consent'
 import { purchaseEventId } from './event-id'
+import { buildConsentedCodLeadMatch } from './lead-match'
 import { getEffectiveMetaConfig } from './integration-config'
 import {
   hashUserData,
@@ -316,6 +317,48 @@ export async function trackLead(
     data.currency = custom.currency
   }
   await sendRequestEvent('Lead', eventId, data, '/')
+}
+
+/**
+ * Send a qualified COD order as a Lead, using hashed matching data from
+ * the VERIFIED persisted order rather than arbitrary untrusted browser input.
+ * Never send if the visitor has not granted analytics consent or no consented
+ * order attribution was recorded. Purchase remains exclusively payment-led.
+ */
+export async function trackCodOrderLead(orderId: string): Promise<boolean> {
+  if (!(await configured()) || !(await hasConsent())) return false
+
+  const context = await repo.getPurchaseContext(orderId)
+  if (!context || context.order.paymentMethod !== 'cod' || context.order.status !== 'confirmed') {
+    return false
+  }
+
+  const { order, attribution } = context
+  const result = await postEvent({
+    eventName: 'Lead',
+    eventId: `cod-order:${order.id}`,
+    eventSourceUrl: safeSourceUrl(attribution.eventSourceUrl, '/order/denim/checkout'),
+    customData: {
+      content_name: 'MoyMoy COD order submitted',
+      currency: CURRENCY,
+      value: minorToMetaValue(order.total),
+    },
+    userData: buildConsentedCodLeadMatch({
+      recipient: order.shippingAddress.recipient ?? '',
+      email: order.email,
+      phone: order.phone,
+      city: order.shippingAddress.city,
+      district: order.shippingAddress.district ?? '',
+      country: order.shippingAddress.country,
+      postalCode: order.shippingAddress.postalCode,
+      userId: order.userId,
+      clientIpAddress: order.checkoutIp,
+      clientUserAgent: attribution.clientUserAgent,
+      fbp: attribution.fbp,
+      fbc: attribution.fbc,
+    }),
+  })
+  return result.sent
 }
 
 /** Best-effort and called only after the commercial order transaction commits. */

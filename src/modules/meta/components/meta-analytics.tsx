@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import {
   META_CONSENT_EVENT,
+  META_PIXEL_READY_EVENT,
   META_PRIVACY_OPEN_EVENT,
   type MetaConsent,
 } from '../consent'
@@ -50,6 +51,8 @@ function bootPixel(pixelId: string) {
   }
 
   window.fbq('consent', 'grant')
+  // Let route-specific, opt-in funnel events wait for the Pixel bootstrap.
+  window.dispatchEvent(new Event(META_PIXEL_READY_EVENT))
 }
 
 /**
