@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: `%s | ${STORE_CONFIG.name}`,
   },
   description: siteDescription,
-  ...(STORE_CONFIG.canonicalUrl === 'https://moymoy.sirajibd.com' && STORE_CONFIG.name === 'MoyMoy Fashion'
+  ...(STORE_CONFIG.name === 'MoyMoy Fashion' && process.env.VERCEL_GIT_COMMIT_REF === 'agent/moymoy-storefront'
     ? { verification: { google: 'ixDOpjZrJhC0vPN3G18fRntRl1esusoAbH82QZ0T4Pg' } }
     : {}),
   /**
