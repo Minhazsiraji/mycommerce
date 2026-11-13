@@ -5,6 +5,7 @@ import { connection } from 'next/server'
 import { AnnouncementBar } from '@/components/storefront/announcement-bar'
 import { SiteFooter } from '@/components/storefront/site-footer'
 import { StorefrontHeader } from '@/components/storefront/storefront-header'
+import { ShopHeaderByRoute, ShopFooterByRoute } from '@/components/storefront/quick-cod-chrome'
 import { formatBdt } from '@/lib/money'
 import { STORE_CONFIG } from '@/lib/store-config'
 import { CartBadge, CartBadgeFallback } from '@/modules/cart/components/cart-badge'
@@ -105,6 +106,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       <MetaAttributionCapture enabled={meta.enabled} />
       <ContactLinkTracker enabled={meta.enabled} />
       <GoogleAnalytics tagId={google.tagId} enabled={google.enabled} />
+      <ShopHeaderByRoute logoUrl={socialCommerceMode ? socialLogoPath : settings.logoUrl}>
       <div className={socialCommerceMode ? 'px-3 pt-3 sm:px-6 sm:pt-4 lg:px-8 lg:pt-6' : 'px-4 pt-4 sm:px-6 lg:px-8 lg:pt-6'}>
         <div className="mx-auto w-full max-w-(--container-wide) overflow-hidden rounded-(--radius-xl) border border-white/70 bg-(image:--gradient-brand-soft) shadow-(--shadow-1) backdrop-blur-[12px] dark:border-white/20">
           <StorefrontHeader
@@ -127,6 +129,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
           {!socialCommerceMode ? <AnnouncementBar facts={announcementFacts} /> : null}
         </div>
       </div>
+      </ShopHeaderByRoute>
 
       <main
         id="main-content"
@@ -136,6 +139,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         {children}
       </main>
 
+      <ShopFooterByRoute>
       <SiteFooter
         categories={socialCommerceMode ? [] : topCategories}
         footer={{
@@ -147,6 +151,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         hideContact={socialCommerceMode}
         privacyChoices={<PrivacyChoicesButton enabled={analyticsEnabled} hidden={implicitAnalyticsConsent || socialCommerceMode} />}
       />
+      </ShopFooterByRoute>
     </div>
   )
 }
