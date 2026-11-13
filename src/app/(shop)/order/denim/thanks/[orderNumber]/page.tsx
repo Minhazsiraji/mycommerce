@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import type { Metadata } from 'next'
 
 import { getVisibleOrder } from '@/modules/orders/service'
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default async function QuickDenimThanks({
   params,
 }: { params: Promise<{ orderNumber: string }> }) {
+  await connection()
   const { orderNumber } = await params
   const order = await getVisibleOrder(orderNumber)
   if (!order || order.paymentMethod !== 'cod') notFound()
